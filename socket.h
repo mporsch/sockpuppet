@@ -8,12 +8,15 @@
 class Socket
 {
 public:
-  Socket(SocketAddress const &address);
+  Socket(SocketAddress const &bindAddress);
   ~Socket();
 
-  void Transmit(char const *data, size_t size);
+  void Transmit(char const *data,
+                size_t size,
+                SocketAddress const &dstAddress);
 
-  void Receive(char *data, size_t size, long timeout);
+  size_t Receive(char *data,
+                 size_t size);
 
 private:
   int m_fd;

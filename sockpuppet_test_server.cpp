@@ -9,14 +9,22 @@ try {
   if(argc < 2) {
     std::cout << "Usage: "
       << argv[0] << " "
-      << "URI\n\n"
-      << "\t where URI is an address string to bind to, e.g. \"localhost:8554\""
+      << "SOURCE\n\n"
+      << "\t where SOURCE is an address string to bind to, "
+         "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    SocketAddress address(argv[1]);
-    std::cout << std::to_string(address) << std::endl;
+    SocketAddress src(argv[1]);
+    Socket sock(src);
 
-    Socket socket(address);
+    std::cout << "receiving from " << std::to_string(src) << std::endl;
+
+    char buffer[256];
+    for(;;) {
+      if(auto received = sock.Receive(buffer, sizeof(buffer))) {
+        std::cout << std::string(buffer, received) << std::endl;
+      }
+    }
   }
 
   return EXIT_SUCCESS;

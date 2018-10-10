@@ -11,8 +11,18 @@ SocketAddress::SocketAddress(uint16_t port)
 {
 }
 
+SocketAddress::SocketAddress(SocketAddress &&other)
+  : priv(std::move(other.priv))
+{
+}
+
 SocketAddress::~SocketAddress()
 {
+}
+
+SocketAddress &SocketAddress::operator=(SocketAddress &&other)
+{
+  priv = std::move(other.priv);
 }
 
 namespace std {

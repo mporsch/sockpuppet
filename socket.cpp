@@ -7,14 +7,19 @@
 
 #include <stdexcept> // for std::runtime_error
 
-Socket::Socket(SocketAddress const &address)
-  : m_fd(::socket(address.priv->info->ai_family, SOCK_DGRAM, IPPROTO_UDP))
+Socket::Socket(SocketAddress const &bindAddress)
+  : m_fd(::socket(bindAddress.priv->info->ai_family, SOCK_DGRAM, IPPROTO_UDP))
 {
   if(m_fd < 0) {
-    throw std::runtime_error("failed to create socket");
+    throw std::runtime_error("failed to create socket: "
+                             + std::to_string(errno));
   } else {
-    if(bind(m_fd, address.priv->info->ai_addr, address.priv->info->ai_addrlen)) {
-      throw std::runtime_error("failed to bind socket on address " + std::to_string(address));
+    if(bind(m_fd,
+            bindAddress.priv->info->ai_addr,
+            bindAddress.priv->info->ai_addrlen)) {
+      throw std::runtime_error("failed to bind socket on address "
+                               + std::to_string(bindAddress) + ": "
+                               + std::to_string(errno));
     }
   }
 }
@@ -24,12 +29,21 @@ Socket::~Socket()
   ::close(m_fd);
 }
 
-void Socket::Transmit(char const *data, size_t size)
+void Socket::Transmit(char const *data, size_t size,
+  SocketAddress const &dstAddress)
 {
-
+  for(auto info = dstAddress.priv->info.get();
+      info != nullptr;
+      info = info->ai_next) {
+    if(size != ::sendto(m_fd, data, size, 0,
+        info->ai_addr, info->ai_addrlen)) {
+      throw std::runtime_error("failed to transmit: "
+                               + std::to_string(errno));
+    }
+  }
 }
 
-void Socket::Receive(char *data, size_t size, long timeout)
+size_t Socket::Receive(char *data, size_t size)
 {
-
+  return ::recv(m_fd, data, size, 0);
 }
