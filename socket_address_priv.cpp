@@ -1,4 +1,5 @@
 #include "socket_address_priv.h"
+#include "socket_guard.h" // for SocketGuard
 
 #ifdef _WIN32
 # include <Ws2tcpip.h> // for getaddrinfo
@@ -54,6 +55,8 @@ namespace {
       }
     }
 
+    SocketGuard guard;
+
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_DGRAM;
@@ -73,6 +76,8 @@ namespace {
 
   addrinfo *ParsePort(uint16_t port)
   {
+    SocketGuard guard;
+
     auto const portStr = std::to_string(port);
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
@@ -108,6 +113,8 @@ SocketAddress::SocketAddressPriv::SocketAddressPriv(uint16_t port)
 namespace std {
   std::string to_string(SocketAddress::SocketAddressPriv const &addr)
   {
+    SocketGuard guard;
+
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
     if(auto result = getnameinfo(
