@@ -35,7 +35,7 @@ Socket::~Socket()
   closesocket(m_fd);
 #else
   ::close(m_fd);
-#endif _WIN32
+#endif // _WIN32
 }
 
 void Socket::Transmit(char const *data, size_t size,
