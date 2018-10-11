@@ -41,14 +41,17 @@ Socket::~Socket()
 void Socket::Transmit(char const *data, size_t size,
   SocketAddress const &dstAddress)
 {
+  bool success = false;
   for(auto info = dstAddress.priv->info.get();
       info != nullptr;
       info = info->ai_next) {
-    if(size != ::sendto(m_fd, data, size, 0,
-        info->ai_addr, info->ai_addrlen)) {
-      throw std::runtime_error("failed to transmit: "
-                               + std::to_string(errno));
-    }
+    success |= (size == ::sendto(m_fd, data, size, 0,
+                                 info->ai_addr, info->ai_addrlen));
+  }
+
+  if(!success) {
+    throw std::runtime_error("failed to transmit: "
+                             + std::to_string(errno));
   }
 }
 
