@@ -1,9 +1,14 @@
 #include "socket.h"
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 
-#include <arpa/inet.h> // for IPPROTO_UDP
-#include <sys/socket.h> // for ::socket
-#include <unistd.h> // for ::close
+#ifdef _WIN32
+# include <winsock2.h> // for ::socket
+# pragma comment(lib, "Ws2_32.lib")
+#else
+# include <arpa/inet.h> // for IPPROTO_UDP
+# include <sys/socket.h> // for ::socket
+# include <unistd.h> // for ::close
+#endif // _WIN32
 
 #include <stdexcept> // for std::runtime_error
 
@@ -26,7 +31,11 @@ Socket::Socket(SocketAddress const &bindAddress)
 
 Socket::~Socket()
 {
+#ifdef _WIN32
+  closesocket(m_fd);
+#else
   ::close(m_fd);
+#endif _WIN32
 }
 
 void Socket::Transmit(char const *data, size_t size,

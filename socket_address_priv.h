@@ -1,9 +1,16 @@
 #ifndef SOCKET_ADDRESS_PRIV_H
 #define SOCKET_ADDRESS_PRIV_H
 
-#include "socket_address.h"
+#include "socket_address.h" // for SocketAddress
 
-#include <netdb.h> // for addrinfo
+#ifdef _WIN32
+# pragma push_macro("NOMINMAX")
+# define NOMINMAX // to avoid overwriting min()/max()
+# include <Winsock2.h> // for addrinfo
+# pragma pop_macro("NOMINMAX")
+#else
+# include <netdb.h> // for addrinfo
+#endif // _WIN32
 
 #include <cstdint> // for uint16_t
 #include <memory> // for std::unique_ptr

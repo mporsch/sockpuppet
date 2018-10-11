@@ -1,5 +1,10 @@
 #include "socket_address_priv.h"
 
+#ifdef _WIN32
+# include <Ws2tcpip.h> // for getaddrinfo
+# pragma comment(lib, "Ws2_32.lib")
+#endif // _WIN32
+
 #include <stdexcept> // for std::runtime_error
 
 namespace {
