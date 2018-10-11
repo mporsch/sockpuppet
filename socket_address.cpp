@@ -23,6 +23,7 @@ SocketAddress::~SocketAddress()
 SocketAddress &SocketAddress::operator=(SocketAddress &&other)
 {
   priv = std::move(other.priv);
+  return *this;
 }
 
 namespace std {
