@@ -20,7 +20,7 @@ void Client()
 
   char buffer[256];
   for(int i = 0; i < 10; ++i) {
-    int const received = client.Receive(buffer, sizeof(buffer));
+    auto const received = client.Receive(buffer, sizeof(buffer));
     if(received > 0U
     && std::string(buffer, received).find("hello") != std::string::npos) {
       return;

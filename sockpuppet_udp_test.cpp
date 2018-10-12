@@ -5,8 +5,10 @@
 #include <string> // for std::string
 #include <thread> // for std::thread
 
+bool success = true;
+
 void Server()
-{
+try {
   SocketAddress src(8554);
   SocketUdp server(src);
 
@@ -14,7 +16,7 @@ void Server()
 
   char buffer[256];
   for(int i = 0; i < 4; ++i) {
-    int const received = server.Receive(buffer, sizeof(buffer));
+    auto const received = server.Receive(buffer, sizeof(buffer));
     if(received > 0U
     && std::string(buffer, received).find("hello") != std::string::npos) {
       return;
@@ -22,10 +24,13 @@ void Server()
   }
 
   throw std::runtime_error("failed to receive hello");
+} catch (std::exception const &e) {
+  std::cerr << e.what() << std::endl;
+  success = false;
 }
 
 void Client()
-{
+try {
   SocketAddress src(0);
   SocketUdp client(src);
   SocketAddress dst("localhost:8554");
@@ -42,10 +47,13 @@ void Client()
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
+} catch (std::exception const &e) {
+  std::cerr << e.what() << std::endl;
+  success = false;
 }
 
 int main(int, char **)
-try {
+{
   std::thread server(Server);
   std::thread client(Client);
 
@@ -56,8 +64,5 @@ try {
     client.join();
   }
 
-  return EXIT_SUCCESS;
-} catch (std::exception const &e) {
-  std::cerr << e.what() << std::endl;
-  return EXIT_FAILURE;
+  return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }
