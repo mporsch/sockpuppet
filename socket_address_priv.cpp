@@ -88,8 +88,6 @@ namespace {
 
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = IPPROTO_UDP;
     hints.ai_flags = AI_PASSIVE |
         (isNumericHost ? AI_NUMERICHOST : 0) |
         (isNumericServ ? AI_NUMERICSERV : 0);
@@ -109,8 +107,6 @@ namespace {
     auto const portStr = std::to_string(port);
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = IPPROTO_UDP;
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
     addrinfo *info;
     if(auto result = getaddrinfo(nullptr, portStr.c_str(), &hints, &info)) {
