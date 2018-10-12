@@ -17,7 +17,7 @@ try {
     SocketAddress src(argv[1]);
     SocketUdp sock(src);
 
-    std::cout << "receiving from " << std::to_string(src) << std::endl;
+    std::cout << "receiving at " << std::to_string(src) << std::endl;
 
     char buffer[256];
     for(;;) {

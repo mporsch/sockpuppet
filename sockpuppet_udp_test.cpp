@@ -7,7 +7,10 @@
 
 void Server()
 {
-  SocketUdp server(SocketAddress("localhost:8554"));
+  SocketAddress src(8554);
+  SocketUdp server(src);
+
+  std::cout << "receiving at " << std::to_string(src) << std::endl;
 
   char buffer[256];
   for(int i = 0; i < 4; ++i) {
@@ -23,13 +26,21 @@ void Server()
 
 void Client()
 {
-  SocketUdp client(SocketAddress(0));
+  SocketAddress src(0);
+  SocketUdp client(src);
+  SocketAddress dst("localhost:8554");
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  std::cout << "transmitting from "
+    << std::to_string(src) << " to "
+    << std::to_string(dst) << std::endl;
 
   for(int i = 0; i < 4; ++i) {
     static char const hello[] = "hello";
+    client.Transmit(hello, sizeof(hello), dst);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    client.Transmit(hello, sizeof(hello), SocketAddress("localhost:8554"));
   }
 }
 
