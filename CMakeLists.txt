@@ -16,16 +16,22 @@ add_library (sockpuppet
 add_executable (sockpuppet_address_test sockpuppet_address_test.cpp)
 target_link_libraries (sockpuppet_address_test sockpuppet)
 
-add_executable (sockpuppet_test_client sockpuppet_test_client.cpp)
+add_executable (sockpuppet_udp_test sockpuppet_udp_test.cpp)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries (sockpuppet_test_client sockpuppet pthread)
+  target_link_libraries (sockpuppet_udp_test sockpuppet pthread)
 else()
-  target_link_libraries (sockpuppet_test_client sockpuppet)
+  target_link_libraries (sockpuppet_udp_test sockpuppet)
 endif()
 
-add_executable (sockpuppet_test_server sockpuppet_test_server.cpp)
+add_executable (sockpuppet_tcp_test sockpuppet_tcp_test.cpp)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries (sockpuppet_test_server sockpuppet pthread)
+  target_link_libraries (sockpuppet_tcp_test sockpuppet pthread)
 else()
-  target_link_libraries (sockpuppet_test_server sockpuppet)
+  target_link_libraries (sockpuppet_tcp_test sockpuppet)
 endif()
+
+add_executable (sockpuppet_udp_client sockpuppet_udp_client.cpp)
+target_link_libraries (sockpuppet_udp_client sockpuppet)
+
+add_executable (sockpuppet_udp_server sockpuppet_udp_server.cpp)
+target_link_libraries (sockpuppet_udp_server sockpuppet)

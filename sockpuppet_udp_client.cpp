@@ -19,7 +19,7 @@ try {
     if(argc >= 3) {
       src = SocketAddress(argv[2]);
     }
-    Socket sock(src);
+    SocketUdp sock(src);
 
     std::cout << "transmitting from "
       << std::to_string(src) << " to "

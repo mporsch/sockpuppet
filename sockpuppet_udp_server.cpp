@@ -15,7 +15,7 @@ try {
       << std::endl;
   } else {
     SocketAddress src(argv[1]);
-    Socket sock(src);
+    SocketUdp sock(src);
 
     std::cout << "receiving from " << std::to_string(src) << std::endl;
 
