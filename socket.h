@@ -15,6 +15,7 @@ public:
                  size_t size);
 
 protected:
+  Socket(int family, int type, int protocol);
   Socket(int fd);
 
   void Bind(SocketAddress const &bindAddress);

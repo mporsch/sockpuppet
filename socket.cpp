@@ -26,6 +26,15 @@ size_t Socket::Receive(char *data, size_t size)
   return ::recv(m_fd, data, size, 0);
 }
 
+Socket::Socket(int family, int type, int protocol)
+  : m_fd(::socket(family, type, protocol))
+{
+  if(m_fd < 0) {
+    throw std::runtime_error("failed to create socket: "
+                             + std::to_string(errno));
+  }
+}
+
 Socket::Socket(int fd)
   : m_fd(fd)
 {
@@ -48,7 +57,7 @@ void Socket::Bind(SocketAddress const &bindAddress)
 
 
 SocketUdp::SocketUdp(SocketAddress const &bindAddress)
-  : Socket(::socket(bindAddress.priv->info->ai_family, SOCK_DGRAM, IPPROTO_UDP))
+  : Socket(bindAddress.priv->info->ai_family, SOCK_DGRAM, IPPROTO_UDP)
 {
   Bind(bindAddress);
 }
@@ -72,7 +81,7 @@ void SocketUdp::Transmit(char const *data, size_t size,
 
 
 SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
-  : Socket(::socket(connectAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP))
+  : Socket(connectAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP)
 {
   if(::connect(m_fd,
              connectAddress.priv->info->ai_addr,
@@ -97,7 +106,7 @@ SocketTcpClient::SocketTcpClient(int fd)
 
 
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
-  : Socket(::socket(bindAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP))
+  : Socket(bindAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP)
 {
   Bind(bindAddress);
 }
