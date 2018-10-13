@@ -11,7 +11,9 @@ try {
     std::cout << "Usage: "
       << argv[0] << " "
       << "DESTINATION [SOURCE]\n\n"
-      << "\t where DESTINATION/SOURCE is an address string to bind to, e.g. \"localhost:8554\""
+      << "\tDESTINATION is an address string to transmit to\n"
+         "\tSOURCE is an address string to bind to, "
+         "e.g. \"localhost:8554\""
       << std::endl;
   } else {
     SocketAddress dst(argv[1]);

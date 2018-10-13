@@ -10,7 +10,7 @@ try {
     std::cout << "Usage: "
       << argv[0] << " "
       << "SOURCE\n\n"
-      << "\t where SOURCE is an address string to bind to, "
+      << "\tSOURCE is an address string to bind to, "
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
