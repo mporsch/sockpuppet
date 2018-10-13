@@ -108,6 +108,12 @@ SocketTcpClient::SocketTcpClient(int fd)
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   : Socket(bindAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP)
 {
+  static int const opt = 1;
+  if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+    throw std::runtime_error("failed to set socket reuse :"
+                             + std::to_string(errno));
+  }
+
   Bind(bindAddress);
 }
 
