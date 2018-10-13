@@ -9,7 +9,12 @@
 class Socket
 {
 public:
+  Socket(Socket const &other) = delete;
+  Socket(Socket &&other);
   virtual ~Socket();
+
+  Socket &operator=(Socket const &other) = delete;
+  Socket &operator=(Socket &&other);
 
   size_t Receive(char *data,
                  size_t size);

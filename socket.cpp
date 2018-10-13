@@ -14,11 +14,28 @@
 
 Socket::~Socket()
 {
+  if(m_fd >= 0) {
 #ifdef _WIN32
-  (void)closesocket(m_fd);
+    (void)closesocket(m_fd);
 #else
-  (void)::close(m_fd);
+    (void)::close(m_fd);
 #endif // _WIN32
+  }
+}
+
+Socket::Socket(Socket &&other)
+  : m_socketGuard(std::move(other.m_socketGuard))
+  , m_fd(std::move(other.m_fd))
+{
+  other.m_fd = -1;
+}
+
+Socket &Socket::operator=(Socket &&other)
+{
+  m_socketGuard = std::move(other.m_socketGuard);
+  m_fd = std::move(other.m_fd);
+  other.m_fd = -1;
+  return *this;
 }
 
 size_t Socket::Receive(char *data, size_t size)
