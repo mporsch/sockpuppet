@@ -3,21 +3,28 @@
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 
+template<typename... Args>
+void Test(Args&&... args)
+{
+  SocketAddress socketAddress(std::forward<Args>(args)...);
+  std::cout << std::to_string(socketAddress) << std::endl;
+}
+
 int main(int, char **)
 try {
-  SocketAddress();
-  SocketAddress(8554);
+  Test();
+  Test(554);
 
-  SocketAddress("localhost");
-  SocketAddress("localhost:554");
-  SocketAddress("rtsp://localhost");
+  Test("localhost");
+  Test("localhost:554");
+  Test("rtsp://localhost");
 
-  SocketAddress("::1");
-  SocketAddress("a:b::c:1");
-  SocketAddress("[::1]:554");
-  SocketAddress("[a:b::c:1]:554");
-  SocketAddress("rtsp://::1");
-  SocketAddress("rtsp://a:b::c:1");
+  Test("::1");
+  Test("a:b::c:1");
+  Test("[::1]:554");
+  Test("[a:b::c:1]:554");
+  Test("rtsp://::1");
+  Test("rtsp://a:b::c:1");
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
