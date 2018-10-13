@@ -19,6 +19,9 @@ public:
   size_t Receive(char *data,
                  size_t size);
 
+  std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
+                                                size_t size);
+
 protected:
   Socket(int family, int type, int protocol);
   Socket(int fd);
@@ -59,7 +62,7 @@ class SocketTcpServer : protected Socket
 public:
   SocketTcpServer(SocketAddress const &bindAddress);
 
-  SocketTcpClient Listen();
+  std::tuple<SocketTcpClient, SocketAddress> Listen();
 };
 
 #endif // SOCKET_H

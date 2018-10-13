@@ -16,10 +16,18 @@ try {
 
   char buffer[256];
   for(int i = 0; i < 4; ++i) {
-    auto const received = server.Receive(buffer, sizeof(buffer));
+    auto received = server.Receive(buffer, sizeof(buffer));
     if(received > 0U
     && std::string(buffer, received).find("hello") != std::string::npos) {
-      return;
+      auto const t = server.ReceiveFrom(buffer, sizeof(buffer));
+      received = std::get<0>(t);
+      auto &&sender = std::get<1>(t);
+
+      if(received > 0U
+      && std::string(buffer, received).find("hello") != std::string::npos) {
+        std::cout << "successfully received from " << std::to_string(sender) << std::endl;
+        return;
+      }
     }
   }
 

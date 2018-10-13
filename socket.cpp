@@ -43,6 +43,15 @@ size_t Socket::Receive(char *data, size_t size)
   return ::recv(m_fd, data, size, 0);
 }
 
+std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size)
+{
+  auto ss = std::make_unique<SocketAddressStorage>();
+
+  auto const received = ::recvfrom(m_fd, data, size, 0, ss->Addr(), ss->AddrLen());
+
+  return {received, SocketAddress(std::move(ss))};
+}
+
 Socket::Socket(int family, int type, int protocol)
   : m_fd(::socket(family, type, protocol))
 {
@@ -125,11 +134,16 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   }
 }
 
-SocketTcpClient SocketTcpServer::Listen()
+std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen()
 {
   if(::listen(m_fd, 1)) {
     throw std::runtime_error("failed to listen: "
                              + std::to_string(errno));
   }
-  return SocketTcpClient(accept(m_fd, nullptr, nullptr));
+
+  auto ss = std::make_unique<SocketAddressStorage>();
+
+  auto client = SocketTcpClient(::accept(m_fd, ss->Addr(), ss->AddrLen()));
+
+  return {std::move(client), SocketAddress(std::move(ss))};
 }

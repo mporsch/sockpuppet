@@ -12,10 +12,15 @@ try {
   SocketAddress serverAddr("localhost:8554");
   SocketTcpServer server(serverAddr);
 
-  std::cout << "transmitting from "
-    << std::to_string(serverAddr) << std::endl;
+  auto t = server.Listen();
+  auto &&client = std::get<0>(t);
+  auto &&clientAddr = std::get<1>(t);
 
-  auto client = server.Listen();
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  std::cout << "transmitting from "
+    << std::to_string(serverAddr) << " to "
+    << std::to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
   client.Transmit(hello, sizeof(hello));
@@ -33,7 +38,7 @@ try {
     << std::to_string(serverAddr) << std::endl;
 
   char buffer[256];
-  for(int i = 0; i < 10; ++i) {
+  for(int i = 0; i < 4; ++i) {
     auto const received = client.Receive(buffer, sizeof(buffer));
     if(received > 0U
     && std::string(buffer, received).find("hello") != std::string::npos) {
