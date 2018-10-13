@@ -6,10 +6,10 @@
 #ifdef _WIN32
 # pragma push_macro("NOMINMAX")
 # define NOMINMAX // to avoid overwriting min()/max()
-# include <Winsock2.h> // for addrinfo
+# include <Ws2tcpip.h> // for sockaddr_storage
 # pragma pop_macro("NOMINMAX")
 #else
-# include <netdb.h> // for addrinfo
+# include <netdb.h> // for sockaddr_storage
 # include <sys/socket.h> // for socklen_t
 #endif // _WIN32
 
@@ -42,6 +42,21 @@ struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
 
   SocketAddressAddrinfo(std::string const &uri);
   SocketAddressAddrinfo(uint16_t port);
+
+  SockAddr SockAddrTcp() const override;
+  SockAddr SockAddrUdp() const override;
+  int Family() const override;
+};
+
+struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
+{
+  sockaddr_storage storage;
+  socklen_t size;
+
+  SocketAddressStorage();
+
+  sockaddr *Addr();
+  socklen_t *AddrLen();
 
   SockAddr SockAddrTcp() const override;
   SockAddr SockAddrUdp() const override;

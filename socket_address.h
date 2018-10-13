@@ -7,14 +7,16 @@
 
 struct SocketAddress
 {
+  struct SocketAddressPriv;
+
   SocketAddress(std::string const &uri);
   SocketAddress(uint16_t port = 0U);
+  SocketAddress(std::unique_ptr<SocketAddressPriv> &&priv);
   SocketAddress(SocketAddress &&other);
   ~SocketAddress();
 
   SocketAddress &operator=(SocketAddress &&other);
 
-  struct SocketAddressPriv;
   std::unique_ptr<SocketAddressPriv> priv;
 };
 

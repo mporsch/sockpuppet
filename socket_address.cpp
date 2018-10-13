@@ -6,6 +6,11 @@ SocketAddress::SocketAddress(std::string const &uri)
 {
 }
 
+SocketAddress::SocketAddress(std::unique_ptr<SocketAddressPriv> &&priv)
+  : priv(std::move(priv))
+{
+}
+
 SocketAddress::SocketAddress(uint16_t port)
   : priv(new SocketAddressAddrinfo(port))
 {

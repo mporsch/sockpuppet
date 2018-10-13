@@ -2,7 +2,6 @@
 #include "socket_guard.h" // for SocketGuard
 
 #ifdef _WIN32
-# include <Ws2tcpip.h> // for getaddrinfo
 # pragma comment(lib, "Ws2_32.lib")
 #endif // _WIN32
 
@@ -165,6 +164,41 @@ int SocketAddressAddrinfo::Family() const
     }
   }
   return first->ai_family;
+}
+
+
+SocketAddressStorage::SocketAddressStorage()
+  : storage{}
+  , size(sizeof(storage))
+{
+}
+
+sockaddr *SocketAddressStorage::Addr()
+{
+  return reinterpret_cast<sockaddr *>(&storage);
+}
+
+socklen_t *SocketAddressStorage::AddrLen()
+{
+  return &size;
+}
+
+SockAddr SocketAddressStorage::SockAddrTcp() const
+{
+  return SockAddr{
+    reinterpret_cast<sockaddr const *>(&storage)
+  , size
+  };
+}
+
+SockAddr SocketAddressStorage::SockAddrUdp() const
+{
+  return SockAddrTcp();
+}
+
+int SocketAddressStorage::Family() const
+{
+  return storage.ss_family;
 }
 
 namespace std {
