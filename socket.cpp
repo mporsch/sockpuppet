@@ -10,6 +10,7 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
+#include <cstring> // for std::strerror
 #include <stdexcept> // for std::runtime_error
 
 Socket::~Socket()
@@ -57,7 +58,7 @@ Socket::Socket(int family, int type, int protocol)
 {
   if(m_fd < 0) {
     throw std::runtime_error("failed to create socket: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 }
 
@@ -66,7 +67,7 @@ Socket::Socket(int fd)
 {
   if(m_fd < 0) {
     throw std::runtime_error("failed to create socket: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 }
 
@@ -78,7 +79,7 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   if(::bind(m_fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
                              + std::to_string(bindAddress) + ": "
-                             + std::to_string(errno));
+                             + std::strerror(errno));
   }
 }
 
@@ -88,7 +89,7 @@ void SocketUdp::Transmit(char const *data, size_t size,
   auto const sockAddr = dstAddress.priv->SockAddrUdp();
   if(size != ::sendto(m_fd, data, size, 0, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to transmit: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 }
 
@@ -99,7 +100,7 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   auto const sockAddr = connectAddress.priv->SockAddrTcp();
   if(::connect(m_fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to connect: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 }
 
@@ -107,7 +108,7 @@ void SocketTcpClient::Transmit(const char *data, size_t size)
 {
   if(size != ::send(m_fd, data, size, 0)) {
     throw std::runtime_error("failed to transmit: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 }
 
@@ -123,14 +124,14 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   static int const opt = 1;
   if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
     throw std::runtime_error("failed to set socket reuse :"
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 
   auto const sockAddr = bindAddress.priv->SockAddrTcp();
   if(::bind(m_fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
                              + std::to_string(bindAddress) + ": "
-                             + std::to_string(errno));
+                             + std::strerror(errno));
   }
 }
 
@@ -138,7 +139,7 @@ std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen()
 {
   if(::listen(m_fd, 1)) {
     throw std::runtime_error("failed to listen: "
-                             + std::to_string(errno));
+                             + std::string(std::strerror(errno)));
   }
 
   auto ss = std::make_unique<SocketAddressStorage>();
