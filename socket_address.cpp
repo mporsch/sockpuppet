@@ -2,12 +2,12 @@
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 
 SocketAddress::SocketAddress(std::string const &uri)
-  : priv(new SocketAddressPriv(uri))
+  : priv(new SocketAddressAddrinfo(uri))
 {
 }
 
 SocketAddress::SocketAddress(uint16_t port)
-  : priv(new SocketAddressPriv(port))
+  : priv(new SocketAddressAddrinfo(port))
 {
 }
 

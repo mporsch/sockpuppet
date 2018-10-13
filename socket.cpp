@@ -61,36 +61,23 @@ Socket::Socket(int fd)
   }
 }
 
-void Socket::Bind(SocketAddress const &bindAddress)
+
+SocketUdp::SocketUdp(SocketAddress const &bindAddress)
+  : Socket(bindAddress.priv->Family(), SOCK_DGRAM, IPPROTO_UDP)
 {
-  if(::bind(m_fd,
-            bindAddress.priv->info->ai_addr,
-            bindAddress.priv->info->ai_addrlen)) {
+  auto const sockAddr = bindAddress.priv->SockAddrUdp();
+  if(::bind(m_fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
                              + std::to_string(bindAddress) + ": "
                              + std::to_string(errno));
   }
 }
 
-
-SocketUdp::SocketUdp(SocketAddress const &bindAddress)
-  : Socket(bindAddress.priv->info->ai_family, SOCK_DGRAM, IPPROTO_UDP)
-{
-  Bind(bindAddress);
-}
-
 void SocketUdp::Transmit(char const *data, size_t size,
   SocketAddress const &dstAddress)
 {
-  bool success = false;
-  for(auto info = dstAddress.priv->info.get();
-      info != nullptr;
-      info = info->ai_next) {
-    success |= (size == ::sendto(m_fd, data, size, 0,
-                                 info->ai_addr, info->ai_addrlen));
-  }
-
-  if(!success) {
+  auto const sockAddr = dstAddress.priv->SockAddrUdp();
+  if(size != ::sendto(m_fd, data, size, 0, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to transmit: "
                              + std::to_string(errno));
   }
@@ -98,11 +85,10 @@ void SocketUdp::Transmit(char const *data, size_t size,
 
 
 SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
-  : Socket(connectAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP)
+  : Socket(connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP)
 {
-  if(::connect(m_fd,
-             connectAddress.priv->info->ai_addr,
-             connectAddress.priv->info->ai_addrlen)) {
+  auto const sockAddr = connectAddress.priv->SockAddrTcp();
+  if(::connect(m_fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to connect: "
                              + std::to_string(errno));
   }
@@ -123,7 +109,7 @@ SocketTcpClient::SocketTcpClient(int fd)
 
 
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
-  : Socket(bindAddress.priv->info->ai_family, SOCK_STREAM, IPPROTO_TCP)
+  : Socket(bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP)
 {
   static int const opt = 1;
   if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
@@ -131,7 +117,12 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
                              + std::to_string(errno));
   }
 
-  Bind(bindAddress);
+  auto const sockAddr = bindAddress.priv->SockAddrTcp();
+  if(::bind(m_fd, sockAddr.addr, sockAddr.addrLen)) {
+    throw std::runtime_error("failed to bind socket on address "
+                             + std::to_string(bindAddress) + ": "
+                             + std::to_string(errno));
+  }
 }
 
 SocketTcpClient SocketTcpServer::Listen()

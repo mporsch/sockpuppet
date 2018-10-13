@@ -22,7 +22,7 @@ namespace {
     return (std::count(std::begin(host), std::end(host), ':') > 1U);
   }
 
-  addrinfo *ParseUri(std::string const &uri)
+  AddrInfoPtr ParseUri(std::string const &uri)
   {
     if(uri.empty()) {
       throw std::invalid_argument("empty uri");
@@ -97,24 +97,24 @@ namespace {
                                + uri + "\": "
                                + gai_strerror(result));
     }
-    return info;
+    return AddrInfoPtr(info);
   }
 
-  addrinfo *ParsePort(uint16_t port)
+  AddrInfoPtr ParsePort(uint16_t port)
   {
     SocketGuard guard;
 
     auto const portStr = std::to_string(port);
     addrinfo hints{};
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_INET; // force IPv4 here
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
     addrinfo *info;
     if(auto result = getaddrinfo(nullptr, portStr.c_str(), &hints, &info)) {
       throw std::runtime_error("failed to parse port "
-                               + std::to_string(port) + ": "
+                               + portStr + ": "
                                + gai_strerror(result));
     }
-    return info;
+    return AddrInfoPtr(info);
   }
 } // unnamed namespace
 
@@ -124,14 +124,47 @@ void AddrInfoDeleter::operator()(addrinfo *ptr)
 }
 
 
-SocketAddress::SocketAddressPriv::SocketAddressPriv(std::string const &uri)
+SocketAddressAddrinfo::SocketAddressAddrinfo(std::string const &uri)
   : info(ParseUri(uri))
 {
 }
 
-SocketAddress::SocketAddressPriv::SocketAddressPriv(uint16_t port)
+SocketAddressAddrinfo::SocketAddressAddrinfo(uint16_t port)
   : info(ParsePort(port))
 {
+}
+
+SockAddr SocketAddressAddrinfo::SockAddrTcp() const
+{
+  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
+    if(it->ai_socktype == SOCK_STREAM
+    && it->ai_protocol == IPPROTO_TCP) {
+      return SockAddr{it->ai_addr, it->ai_addrlen};
+    }
+  }
+  throw std::runtime_error("address is not valid for TCP");
+}
+
+SockAddr SocketAddressAddrinfo::SockAddrUdp() const
+{
+  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
+    if(it->ai_socktype == SOCK_DGRAM
+    && it->ai_protocol == IPPROTO_UDP) {
+      return SockAddr{it->ai_addr, it->ai_addrlen};
+    }
+  }
+  throw std::runtime_error("address is not valid for UDP");
+}
+
+int SocketAddressAddrinfo::Family() const
+{
+  auto const first = info.get();
+  for(auto it = first->ai_next; it != nullptr; it = it->ai_next) {
+    if(first->ai_family != it->ai_family) {
+      throw std::logic_error("address contains multiple families");
+    }
+  }
+  return first->ai_family;
 }
 
 namespace std {
@@ -139,11 +172,12 @@ namespace std {
   {
     SocketGuard guard;
 
+    auto const sockAddr = addr.SockAddrUdp();
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
     if(auto result = getnameinfo(
-        addr.info->ai_addr,
-        addr.info->ai_addrlen,
+        sockAddr.addr,
+        sockAddr.addrLen,
         host, NI_MAXHOST,
         service, NI_MAXSERV,
         NI_NUMERICHOST | NI_NUMERICSERV)) {
@@ -151,7 +185,7 @@ namespace std {
                                + gai_strerror(result));
     }
 
-    return (addr.info->ai_family == AF_INET ?
+    return (addr.Family() == AF_INET ?
       std::string(host) + ":" + service :
       std::string("[") + host + "]" + ":" + service);
   }

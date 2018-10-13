@@ -10,11 +10,25 @@
 # pragma pop_macro("NOMINMAX")
 #else
 # include <netdb.h> // for addrinfo
+# include <sys/socket.h> // for socklen_t
 #endif // _WIN32
 
 #include <cstdint> // for uint16_t
 #include <memory> // for std::unique_ptr
 #include <string> // for std::string
+
+struct SockAddr
+{
+  sockaddr const *addr;
+  socklen_t addrLen;
+};
+
+struct SocketAddress::SocketAddressPriv
+{
+  virtual SockAddr SockAddrTcp() const = 0;
+  virtual SockAddr SockAddrUdp() const = 0;
+  virtual int Family() const = 0;
+};
 
 struct AddrInfoDeleter
 {
@@ -22,12 +36,16 @@ struct AddrInfoDeleter
 };
 using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
 
-struct SocketAddress::SocketAddressPriv
+struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
 {
   AddrInfoPtr info;
 
-  SocketAddressPriv(std::string const &uri);
-  SocketAddressPriv(uint16_t port);
+  SocketAddressAddrinfo(std::string const &uri);
+  SocketAddressAddrinfo(uint16_t port);
+
+  SockAddr SockAddrTcp() const override;
+  SockAddr SockAddrUdp() const override;
+  int Family() const override;
 };
 
 namespace std {

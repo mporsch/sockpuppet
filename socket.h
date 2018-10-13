@@ -23,8 +23,6 @@ protected:
   Socket(int family, int type, int protocol);
   Socket(int fd);
 
-  void Bind(SocketAddress const &bindAddress);
-
 protected:
   SocketGuard m_socketGuard;  ///< Guard to initialize socket subsystem on windows
   int m_fd;  ///< Socket file descriptor
