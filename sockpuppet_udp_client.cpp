@@ -2,7 +2,7 @@
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
-#include <thread> // for std::this_thread::sleep_for
+#include <string> // for std::string
 
 int main(int argc, char *argv[])
 try {
@@ -26,10 +26,14 @@ try {
       << std::to_string(dstAddr) << std::endl;
 
     for(;;) {
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-
-      static char const hello[] = "hello";
-      sock.SendTo(hello, sizeof(hello), dstAddr);
+      std::string line;
+      std::cout << "message to send? (empty for exit) - ";
+      std::getline(std::cin, line);
+      if(line.empty()) {
+        break;
+      } else {
+        sock.SendTo(line.c_str(), line.size(), dstAddr);
+      }
     }
   }
 
