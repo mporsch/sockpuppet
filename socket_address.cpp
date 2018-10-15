@@ -6,13 +6,18 @@ SocketAddress::SocketAddress(std::string const &uri)
 {
 }
 
-SocketAddress::SocketAddress(std::unique_ptr<SocketAddressPriv> &&priv)
-  : priv(std::move(priv))
+SocketAddress::SocketAddress(uint16_t port)
+  : priv(new SocketAddressAddrinfo(port))
 {
 }
 
-SocketAddress::SocketAddress(uint16_t port)
-  : priv(new SocketAddressAddrinfo(port))
+SocketAddress::SocketAddress(std::shared_ptr<SocketAddressPriv> &&other)
+  : priv(std::move(other))
+{
+}
+
+SocketAddress::SocketAddress(SocketAddress const &other)
+  : priv(other.priv)
 {
 }
 
@@ -23,6 +28,12 @@ SocketAddress::SocketAddress(SocketAddress &&other)
 
 SocketAddress::~SocketAddress()
 {
+}
+
+SocketAddress &SocketAddress::operator=(SocketAddress const &other)
+{
+  priv = other.priv;
+  return *this;
 }
 
 SocketAddress &SocketAddress::operator=(SocketAddress &&other)

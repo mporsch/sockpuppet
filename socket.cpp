@@ -46,7 +46,7 @@ size_t Socket::Receive(char *data, size_t size)
 
 std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size)
 {
-  auto ss = std::make_unique<SocketAddressStorage>();
+  auto ss = std::make_shared<SocketAddressStorage>();
 
   auto const received = ::recvfrom(m_fd, data, size, 0, ss->Addr(), ss->AddrLen());
 
@@ -142,7 +142,7 @@ std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen()
                              + std::string(std::strerror(errno)));
   }
 
-  auto ss = std::make_unique<SocketAddressStorage>();
+  auto ss = std::make_shared<SocketAddressStorage>();
 
   auto client = SocketTcpClient(::accept(m_fd, ss->Addr(), ss->AddrLen()));
 
