@@ -1,43 +1,38 @@
-cmake_minimum_required (VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.0.0)
 
-project (sockpuppet CXX)
+project(sockpuppet CXX)
 
-add_library (sockpuppet
-  socket.cpp
-  socket.h
-  socket_address.cpp
-  socket_address.h
-  socket_address_priv.cpp
-  socket_address_priv.h
-  socket_guard.cpp
-  socket_guard.h
+if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "" FORCE)
+endif()
+option(BUILD_TESTS "Build test executables" TRUE)
+option(BUILD_EXAMPLES "Build example executables" TRUE)
+
+add_library(sockpuppet
+  src/socket.cpp
+  include/socket.h
+  src/socket_address.cpp
+  include/socket_address.h
+  src/socket_address_priv.cpp
+  src/socket_address_priv.h
+  src/socket_guard.cpp
+  include/socket_guard.h
 )
 
-add_executable (sockpuppet_address_test sockpuppet_address_test.cpp)
-target_link_libraries (sockpuppet_address_test sockpuppet)
+include_directories(include)
 
-add_executable (sockpuppet_udp_test sockpuppet_udp_test.cpp)
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries (sockpuppet_udp_test sockpuppet pthread)
-else()
-  target_link_libraries (sockpuppet_udp_test sockpuppet)
+if(${BUILD_TESTS})
+  add_subdirectory(test)
+endif()
+if(${BUILD_EXAMPLES})
+  add_subdirectory(examples)
 endif()
 
-add_executable (sockpuppet_tcp_test sockpuppet_tcp_test.cpp)
-if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries (sockpuppet_tcp_test sockpuppet pthread)
-else()
-  target_link_libraries (sockpuppet_tcp_test sockpuppet)
-endif()
-
-add_executable (sockpuppet_udp_client sockpuppet_udp_client.cpp)
-target_link_libraries (sockpuppet_udp_client sockpuppet)
-
-add_executable (sockpuppet_udp_server sockpuppet_udp_server.cpp)
-target_link_libraries (sockpuppet_udp_server sockpuppet)
-
-add_executable (sockpuppet_tcp_client sockpuppet_tcp_client.cpp)
-target_link_libraries (sockpuppet_tcp_client sockpuppet)
-
-add_executable (sockpuppet_tcp_server sockpuppet_tcp_server.cpp)
-target_link_libraries (sockpuppet_tcp_server sockpuppet)
+install(DIRECTORY include/
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.h"
+)
+install(TARGETS sockpuppet
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)

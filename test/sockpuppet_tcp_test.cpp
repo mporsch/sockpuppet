@@ -1,7 +1,7 @@
 #include "socket.h" // for SocketTcpClient
 
 #ifdef HAVE_HELPER
-# include "../helper/print_unmangled.h" // for PrintUnmangled
+# include "print_unmangled.h" // for PrintUnmangled
 
 # define COUT PrintUnmangled()
 # define CERR PrintUnmangled(std::cerr)
