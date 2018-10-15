@@ -36,9 +36,9 @@ class SocketUdp : public Socket
 public:
   SocketUdp(SocketAddress const &bindAddress);
 
-  void Transmit(char const *data,
-                size_t size,
-                SocketAddress const &dstAddress);
+  void SendTo(char const *data,
+              size_t size,
+              SocketAddress const &dstAddress);
 };
 
 class SocketTcpClient : protected Socket
@@ -48,8 +48,8 @@ class SocketTcpClient : protected Socket
 public:
   SocketTcpClient(SocketAddress const &connectAddress);
 
-  void Transmit(char const *data,
-                size_t size);
+  void Send(char const *data,
+            size_t size);
 
   using Socket::Receive;
 

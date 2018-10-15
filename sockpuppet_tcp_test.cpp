@@ -22,11 +22,11 @@ void ServerHandler(SocketTcpClient client, SocketAddress clientAddr)
 try {
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  COUT << "server transmitting to "
+  COUT << "server sending to "
     << std::to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
-  client.Transmit(hello, sizeof(hello));
+  client.Send(hello, sizeof(hello));
 } catch (std::exception const &e) {
   CERR << e.what() << std::endl;
   success = false;

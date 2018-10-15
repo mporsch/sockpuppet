@@ -83,12 +83,12 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   }
 }
 
-void SocketUdp::Transmit(char const *data, size_t size,
+void SocketUdp::SendTo(char const *data, size_t size,
   SocketAddress const &dstAddress)
 {
   auto const sockAddr = dstAddress.priv->SockAddrUdp();
   if(size != ::sendto(m_fd, data, size, 0, sockAddr.addr, sockAddr.addrLen)) {
-    throw std::runtime_error("failed to transmit: "
+    throw std::runtime_error("failed to send: "
                              + std::string(std::strerror(errno)));
   }
 }
@@ -104,10 +104,10 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   }
 }
 
-void SocketTcpClient::Transmit(const char *data, size_t size)
+void SocketTcpClient::Send(const char *data, size_t size)
 {
   if(size != ::send(m_fd, data, size, 0)) {
-    throw std::runtime_error("failed to transmit: "
+    throw std::runtime_error("failed to send: "
                              + std::string(std::strerror(errno)));
   }
 }

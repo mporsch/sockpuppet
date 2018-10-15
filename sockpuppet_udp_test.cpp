@@ -45,13 +45,13 @@ try {
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  std::cout << "transmitting from "
+  std::cout << "sending from "
     << std::to_string(src) << " to "
     << std::to_string(dst) << std::endl;
 
   for(int i = 0; i < 4; ++i) {
     static char const hello[] = "hello";
-    client.Transmit(hello, sizeof(hello), dst);
+    client.SendTo(hello, sizeof(hello), dst);
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }

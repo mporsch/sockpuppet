@@ -23,15 +23,15 @@ try {
     }
     SocketUdp sock(src);
 
-    std::cout << "transmitting from "
+    std::cout << "sending from "
       << std::to_string(src) << " to "
       << std::to_string(dst) << std::endl;
 
     for(;;) {
-      static char const hello[] = "hello";
-
       std::this_thread::sleep_for(std::chrono::seconds(1));
-      sock.Transmit(hello, sizeof(hello), dst);
+
+      static char const hello[] = "hello";
+      sock.SendTo(hello, sizeof(hello), dst);
     }
   }
 
