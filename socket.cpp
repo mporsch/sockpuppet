@@ -35,7 +35,9 @@ Socket &Socket::operator=(Socket &&other)
 {
   m_socketGuard = std::move(other.m_socketGuard);
   m_fd = std::move(other.m_fd);
+
   other.m_fd = -1;
+
   return *this;
 }
 
@@ -54,7 +56,8 @@ std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size)
 }
 
 Socket::Socket(int family, int type, int protocol)
-  : m_fd(::socket(family, type, protocol))
+  : m_socketGuard() // must be created before call to ::socket
+  , m_fd(::socket(family, type, protocol))
 {
   if(m_fd < 0) {
     throw std::runtime_error("failed to create socket: "
@@ -123,7 +126,7 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
 {
   static int const opt = 1;
   if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-    throw std::runtime_error("failed to set socket reuse :"
+    throw std::runtime_error("failed to set socket address reuse :"
                              + std::string(std::strerror(errno)));
   }
 

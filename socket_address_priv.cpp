@@ -77,40 +77,43 @@ namespace {
         }
       }
 
-      auto posPath = host.find_last_of('/');
+      auto const posPath = host.find_last_of('/');
       if(posPath != std::string::npos) {
         host.resize(posPath);
       }
     }
 
-    SocketGuard guard;
-
-    addrinfo hints{};
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = AI_PASSIVE |
-        (isNumericHost ? AI_NUMERICHOST : 0) |
-        (isNumericServ ? AI_NUMERICSERV : 0);
     addrinfo *info;
-    if(auto result = getaddrinfo(host.c_str(), serv.c_str(), &hints, &info)) {
-      throw std::runtime_error("failed to parse address \""
-                               + uri + "\": "
-                               + gai_strerror(result));
+    {
+      SocketGuard guard;
+
+      addrinfo hints{};
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_flags = AI_PASSIVE |
+          (isNumericHost ? AI_NUMERICHOST : 0) |
+          (isNumericServ ? AI_NUMERICSERV : 0);
+      if(auto const result = getaddrinfo(host.c_str(), serv.c_str(),
+                                         &hints, &info)) {
+        throw std::runtime_error("failed to parse address \""
+                                 + uri + "\": "
+                                 + gai_strerror(result));
+      }
     }
     return AddrInfoPtr(info);
   }
 
-  AddrInfoPtr ParsePort(uint16_t port)
+  AddrInfoPtr ParsePort(std::string const &port)
   {
     SocketGuard guard;
 
-    auto const portStr = std::to_string(port);
     addrinfo hints{};
     hints.ai_family = AF_INET; // force IPv4 here
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
     addrinfo *info;
-    if(auto result = getaddrinfo(nullptr, portStr.c_str(), &hints, &info)) {
+    if(auto const result = getaddrinfo(nullptr, port.c_str(),
+                                       &hints, &info)) {
       throw std::runtime_error("failed to parse port "
-                               + portStr + ": "
+                               + port + ": "
                                + gai_strerror(result));
     }
     return AddrInfoPtr(info);
@@ -129,7 +132,7 @@ SocketAddressAddrinfo::SocketAddressAddrinfo(std::string const &uri)
 }
 
 SocketAddressAddrinfo::SocketAddressAddrinfo(uint16_t port)
-  : info(ParsePort(port))
+  : info(ParsePort(std::to_string(port)))
 {
 }
 
@@ -141,7 +144,7 @@ SockAddr SocketAddressAddrinfo::SockAddrTcp() const
       return SockAddr{it->ai_addr, it->ai_addrlen};
     }
   }
-  throw std::runtime_error("address is not valid for TCP");
+  throw std::logic_error("address is not valid for TCP");
 }
 
 SockAddr SocketAddressAddrinfo::SockAddrUdp() const
@@ -152,7 +155,7 @@ SockAddr SocketAddressAddrinfo::SockAddrUdp() const
       return SockAddr{it->ai_addr, it->ai_addrlen};
     }
   }
-  throw std::runtime_error("address is not valid for UDP");
+  throw std::logic_error("address is not valid for UDP");
 }
 
 int SocketAddressAddrinfo::Family() const
@@ -209,11 +212,10 @@ namespace std {
     auto const sockAddr = addr.SockAddrUdp();
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
-    if(auto result = getnameinfo(
-        sockAddr.addr,
-        sockAddr.addrLen,
-        host, NI_MAXHOST,
-        service, NI_MAXSERV,
+    if(auto const result = getnameinfo(
+        sockAddr.addr, sockAddr.addrLen,
+        host, sizeof(host),
+        service, sizeof(service),
         NI_NUMERICHOST | NI_NUMERICSERV)) {
       throw std::runtime_error(std::string("failed to print address: ")
                                + gai_strerror(result));

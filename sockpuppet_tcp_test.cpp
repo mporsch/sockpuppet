@@ -1,7 +1,7 @@
-#include "socket.h"
+#include "socket.h" // for SocketTcpClient
 
 #ifdef HAVE_HELPER
-# include "../helper/print_unmangled.h"
+# include "../helper/print_unmangled.h" // for PrintUnmangled
 
 # define COUT PrintUnmangled()
 # define CERR PrintUnmangled(std::cerr)
@@ -16,10 +16,14 @@
 #include <thread> // for std::thread
 
 static int const clientCount = 3;
+
 bool success = true;
 
-void ServerHandler(SocketTcpClient client, SocketAddress clientAddr)
+void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 try {
+  auto &&client = std::get<0>(t);
+  auto &&clientAddr = std::get<1>(t);
+
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   COUT << "server sending to "
@@ -41,13 +45,7 @@ try {
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
-    auto t = server.Listen();
-    auto &&client = std::get<0>(t);
-    auto &&clientAddr = std::get<1>(t);
-
-    serverHandler = std::thread(ServerHandler,
-                                std::move(client),
-                                std::move(clientAddr));
+    serverHandler = std::thread(ServerHandler, server.Listen());
   }
 
   for(auto &&serverHandler : serverHandlers) {
@@ -70,8 +68,8 @@ try {
 
   char buffer[256];
   auto const received = client.Receive(buffer, sizeof(buffer));
-  if(received > 0U
-  && std::string(buffer, received).find("hello") != std::string::npos) {
+  if(received > 0U &&
+     std::string(buffer, received).find("hello") != std::string::npos) {
     return;
   }
 
@@ -83,13 +81,14 @@ try {
 
 int main(int, char **)
 {
-  std::thread server(Server, SocketAddress("localhost:8554"));
+  SocketAddress const serverAddr("localhost:8554");
+  std::thread server(Server, serverAddr);
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
   std::thread clients[clientCount];
   for(auto &&client : clients) {
-    client = std::thread (Client, SocketAddress("localhost:8554"));
+    client = std::thread (Client, serverAddr);
   }
 
   if(server.joinable()) {

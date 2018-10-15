@@ -2,12 +2,12 @@
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 
 SocketAddress::SocketAddress(std::string const &uri)
-  : priv(new SocketAddressAddrinfo(uri))
+  : priv(std::make_shared<SocketAddressAddrinfo>(uri))
 {
 }
 
 SocketAddress::SocketAddress(uint16_t port)
-  : priv(new SocketAddressAddrinfo(port))
+  : priv(std::make_shared<SocketAddressAddrinfo>(port))
 {
 }
 
