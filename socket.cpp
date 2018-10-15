@@ -6,12 +6,59 @@
 # pragma comment(lib, "Ws2_32.lib")
 #else
 # include <arpa/inet.h> // for IPPROTO_UDP
+# include <sys/select.h> // for fd_set
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
 #include <cstring> // for std::strerror
 #include <stdexcept> // for std::runtime_error
+
+namespace {
+  fd_set ToFdSet(int fd)
+  {
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    return fds;
+  }
+
+  timeval ToTimeval(Socket::Time time)
+  {
+    using namespace std::chrono;
+
+    auto const usec = duration_cast<microseconds>(time).count();
+
+    return {
+      static_cast<decltype(timeval::tv_sec)>(usec / 1000000U)
+    , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
+    };
+  }
+
+  /// @return  0: timed out, <0: fd closed, >0: readable
+  int SelectRead(int fd, Socket::Time timeout)
+  {
+    auto rfds = ToFdSet(fd);
+    if(timeout > Socket::Time(0)) {
+      timeval tv = ToTimeval(timeout);
+      return ::select(fd + 1, &rfds, nullptr, nullptr, &tv);
+    } else {
+      return ::select(fd + 1, &rfds, nullptr, nullptr, nullptr);
+    }
+  }
+
+  /// @return  0: timed out, <0: fd closed, >0: writable
+  int SelectWrite(int fd, Socket::Time timeout)
+  {
+    auto wfds = ToFdSet(fd);
+    if(timeout > Socket::Time(0)) {
+      timeval tv = ToTimeval(timeout);
+      return ::select(fd + 1, nullptr, &wfds, nullptr, &tv);
+    } else {
+      return ::select(fd + 1, nullptr, &wfds, nullptr, nullptr);
+    }
+  }
+} // unnamed namespace
 
 Socket::~Socket()
 {
@@ -41,13 +88,36 @@ Socket &Socket::operator=(Socket &&other)
   return *this;
 }
 
-size_t Socket::Receive(char *data, size_t size)
+size_t Socket::Receive(char *data, size_t size, Time timeout)
 {
-  return ::recv(m_fd, data, size, 0);
+  if(int const result = SelectRead(m_fd, timeout)) {
+    if(result < 0) {
+      throw std::runtime_error("failed to receive: "
+                               + std::string(std::strerror(errno)));
+    } else if(auto const received = ::recv(m_fd, data, size, 0)) {
+      return received;
+    } else {
+      throw std::runtime_error("connection closed");
+    }
+  } else {
+    // timeout exceeded
+    return 0U;
+  }
 }
 
-std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size)
+std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size,
+  Time timeout)
 {
+  if(int const result = SelectRead(m_fd, timeout)) {
+    if(result < 0) {
+      throw std::runtime_error("failed to receive from: "
+                               + std::string(std::strerror(errno)));
+    }
+  } else {
+    // timeout exceeded
+    return {0U, SocketAddress()};
+  }
+
   auto ss = std::make_shared<SocketAddressStorage>();
 
   auto const received = ::recvfrom(m_fd, data, size, 0, ss->Addr(), ss->AddrLen());
@@ -107,11 +177,22 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   }
 }
 
-void SocketTcpClient::Send(const char *data, size_t size)
+void SocketTcpClient::Send(const char *data, size_t size,
+  Time timeout)
 {
-  if(size != ::send(m_fd, data, size, 0)) {
-    throw std::runtime_error("failed to send: "
-                             + std::string(std::strerror(errno)));
+  auto error = []() -> std::runtime_error {
+    return std::runtime_error("failed to send: "
+                              + std::string(std::strerror(errno)));
+  };
+
+  if(int const result = SelectWrite(m_fd, timeout)) {
+    if(result < 0) {
+      throw error();
+    } else if(size != ::send(m_fd, data, size, 0)) {
+      throw error();
+    }
+  } else {
+    throw std::runtime_error("send timed out");
   }
 }
 
@@ -138,11 +219,23 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   }
 }
 
-std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen()
+std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
 {
+  auto error = []() -> std::runtime_error {
+    return std::runtime_error("failed to listen: "
+                              + std::string(std::strerror(errno)));
+  };
+
   if(::listen(m_fd, 1)) {
-    throw std::runtime_error("failed to listen: "
-                             + std::string(std::strerror(errno)));
+    throw error();
+  }
+
+  if(int const result = SelectRead(m_fd, timeout)) {
+    if(result < 0) {
+      throw error();
+    }
+  } else {
+    throw std::runtime_error("listen timed out");
   }
 
   auto ss = std::make_shared<SocketAddressStorage>();

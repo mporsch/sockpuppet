@@ -4,11 +4,14 @@
 #include "socket_address.h" // for SocketAddress
 #include "socket_guard.h" // for SocketGuard
 
+#include <chrono> // for std::chrono
 #include <cstddef> // for size_t
 
 class Socket
 {
 public:
+  using Time = std::chrono::duration<uint32_t, std::micro>;
+
   Socket(Socket const &other) = delete;
   Socket(Socket &&other);
   virtual ~Socket();
@@ -17,10 +20,12 @@ public:
   Socket &operator=(Socket &&other);
 
   size_t Receive(char *data,
-                 size_t size);
+                 size_t size,
+                 Time timeout = Time(0));
 
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
-                                                size_t size);
+                                                size_t size,
+                                                Time timeout = Time(0));
 
 protected:
   Socket(int family, int type, int protocol);
@@ -49,7 +54,8 @@ public:
   SocketTcpClient(SocketAddress const &connectAddress);
 
   void Send(char const *data,
-            size_t size);
+            size_t size,
+            Time timeout = Time(0));
 
   using Socket::Receive;
 
@@ -62,7 +68,7 @@ class SocketTcpServer : protected Socket
 public:
   SocketTcpServer(SocketAddress const &bindAddress);
 
-  std::tuple<SocketTcpClient, SocketAddress> Listen();
+  std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0));
 };
 
 #endif // SOCKET_H
