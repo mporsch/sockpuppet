@@ -21,6 +21,7 @@ struct SockAddr
 {
   sockaddr const *addr;
   socklen_t addrLen;
+  int family;
 };
 
 struct SocketAddress::SocketAddressPriv

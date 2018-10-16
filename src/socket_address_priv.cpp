@@ -154,6 +154,7 @@ SockAddr SocketAddressAddrinfo::SockAddrTcp() const
     return SockAddr{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
+    , it->ai_family
     };
   } else {
     throw std::logic_error("address is not valid for TCP");
@@ -166,6 +167,7 @@ SockAddr SocketAddressAddrinfo::SockAddrUdp() const
       return SockAddr{
         it->ai_addr
       , static_cast<socklen_t>(it->ai_addrlen)
+      , it->ai_family
       };
   } else {
     throw std::logic_error("address is not valid for UDP");
@@ -202,6 +204,7 @@ SockAddr SocketAddressStorage::SockAddrTcp() const
   return SockAddr{
     reinterpret_cast<sockaddr const *>(&storage)
   , size
+  , storage.ss_family
   };
 }
 
