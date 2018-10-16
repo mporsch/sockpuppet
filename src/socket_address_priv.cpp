@@ -141,7 +141,7 @@ SockAddr SocketAddressAddrinfo::SockAddrTcp() const
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
     if(it->ai_socktype == SOCK_STREAM
     && it->ai_protocol == IPPROTO_TCP) {
-      return SockAddr{it->ai_addr, it->ai_addrlen};
+      return SockAddr{it->ai_addr, static_cast<socklen_t>(it->ai_addrlen)};
     }
   }
   throw std::logic_error("address is not valid for TCP");
@@ -152,7 +152,7 @@ SockAddr SocketAddressAddrinfo::SockAddrUdp() const
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
     if(it->ai_socktype == SOCK_DGRAM
     && it->ai_protocol == IPPROTO_UDP) {
-      return SockAddr{it->ai_addr, it->ai_addrlen};
+      return SockAddr{it->ai_addr, static_cast<socklen_t>(it->ai_addrlen)};
     }
   }
   throw std::logic_error("address is not valid for UDP");
