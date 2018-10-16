@@ -203,9 +203,10 @@ SocketTcpClient::SocketTcpClient(int fd)
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   : Socket(bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP)
 {
-  static char const opt = 1;
-  if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-    throw std::runtime_error("failed to set socket address reuse :"
+  static int const opt = 1;
+  if (::setsockopt(m_fd, SOL_SOCKET, SO_REUSEADDR,
+                   reinterpret_cast<char const *>(&opt), sizeof(opt))) {
+    throw std::runtime_error("failed to set socket address reuse: "
                              + std::string(std::strerror(errno)));
   }
 
