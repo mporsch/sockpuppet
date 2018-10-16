@@ -162,13 +162,10 @@ SockAddr SocketAddressAddrinfo::SockAddrUdp() const
 
 int SocketAddressAddrinfo::Family() const
 {
-  auto const first = info.get();
-  for(auto it = first->ai_next; it != nullptr; it = it->ai_next) {
-    if(first->ai_family != it->ai_family) {
-      throw std::logic_error("address contains multiple families");
-    }
-  }
-  return first->ai_family;
+  // return the family of the first resolved addrinfo
+  // in case the provided address was ambiguous,
+  // the user can always provide a family-specific string
+  return info->ai_family;
 }
 
 
