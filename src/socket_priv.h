@@ -8,7 +8,7 @@
 #ifdef _WIN32
 # include <winsock2.h> // for SOCKET
 #else
-# define SOCKET int
+using SOCKET = int;
 #endif // _WIN32
 
 #include <cstddef> // for size_t
