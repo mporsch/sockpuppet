@@ -7,7 +7,12 @@ class SocketGuard
 {
 public:
   SocketGuard();
+  SocketGuard(SocketGuard const &other) = delete;
+  SocketGuard(SocketGuard &&other) = delete;
   ~SocketGuard();
+
+  SocketGuard &operator=(SocketGuard const &other) = delete;
+  SocketGuard &operator=(SocketGuard &&other) = delete;
 
 private:
   static unsigned int m_instanceCount;

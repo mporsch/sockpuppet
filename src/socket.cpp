@@ -72,15 +72,13 @@ Socket::~Socket()
 }
 
 Socket::Socket(Socket &&other)
-  : m_socketGuard(std::move(other.m_socketGuard))
-  , m_fd(std::move(other.m_fd))
+  : m_fd(std::move(other.m_fd))
 {
   other.m_fd = -1;
 }
 
 Socket &Socket::operator=(Socket &&other)
 {
-  m_socketGuard = std::move(other.m_socketGuard);
   m_fd = std::move(other.m_fd);
 
   other.m_fd = -1;
