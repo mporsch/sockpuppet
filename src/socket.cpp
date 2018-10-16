@@ -39,7 +39,7 @@ namespace {
   int SelectRead(int fd, Socket::Time timeout)
   {
     auto rfds = ToFdSet(fd);
-    if(timeout > Socket::Time(0)) {
+    if(timeout > Socket::Time(0U)) {
       timeval tv = ToTimeval(timeout);
       return ::select(fd + 1, &rfds, nullptr, nullptr, &tv);
     } else {
@@ -51,7 +51,7 @@ namespace {
   int SelectWrite(int fd, Socket::Time timeout)
   {
     auto wfds = ToFdSet(fd);
-    if(timeout > Socket::Time(0)) {
+    if(timeout > Socket::Time(0U)) {
       timeval tv = ToTimeval(timeout);
       return ::select(fd + 1, nullptr, &wfds, nullptr, &tv);
     } else {
@@ -88,7 +88,7 @@ Socket &Socket::operator=(Socket &&other)
 
 size_t Socket::Receive(char *data, size_t size, Time timeout)
 {
-  if(int const result = SelectRead(m_fd, timeout)) {
+  if(auto const result = SelectRead(m_fd, timeout)) {
     if(result < 0) {
       throw std::runtime_error("failed to receive: "
                                + std::string(std::strerror(errno)));
@@ -106,7 +106,7 @@ size_t Socket::Receive(char *data, size_t size, Time timeout)
 std::tuple<size_t, SocketAddress> Socket::ReceiveFrom(char *data, size_t size,
   Time timeout)
 {
-  if(int const result = SelectRead(m_fd, timeout)) {
+  if(auto const result = SelectRead(m_fd, timeout)) {
     if(result < 0) {
       throw std::runtime_error("failed to receive from: "
                                + std::string(std::strerror(errno)));
@@ -183,7 +183,7 @@ void SocketTcpClient::Send(const char *data, size_t size,
                               + std::string(std::strerror(errno)));
   };
 
-  if(int const result = SelectWrite(m_fd, timeout)) {
+  if(auto const result = SelectWrite(m_fd, timeout)) {
     if(result < 0) {
       throw error();
     } else if(size != ::send(m_fd, data, size, 0)) {
@@ -228,7 +228,7 @@ std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
     throw error();
   }
 
-  if(int const result = SelectRead(m_fd, timeout)) {
+  if(auto const result = SelectRead(m_fd, timeout)) {
     if(result < 0) {
       throw error();
     }

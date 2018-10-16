@@ -21,11 +21,11 @@ public:
 
   size_t Receive(char *data,
                  size_t size,
-                 Time timeout = Time(0));
+                 Time timeout = Time(0U));
 
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
-                                                Time timeout = Time(0));
+                                                Time timeout = Time(0U));
 
 protected:
   Socket(int family, int type, int protocol);
@@ -55,7 +55,7 @@ public:
 
   void Send(char const *data,
             size_t size,
-            Time timeout = Time(0));
+            Time timeout = Time(0U));
 
   using Socket::Receive;
 
@@ -68,7 +68,7 @@ class SocketTcpServer : protected Socket
 public:
   SocketTcpServer(SocketAddress const &bindAddress);
 
-  std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0));
+  std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0U));
 };
 
 #endif // SOCKET_H
