@@ -136,28 +136,40 @@ SocketAddressAddrinfo::SocketAddressAddrinfo(uint16_t port)
 {
 }
 
-SockAddr SocketAddressAddrinfo::SockAddrTcp() const
+addrinfo const *SocketAddressAddrinfo::Find(int type, int protocol) const
 {
   // windows does not explicitly set socktype/protocol, unix does
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
-    if((it->ai_socktype == 0 || it->ai_socktype == SOCK_STREAM) &&
-       (it->ai_protocol == 0 || it->ai_protocol == IPPROTO_TCP)) {
-      return SockAddr{it->ai_addr, static_cast<socklen_t>(it->ai_addrlen)};
+    if((it->ai_socktype == 0 || it->ai_socktype == type) &&
+       (it->ai_protocol == 0 || it->ai_protocol == protocol)) {
+      return it;
     }
   }
-  throw std::logic_error("address is not valid for TCP");
+  return nullptr;
+}
+
+SockAddr SocketAddressAddrinfo::SockAddrTcp() const
+{
+  if(auto const it = Find(SOCK_STREAM, IPPROTO_TCP)) {
+    return SockAddr{
+      it->ai_addr
+    , static_cast<socklen_t>(it->ai_addrlen)
+    };
+  } else {
+    throw std::logic_error("address is not valid for TCP");
+  }
 }
 
 SockAddr SocketAddressAddrinfo::SockAddrUdp() const
 {
-  // windows does not explicitly set socktype/protocol, unix does
-  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
-    if((it->ai_socktype == 0 || it->ai_socktype == SOCK_DGRAM) &&
-       (it->ai_protocol == 0 || it->ai_protocol == IPPROTO_UDP)) {
-      return SockAddr{it->ai_addr, static_cast<socklen_t>(it->ai_addrlen)};
-    }
+  if(auto const it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
+      return SockAddr{
+        it->ai_addr
+      , static_cast<socklen_t>(it->ai_addrlen)
+      };
+  } else {
+    throw std::logic_error("address is not valid for UDP");
   }
-  throw std::logic_error("address is not valid for UDP");
 }
 
 int SocketAddressAddrinfo::Family() const

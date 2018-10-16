@@ -43,6 +43,8 @@ struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
   SocketAddressAddrinfo(std::string const &uri);
   SocketAddressAddrinfo(uint16_t port);
 
+  addrinfo const *Find(int type, int protocol) const;
+
   SockAddr SockAddrTcp() const override;
   SockAddr SockAddrUdp() const override;
   int Family() const override;

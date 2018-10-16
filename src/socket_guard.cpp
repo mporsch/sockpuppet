@@ -19,7 +19,7 @@ SocketGuard::SocketGuard()
   if(m_instanceCount == 0U) {
     // we are the first instance -> initialize
     WSADATA wsaData;
-    if(auto result = WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+    if(auto const result = WSAStartup(MAKEWORD(2, 2), &wsaData)) {
       throw std::runtime_error("failed to intitialize socket subsystem: "
                                + std::to_string(result));
     }
