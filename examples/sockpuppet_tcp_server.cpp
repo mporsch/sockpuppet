@@ -15,9 +15,7 @@ try {
   for(;;) {
     char buffer[256];
     auto const received = client.Receive(buffer, sizeof(buffer));
-    if(received > 0U) {
-      std::cout << std::string(buffer, received) << std::endl;
-    }
+    std::cout << std::string(buffer, received) << std::endl;
   }
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;

@@ -19,9 +19,8 @@ try {
 
     char buffer[256];
     for(;;) {
-      if(auto const received = sock.Receive(buffer, sizeof(buffer))) {
-        std::cout << std::string(buffer, received) << std::endl;
-      }
+      auto const received = sock.Receive(buffer, sizeof(buffer));
+      std::cout << std::string(buffer, received) << std::endl;
     }
   }
 

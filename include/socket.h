@@ -19,10 +19,12 @@ public:
   Socket &operator=(Socket const &other) = delete;
   Socket &operator=(Socket &&other);
 
+  /// @return  May return 0 if timeout is specified.
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
 
+  /// @return  May return 0 if timeout is specified.
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Time timeout = Time(0U));
