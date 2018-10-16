@@ -2,14 +2,13 @@
 #define SOCKET_H
 
 #include "socket_address.h" // for SocketAddress
-#include "socket_guard.h" // for SocketGuard
 
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t
+#include <memory> // for std::unique_ptr
 
-class Socket
+struct Socket
 {
-public:
   using Time = std::chrono::duration<uint32_t, std::micro>;
 
   Socket(Socket const &other) = delete;
@@ -18,6 +17,22 @@ public:
 
   Socket &operator=(Socket const &other) = delete;
   Socket &operator=(Socket &&other);
+
+  struct SocketPriv;
+protected:
+  Socket(std::unique_ptr<SocketPriv> &&other);
+
+protected:
+  std::unique_ptr<SocketPriv> m_priv;
+};
+
+struct SocketUdp : public Socket
+{
+  SocketUdp(SocketAddress const &bindAddress);
+
+  void SendTo(char const *data,
+              size_t size,
+              SocketAddress const &dstAddress);
 
   /// @return  May return 0 if timeout is specified.
   size_t Receive(char *data,
@@ -28,27 +43,9 @@ public:
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Time timeout = Time(0U));
-
-protected:
-  Socket(int family, int type, int protocol);
-  Socket(int fd);
-
-protected:
-  SocketGuard m_socketGuard;  ///< Guard to initialize socket subsystem on windows
-  int m_fd;  ///< Socket file descriptor
 };
 
-class SocketUdp : public Socket
-{
-public:
-  SocketUdp(SocketAddress const &bindAddress);
-
-  void SendTo(char const *data,
-              size_t size,
-              SocketAddress const &dstAddress);
-};
-
-class SocketTcpClient : protected Socket
+class SocketTcpClient : public Socket
 {
   friend class SocketTcpServer;
 
@@ -59,15 +56,17 @@ public:
             size_t size,
             Time timeout = Time(0U));
 
-  using Socket::Receive;
+  /// @return  May return 0 if timeout is specified.
+  size_t Receive(char *data,
+                 size_t size,
+                 Time timeout = Time(0U));
 
 private:
-  SocketTcpClient(int fd);
+  SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
 };
 
-class SocketTcpServer : protected Socket
+struct SocketTcpServer : public Socket
 {
-public:
   SocketTcpServer(SocketAddress const &bindAddress);
 
   std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0U));

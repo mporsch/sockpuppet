@@ -45,6 +45,8 @@ SocketAddress &SocketAddress::operator=(SocketAddress &&other)
 namespace std {
   std::string to_string(SocketAddress const &addr)
   {
-    return std::to_string(*addr.priv);
+    return (addr.priv ?
+      std::to_string(addr.priv->SockAddrUdp()) :
+      "invalid");
   }
 } // namespace std

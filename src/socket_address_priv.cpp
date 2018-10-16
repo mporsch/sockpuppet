@@ -219,11 +219,10 @@ int SocketAddressStorage::Family() const
 }
 
 namespace std {
-  std::string to_string(SocketAddress::SocketAddressPriv const &addr)
+  std::string to_string(SockAddr const &sockAddr)
   {
     SocketGuard guard;
 
-    auto const sockAddr = addr.SockAddrUdp();
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];
     if(auto const result = getnameinfo(
@@ -235,7 +234,7 @@ namespace std {
                                + gai_strerror(result));
     }
 
-    return (addr.Family() == AF_INET ?
+    return (sockAddr.family == AF_INET ?
       std::string(host) + ":" + service :
       std::string("[") + host + "]" + ":" + service);
   }

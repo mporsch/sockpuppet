@@ -17,6 +17,8 @@ add_library(sockpuppet
   src/socket_address_priv.h
   src/socket_guard.cpp
   include/socket_guard.h
+  src/socket_priv.cpp
+  src/socket_priv.h
 )
 
 include_directories(include)

@@ -67,7 +67,7 @@ struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
 };
 
 namespace std {
-  std::string to_string(SocketAddress::SocketAddressPriv const &addr);
+  std::string to_string(SockAddr const &sockAddr);
 }
 
 #endif // SOCKET_ADDRESS_PRIV_H
