@@ -48,7 +48,7 @@ struct SocketUdp : public Socket
 
 class SocketTcpClient : public Socket
 {
-  friend class SocketTcpServer;
+  friend struct SocketTcpServer;
 
 public:
   SocketTcpClient(SocketAddress const &connectAddress);

@@ -191,26 +191,30 @@ void Socket::SocketPriv::SetSockOptReuseAddr()
   }
 }
 
-/// @return  0: timed out, <0: fd closed, >0: readable
+/// @return  0: timed out, <0: fd closed, >0: fd readable
 int Socket::SocketPriv::SelectRead(Socket::Time timeout)
 {
+  // unix expects the first ::select parameter to be the
+  // highest-numbered file descriptor in any of the three sets, plus 1
+  // windows ignores the parameter
+
   auto rfds = ToFdSet(fd);
   if(timeout > Socket::Time(0U)) {
     timeval tv = ToTimeval(timeout);
-    return ::select(fd + 1, &rfds, nullptr, nullptr, &tv);
+    return ::select(static_cast<int>(fd + 1), &rfds, nullptr, nullptr, &tv);
   } else {
-    return ::select(fd + 1, &rfds, nullptr, nullptr, nullptr);
+    return ::select(static_cast<int>(fd + 1), &rfds, nullptr, nullptr, nullptr);
   }
 }
 
-/// @return  0: timed out, <0: fd closed, >0: writable
+/// @return  0: timed out, <0: fd closed, >0: fd writable
 int Socket::SocketPriv::SelectWrite(Socket::Time timeout)
 {
   auto wfds = ToFdSet(fd);
   if(timeout > Socket::Time(0U)) {
     timeval tv = ToTimeval(timeout);
-    return ::select(fd + 1, nullptr, &wfds, nullptr, &tv);
+    return ::select(static_cast<int>(fd + 1), nullptr, &wfds, nullptr, &tv);
   } else {
-    return ::select(fd + 1, nullptr, &wfds, nullptr, nullptr);
+    return ::select(static_cast<int>(fd + 1), nullptr, &wfds, nullptr, nullptr);
   }
 }
