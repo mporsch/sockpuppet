@@ -6,6 +6,7 @@
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <tuple> // for std::tuple
 
 struct Socket
 {

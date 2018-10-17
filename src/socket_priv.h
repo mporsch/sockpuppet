@@ -12,6 +12,8 @@ using SOCKET = int;
 #endif // _WIN32
 
 #include <cstddef> // for size_t
+#include <memory> // for std::shared_ptr
+#include <tuple> // for std::tuple
 
 struct Socket::SocketPriv
 {

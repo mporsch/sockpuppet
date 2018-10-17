@@ -57,7 +57,7 @@ Socket::SocketPriv::~SocketPriv()
 {
   if(fd >= 0) {
 #ifdef _WIN32
-    (void)closesocket(m_fd);
+    (void)closesocket(fd);
 #else
     (void)::close(fd);
 #endif // _WIN32
