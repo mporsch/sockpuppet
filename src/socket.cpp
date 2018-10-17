@@ -34,6 +34,7 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
       bindAddress.priv->Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
   m_priv->Bind(bindAddress.priv->SockAddrUdp());
+  m_priv->SetSockOptBroadcast();
 }
 
 void SocketUdp::SendTo(char const *data, size_t size,

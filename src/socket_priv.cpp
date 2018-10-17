@@ -1,16 +1,15 @@
 #include "socket_priv.h"
 
 #ifdef _WIN32
-# include <winsock2.h> // for ::socket
 # pragma comment(lib, "Ws2_32.lib")
 #else
-# include <sys/select.h> // for fd_set
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
 #include <cstring> // for std::strerror
 #include <stdexcept> // for std::runtime_error
+#include <string> // for std::string
 
 namespace {
   fd_set ToFdSet(SOCKET fd)
@@ -147,7 +146,8 @@ void Socket::SocketPriv::Bind(SockAddr const &sockAddr)
 {
   if(::bind(fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
-                             + std::to_string(sockAddr) + ": "
+                             + std::to_string(sockAddr)
+                             + ": "
                              + std::strerror(errno));
   }
 }
@@ -183,38 +183,51 @@ Socket::SocketPriv::Listen(Time timeout)
 
 void Socket::SocketPriv::SetSockOptReuseAddr()
 {
-  static int const opt = 1;
-  if (::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-                   reinterpret_cast<char const *>(&opt), sizeof(opt))) {
-    throw std::runtime_error("failed to set socket address reuse: "
-                             + std::string(std::strerror(errno)));
+  SetSockOpt(SO_REUSEADDR, 1, "address reuse");
+}
+
+void Socket::SocketPriv::SetSockOptBroadcast()
+{
+  SetSockOpt(SO_BROADCAST, 1, "broadcast");
+}
+
+void Socket::SocketPriv::SetSockOpt(int id, int value,
+  char const *name)
+{
+  if (::setsockopt(fd, SOL_SOCKET, id,
+                   reinterpret_cast<char const *>(&value), sizeof(value))) {
+    throw std::runtime_error("failed to set socket option "
+                             + std::string(name)
+                             + ": "
+                             + std::strerror(errno));
   }
 }
 
 /// @return  0: timed out, <0: fd closed, >0: fd readable
 int Socket::SocketPriv::SelectRead(Socket::Time timeout)
 {
-  // unix expects the first ::select parameter to be the
-  // highest-numbered file descriptor in any of the three sets, plus 1
-  // windows ignores the parameter
-
   auto rfds = ToFdSet(fd);
-  if(timeout > Socket::Time(0U)) {
-    timeval tv = ToTimeval(timeout);
-    return ::select(static_cast<int>(fd + 1), &rfds, nullptr, nullptr, &tv);
-  } else {
-    return ::select(static_cast<int>(fd + 1), &rfds, nullptr, nullptr, nullptr);
-  }
+  return Select(&rfds, nullptr, timeout);
 }
 
 /// @return  0: timed out, <0: fd closed, >0: fd writable
 int Socket::SocketPriv::SelectWrite(Socket::Time timeout)
 {
   auto wfds = ToFdSet(fd);
+  return Select(nullptr, &wfds, timeout);
+}
+
+int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds,
+  Socket::Time timeout)
+{
+  // unix expects the first ::select parameter to be the
+  // highest-numbered file descriptor in any of the three sets, plus 1
+  // windows ignores the parameter
+
   if(timeout > Socket::Time(0U)) {
     timeval tv = ToTimeval(timeout);
-    return ::select(static_cast<int>(fd + 1), nullptr, &wfds, nullptr, &tv);
+    return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
   } else {
-    return ::select(static_cast<int>(fd + 1), nullptr, &wfds, nullptr, nullptr);
+    return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, nullptr);
   }
 }

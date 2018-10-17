@@ -8,6 +8,7 @@
 #ifdef _WIN32
 # include <winsock2.h> // for SOCKET
 #else
+# include <sys/select.h> // for fd_set
 using SOCKET = int;
 #endif // _WIN32
 
@@ -50,12 +51,15 @@ struct Socket::SocketPriv
   Listen(Time timeout);
 
   void SetSockOptReuseAddr();
+  void SetSockOptBroadcast();
+  void SetSockOpt(int id,
+                  int value,
+                  char const *name);
 
-  /// @return  0: timed out, <0: fd closed, >0: readable
+  /// @return  0: timed out, <0: fd closed, >0: readable/writable
   int SelectRead(Socket::Time timeout);
-
-  /// @return  0: timed out, <0: fd closed, >0: writable
   int SelectWrite(Socket::Time timeout);
+  int Select(fd_set *rfds, fd_set *wfds, Socket::Time timeout);
 };
 
 #endif // SOCKET_PRIV_H
