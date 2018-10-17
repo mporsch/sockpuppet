@@ -3,11 +3,19 @@ cmake_minimum_required(VERSION 3.0.0)
 project(sockpuppet CXX)
 
 if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
+  # install to the build directory by default (instead of some system folder)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "" FORCE)
 endif()
 option(BUILD_TESTS "Build test executables" TRUE)
 option(BUILD_EXAMPLES "Build example executables" TRUE)
+option(BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
 
+if(${BUILD_SHARED_LIBS})
+  # auto-generate DLL exports
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif()
+
+# this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
   src/socket.cpp
   include/socket.h
@@ -30,11 +38,14 @@ if(${BUILD_EXAMPLES})
   add_subdirectory(examples)
 endif()
 
+# install the library includes
 install(DIRECTORY include/
   DESTINATION include
   FILES_MATCHING PATTERN "*.h"
 )
+# install the library itself
 install(TARGETS sockpuppet
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
