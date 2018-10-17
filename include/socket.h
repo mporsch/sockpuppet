@@ -8,6 +8,10 @@
 #include <memory> // for std::unique_ptr
 #include <tuple> // for std::tuple
 
+/// The socket base class sets general constraints (sockets
+/// are not copyable) and stores the hidden implementation.
+/// It is created by its derived classes and is not intended
+/// to be created by the user.
 struct Socket
 {
   using Time = std::chrono::duration<uint32_t, std::micro>;
@@ -27,37 +31,62 @@ protected:
   std::unique_ptr<SocketPriv> m_priv;
 };
 
+/// UDP (unreliable communication) socket class that is
+/// bound to provided address.
 struct SocketUdp : public Socket
 {
+  /// Create a UDP socket bound to given address.
+  /// @throws  If binding fails.
   SocketUdp(SocketAddress const &bindAddress);
 
+  /// Unreliably send data to address.
+  /// @param  dstAddress  Address to send to; must match
+  ///                     IP family of bound address.
+  /// @throws  If sending fails locally.
   void SendTo(char const *data,
               size_t size,
               SocketAddress const &dstAddress);
 
-  /// @return  May return 0 if timeout is specified.
+  /// Unreliably receive data on bound address.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return 0 only if timeout is specified.
+  /// @throws  If receipt fails locally.
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
 
-  /// @return  May return 0 if timeout is specified.
+  /// Unreliably receive data on bound address and report the source.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return 0 and invalid address only if timeout is specified.
+  /// @throws  If receipt fails locally.
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Time timeout = Time(0U));
 };
 
+/// TCP (reliable communication) socket class that is either
+/// connected to provided peer address or to a peer accepted
+/// by the TCP server socket.
 class SocketTcpClient : public Socket
 {
   friend struct SocketTcpServer;
 
 public:
+  /// Create a TCP socket connected to given address.
+  /// @throws  If connect fails.
   SocketTcpClient(SocketAddress const &connectAddress);
 
+  /// Reliably send data to connected peer.
+  /// @param  timeout  Timeout to use; 0 causes blocking send.
+  /// @throws  If sending fails.
   void Send(char const *data,
             size_t size,
             Time timeout = Time(0U));
 
-  /// @return  May return 0 if timeout is specified.
+  /// Reliably receive data from connected peer.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return 0 only if timeout is specified.
+  /// @throws  If receipt fails.
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
@@ -66,10 +95,18 @@ private:
   SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
 };
 
+/// TCP (reliable communication) socket class that is
+/// bound to provided address and can create client sockets
+/// for incoming peer connections.
 struct SocketTcpServer : public Socket
 {
+  /// Create a TCP server socket bound to given address.
+  /// @throws  If binding fails.
   SocketTcpServer(SocketAddress const &bindAddress);
 
+  /// Listen and accept incoming TCP connections and report the source.
+  /// @param  timeout  Timeout to use; 0 causes blocking listen.
+  /// @throws  If listen or accept fails or timeout occurs.
   std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0U));
 };
 
