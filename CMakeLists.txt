@@ -49,3 +49,6 @@ install(TARGETS sockpuppet
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
 )
+# install the demo project
+install(DIRECTORY demo/ DESTINATION demo)
+install(FILES examples/sockpuppet_http_server.cpp DESTINATION demo)

@@ -47,7 +47,8 @@ try {
   SocketTcpServer server(serverAddr);
 
   std::cout << "listening for HTTP requests at "
-    << std::to_string(serverAddr) << std::endl;
+    << std::to_string(serverAddr)
+    << " <- open this address in your web browser" << std::endl;
 
   // fire and forget handler threads for each incoming client
   // do not do this in your application!
