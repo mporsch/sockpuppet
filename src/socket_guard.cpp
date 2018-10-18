@@ -1,8 +1,7 @@
 #include "socket_guard.h"
 
 #ifdef _WIN32
-# include <winsock2.h> // for WSAStartup
-# pragma comment(lib, "wsock32.lib")
+# include <Winsock2.h> // for WSAStartup
 #endif // _WIN32
 
 #include <stdexcept> // for std::runtime_error

@@ -6,7 +6,7 @@
 #include "socket_guard.h" // for SocketGuard
 
 #ifdef _WIN32
-# include <winsock2.h> // for SOCKET
+# include <Winsock2.h> // for SOCKET
 #else
 # include <sys/select.h> // for fd_set
 using SOCKET = int;

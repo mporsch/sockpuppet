@@ -1,8 +1,6 @@
 #include "socket_priv.h"
 
-#ifdef _WIN32
-# pragma comment(lib, "Ws2_32.lib")
-#else
+#ifndef _WIN32
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32

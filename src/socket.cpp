@@ -3,7 +3,7 @@
 #include "socket_priv.h" // for Socket::SocketPriv
 
 #ifdef _WIN32
-# include <winsock2.h> // for IPPROTO_UDP
+# include <Winsock2.h> // for IPPROTO_UDP
 #else
 # include <arpa/inet.h> // for IPPROTO_UDP
 #endif // _WIN32

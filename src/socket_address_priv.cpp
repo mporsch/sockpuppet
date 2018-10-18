@@ -1,10 +1,6 @@
 #include "socket_address_priv.h"
 #include "socket_guard.h" // for SocketGuard
 
-#ifdef _WIN32
-# pragma comment(lib, "Ws2_32.lib")
-#endif // _WIN32
-
 #include <algorithm> // for std::count
 #include <stdexcept> // for std::runtime_error
 

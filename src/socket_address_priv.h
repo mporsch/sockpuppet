@@ -6,7 +6,7 @@
 #ifdef _WIN32
 # pragma push_macro("NOMINMAX")
 # define NOMINMAX // to avoid overwriting min()/max()
-# include <Ws2tcpip.h> // for sockaddr_storage
+# include <WS2tcpip.h> // for sockaddr_storage
 # pragma pop_macro("NOMINMAX")
 #else
 # include <netdb.h> // for sockaddr_storage
