@@ -11,13 +11,14 @@ So welcome! Have a look around, give it a try and if something is horribly wrong
 - [x] UDP and TCP socket classes
 - [x] blocking and non-blocking IO using optional timeout parameter
 - [x] IPv6 and IPv4 address handling (lookup using *getaddrinfo* and storage using *sockaddr_storage*)
+- [X] UDP broadcast (but not automatically on multiple network interfaces)
 - [x] exceptions with meaningful system-provided error messages
 - [x] library includes do not pull any system headers
 - [ ] proper interface documentation :weary:
 - [ ] exhaustive tests :cold_sweat:
-- [ ] UDP broadcast and multicast
+- [ ] UDP multicast
 - [ ] internal resource pool eliminating the need for pre-allocated buffers
 - [ ] asynchronous receipt using trigger thread interface (and some thread safety, maybe)
 
 ## Build
-Build test executables using CMake.
+Configure and build library/examples/demo/tests using CMake.
