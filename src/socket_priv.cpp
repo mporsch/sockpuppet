@@ -63,35 +63,41 @@ Socket::SocketPriv::~SocketPriv()
 
 size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 {
-  if(auto const result = SelectRead(timeout)) {
-    if(result < 0) {
-      throw std::runtime_error("failed to receive: "
-                               + std::string(std::strerror(errno)));
-    } else if(auto const received = ::recv(fd, data, size, 0)) {
-      return received;
+  if(timeout.count() > 0U) {
+    if(auto const result = SelectRead(timeout)) {
+      if(result < 0) {
+        throw std::runtime_error("failed to receive: "
+                                 + std::string(std::strerror(errno)));
+      }
     } else {
-      throw std::runtime_error("connection closed");
+      // timeout exceeded
+      return 0U;
     }
+  }
+
+  if(auto const received = ::recv(fd, data, size, 0)) {
+    return received;
   } else {
-    // timeout exceeded
-    return 0U;
+    throw std::runtime_error("connection closed");
   }
 }
 
 std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
 {
-  if(auto const result = SelectRead(timeout)) {
-    if(result < 0) {
-      throw std::runtime_error("failed to receive from: "
-                               + std::string(std::strerror(errno)));
+  if(timeout.count() > 0U) {
+    if(auto const result = SelectRead(timeout)) {
+      if(result < 0) {
+        throw std::runtime_error("failed to receive from: "
+                                 + std::string(std::strerror(errno)));
+      }
+    } else {
+      // timeout exceeded
+      return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+        0U
+      , nullptr
+      };
     }
-  } else {
-    // timeout exceeded
-    return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
-      0U
-    , nullptr
-    };
   }
 
   auto ss = std::make_shared<SocketAddressStorage>();
@@ -110,14 +116,18 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
                               + std::string(std::strerror(errno)));
   };
 
-  if(auto const result = SelectWrite(timeout)) {
-    if(result < 0) {
-      throw error();
-    } else if(size != ::send(fd, data, size, 0)) {
-      throw error();
+  if(timeout.count() > 0U) {
+    if(auto const result = SelectWrite(timeout)) {
+      if(result < 0) {
+        throw error();
+      }
+    } else {
+      throw std::runtime_error("send timed out");
     }
-  } else {
-    throw std::runtime_error("send timed out");
+  }
+
+  if(size != ::send(fd, data, size, 0)) {
+    throw error();
   }
 }
 
@@ -166,12 +176,14 @@ Socket::SocketPriv::Listen(Time timeout)
     throw error();
   }
 
-  if(auto const result = SelectRead(timeout)) {
-    if(result < 0) {
-      throw error();
+  if(timeout.count() > 0U) {
+    if(auto const result = SelectRead(timeout)) {
+      if(result < 0) {
+        throw error();
+      }
+    } else {
+      throw std::runtime_error("listen timed out");
     }
-  } else {
-    throw std::runtime_error("listen timed out");
   }
 
   auto ss = std::make_shared<SocketAddressStorage>();
@@ -240,10 +252,6 @@ int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds, Time timeout)
   // highest-numbered file descriptor in any of the three sets, plus 1
   // windows ignores the parameter
 
-  if(timeout > Time(0U)) {
-    timeval tv = ToTimeval(timeout);
-    return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
-  } else {
-    return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, nullptr);
-  }
+  timeval tv = ToTimeval(timeout);
+  return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
 }
