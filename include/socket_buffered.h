@@ -56,7 +56,27 @@ public:
   /// @return  May return empty buffer and invalid address only if timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout = Time(0));
+};
 
+/// TCP (reliable communication) socket class that has an internal
+/// receive buffer pool and is either connected to provided peer address or
+/// to a peer accepted by the TCP server socket.
+class SocketTcpBuffered
+  : public SocketTcpClient
+  , public SocketBuffered
+{
+public:
+  /// Create a TCP socket with internal buffer pool connected to given address.
+  /// @throws  If connect fails.
+  SocketTcpBuffered(SocketTcpClient &&sock,
+                    size_t rxBufCount = 0U,
+                    size_t rxBufSize = 0U);
+
+  /// Reliably receive data from connected peer.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return 0 only if timeout is specified.
+  /// @throws  If receipt fails or number of receive buffers is exceeded.
+  SocketBufferPtr Receive(Time timeout = Time(0U));
 };
 
 #endif // SOCKET_BUFFERED_H

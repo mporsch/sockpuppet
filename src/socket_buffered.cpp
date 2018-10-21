@@ -50,3 +50,25 @@ SocketUdpBuffered::ReceiveFrom(Time timeout)
   , std::get<1>(t)
   };
 }
+
+
+SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
+    size_t rxBufCount, size_t rxBufSize)
+  : SocketTcpClient(std::move(sock))
+  , SocketBuffered(rxBufCount,
+                   (rxBufSize ?
+                      rxBufSize :
+                      Socket::GetReceiveBufferSize()))
+{
+}
+
+SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Time timeout)
+{
+  auto buffer = SocketBuffered::GetBuffer();
+
+  buffer->resize(
+    SocketTcpClient::Receive(
+      buffer->data(), buffer->size(), timeout));
+
+  return std::move(buffer);
+}
