@@ -61,8 +61,7 @@ Socket::SocketPriv::~SocketPriv()
   }
 }
 
-size_t Socket::SocketPriv::Receive(char *data, size_t size,
-  Socket::Time timeout)
+size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 {
   if(auto const result = SelectRead(timeout)) {
     if(result < 0) {
@@ -80,8 +79,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size,
 }
 
 std::tuple<size_t, std::shared_ptr<SocketAddressStorage>>
-Socket::SocketPriv::ReceiveFrom(char *data, size_t size,
-  Time timeout)
+Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
 {
   if(auto const result = SelectRead(timeout)) {
     if(result < 0) {
@@ -99,8 +97,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size,
   return {received, std::move(ss)};
 }
 
-void Socket::SocketPriv::Send(char const *data, size_t size,
-  Socket::Time timeout)
+void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
 {
   auto error = []() -> std::runtime_error {
     return std::runtime_error("failed to send: "
@@ -201,28 +198,25 @@ void Socket::SocketPriv::SetSockOpt(int id, int value,
   }
 }
 
-/// @return  0: timed out, <0: fd closed, >0: fd readable
-int Socket::SocketPriv::SelectRead(Socket::Time timeout)
+int Socket::SocketPriv::SelectRead(Time timeout)
 {
   auto rfds = ToFdSet(fd);
   return Select(&rfds, nullptr, timeout);
 }
 
-/// @return  0: timed out, <0: fd closed, >0: fd writable
-int Socket::SocketPriv::SelectWrite(Socket::Time timeout)
+int Socket::SocketPriv::SelectWrite(Time timeout)
 {
   auto wfds = ToFdSet(fd);
   return Select(nullptr, &wfds, timeout);
 }
 
-int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds,
-  Socket::Time timeout)
+int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds, Time timeout)
 {
   // unix expects the first ::select parameter to be the
   // highest-numbered file descriptor in any of the three sets, plus 1
   // windows ignores the parameter
 
-  if(timeout > Socket::Time(0U)) {
+  if(timeout > Time(0U)) {
     timeval tv = ToTimeval(timeout);
     return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
   } else {

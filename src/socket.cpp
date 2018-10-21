@@ -43,8 +43,7 @@ void SocketUdp::SendTo(char const *data, size_t size,
   m_priv->SendTo(data, size, dstAddress.priv->SockAddrUdp());
 }
 
-size_t SocketUdp::Receive(char *data, size_t size,
-  Socket::Time timeout)
+size_t SocketUdp::Receive(char *data, size_t size, Time timeout)
 {
   return m_priv->Receive(data, size, timeout);
 }
@@ -67,14 +66,12 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   m_priv->Connect(connectAddress.priv->SockAddrTcp());
 }
 
-void SocketTcpClient::Send(const char *data, size_t size,
-  Time timeout)
+void SocketTcpClient::Send(const char *data, size_t size, Time timeout)
 {
   m_priv->Send(data, size, timeout);
 }
 
-size_t SocketTcpClient::Receive(char *data, size_t size,
-  Socket::Time timeout)
+size_t SocketTcpClient::Receive(char *data, size_t size, Time timeout)
 {
   return m_priv->Receive(data, size, timeout);
 }

@@ -29,14 +29,14 @@ struct Socket::SocketPriv
 
   size_t Receive(char *data,
                  size_t size,
-                 Socket::Time timeout);
+                 Time timeout);
 
   std::tuple<size_t, std::shared_ptr<SocketAddressStorage>>
   ReceiveFrom(char *data, size_t size, Time timeout);
 
   void Send(char const *data,
             size_t size,
-            Socket::Time timeout);
+            Time timeout);
 
   void SendTo(char const *data,
               size_t size,
@@ -57,9 +57,9 @@ struct Socket::SocketPriv
                   char const *name);
 
   /// @return  0: timed out, <0: fd closed, >0: readable/writable
-  int SelectRead(Socket::Time timeout);
-  int SelectWrite(Socket::Time timeout);
-  int Select(fd_set *rfds, fd_set *wfds, Socket::Time timeout);
+  int SelectRead(Time timeout);
+  int SelectWrite(Time timeout);
+  int Select(fd_set *rfds, fd_set *wfds, Time timeout);
 };
 
 #endif // SOCKET_PRIV_H
