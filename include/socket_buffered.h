@@ -79,7 +79,7 @@ public:
 
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return 0 only if timeout is specified.
+  /// @return  May return empty buffer only if timeout is specified.
   /// @throws  If receipt fails or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Time timeout = Time(0U));
 };
