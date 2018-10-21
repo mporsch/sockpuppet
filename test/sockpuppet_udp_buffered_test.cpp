@@ -101,6 +101,10 @@ int main(int, char **)
   // start client and server threads
   SocketAddress serverAddr("localhost:8554");
   std::thread server(Server, serverAddr);
+
+  // wait for server to come up
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
   std::thread client(Client, serverAddr);
 
   // wait for both to finish
