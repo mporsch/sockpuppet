@@ -1,0 +1,62 @@
+#ifndef SOCKET_BUFFERED_H
+#define SOCKET_BUFFERED_H
+
+#include "resource_pool.h" // for ResourcePool
+#include "socket_address.h" // for SocketAddress
+#include "socket.h" // for SocketUdp
+
+#include <vector> // for std::vector
+
+/// The buffered socket base class stores the receive buffer pool.
+/// It is created by its derived classes and is not intended to
+/// be created by the user.
+class SocketBuffered
+{
+public:
+  using SocketBuffer = std::vector<char>;
+  using SocketBufferPtr = ResourcePool<SocketBuffer>::ResourcePtr;
+
+protected:
+  SocketBuffered(size_t rxBufCount,
+                 size_t rxBufSize);
+
+  SocketBufferPtr GetBuffer();
+
+protected:
+  ResourcePool<SocketBuffer> m_pool;
+  size_t m_rxBufSize;
+};
+
+/// UDP (unreliable communication) socket class that has an internal
+/// receive buffer pool and is bound to provided address.
+class SocketUdpBuffered
+  : public SocketUdp
+  , public SocketBuffered
+{
+public:
+  /// Create a UDP socket with internal buffer pool bound to given address.
+  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  /// @param  rxBufSize  Size of each receive buffer.
+  ///                            (0 -> use OS-determined maximum receive size.
+  ///                             Careful! This might be outrageously more than
+  ///                             what is actually needed.)
+  /// @throws  If binding fails.
+  SocketUdpBuffered(SocketUdp &&sock,
+                    size_t rxBufCount = 0U,
+                    size_t rxBufSize = 0U);
+
+  /// Unreliably receive data on bound address.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return empty buffer only if timeout is specified.
+  /// @throws  If receipt fails locally or number of receive buffers is exceeded.
+  SocketBufferPtr Receive(Time timeout = Time(0));
+
+  /// Unreliably receive data on bound address and report the source.
+  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
+  /// @return  May return empty buffer and invalid address only if timeout is specified.
+  /// @throws  If receipt fails locally or number of receive buffers is exceeded.
+  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout = Time(0));
+
+};
+
+#endif // SOCKET_BUFFERED_H

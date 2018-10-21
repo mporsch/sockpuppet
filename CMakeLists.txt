@@ -19,6 +19,8 @@ endif()
 add_library(sockpuppet
   src/socket.cpp
   include/socket.h
+  src/socket_buffered.cpp
+  include/socket_buffered.h
   src/socket_address.cpp
   include/socket_address.h
   src/socket_address_priv.cpp
@@ -27,6 +29,7 @@ add_library(sockpuppet
   src/socket_guard.h
   src/socket_priv.cpp
   src/socket_priv.h
+  include/resource_pool.h
 )
 
 include_directories(include)
