@@ -37,10 +37,10 @@ public:
   /// Create a UDP socket with internal buffer pool bound to given address.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
   /// @param  rxBufSize  Size of each receive buffer.
-  ///                            (0 -> use OS-determined maximum receive size.
-  ///                             Careful! This might be outrageously more than
-  ///                             what is actually needed.)
-  /// @throws  If binding fails.
+  ///                    (0 -> use OS-determined maximum receive size.
+  ///                     Careful! This might be outrageously more than
+  ///                     what is actually needed.)
+  /// @throws  If determining the receive buffer size fails.
   SocketUdpBuffered(SocketUdp &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
@@ -67,7 +67,12 @@ class SocketTcpBuffered
 {
 public:
   /// Create a TCP socket with internal buffer pool connected to given address.
-  /// @throws  If connect fails.
+  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  /// @param  rxBufSize  Size of each receive buffer.
+  ///                    (0 -> use OS-determined maximum receive size.
+  ///                     Careful! This might be outrageously more than
+  ///                     what is actually needed.)
+  /// @throws  If determining the receive buffer size fails.
   SocketTcpBuffered(SocketTcpClient &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
