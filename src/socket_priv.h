@@ -55,6 +55,7 @@ struct Socket::SocketPriv
   void SetSockOpt(int id,
                   int value,
                   char const *name);
+  int GetSockOptRcvBuf();
 
   /// @return  0: timed out, <0: fd closed, >0: readable/writable
   int SelectRead(Time timeout);

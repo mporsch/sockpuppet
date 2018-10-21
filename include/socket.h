@@ -23,6 +23,11 @@ struct Socket
   Socket &operator=(Socket const &other) = delete;
   Socket &operator=(Socket &&other);
 
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  size_t GetReceiveBufferSize();
+
   struct SocketPriv;
 protected:
   Socket(std::unique_ptr<SocketPriv> &&other);

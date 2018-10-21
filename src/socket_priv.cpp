@@ -198,6 +198,20 @@ void Socket::SocketPriv::SetSockOpt(int id, int value,
   }
 }
 
+int Socket::SocketPriv::GetSockOptRcvBuf()
+{
+  int ret;
+  auto size = static_cast<socklen_t>(sizeof(ret));
+  if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+                   reinterpret_cast<char *>(&ret), &size) ||
+      size != sizeof(ret)) {
+    throw std::runtime_error("failed to get socket option "
+                             "UDP receive buffer size: "
+                             + std::string(std::strerror(errno)));
+  }
+  return ret;
+}
+
 int Socket::SocketPriv::SelectRead(Time timeout)
 {
   auto rfds = ToFdSet(fd);

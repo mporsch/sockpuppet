@@ -28,6 +28,15 @@ Socket::~Socket()
 {
 }
 
+size_t Socket::GetReceiveBufferSize()
+{
+  auto const size = m_priv->GetSockOptRcvBuf();
+  if(size < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(size);
+}
+
 
 SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
