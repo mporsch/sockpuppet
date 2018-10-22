@@ -2,14 +2,31 @@
 
 SocketBuffered::SocketBuffered(size_t rxBufCount,
     size_t rxBufSize)
-  : m_pool(rxBufCount)
+  : m_pool(std::make_unique<ResourcePool<SocketBuffer>>(rxBufCount))
   , m_rxBufSize(rxBufSize)
 {
 }
 
+SocketBuffered::SocketBuffered(SocketBuffered &&other)
+  : m_pool(std::move(other.m_pool))
+  , m_rxBufSize(std::move(other.m_rxBufSize))
+{
+}
+
+SocketBuffered::~SocketBuffered()
+{
+}
+
+SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other)
+{
+  m_pool = std::move(other.m_pool);
+  m_rxBufSize = std::move(other.m_rxBufSize);
+  return *this;
+}
+
 SocketBuffered::SocketBufferPtr SocketBuffered::GetBuffer()
 {
-  auto resource = m_pool.Get(m_rxBufSize);
+  auto resource = m_pool->Get(m_rxBufSize);
   resource->resize(m_rxBufSize);
   return std::move(resource);
 }

@@ -5,6 +5,7 @@
 #include "socket_address.h" // for SocketAddress
 #include "socket.h" // for SocketUdp
 
+#include <memory> // for std::unique_ptr
 #include <vector> // for std::vector
 
 /// The buffered socket base class stores the receive buffer pool.
@@ -19,11 +20,15 @@ public:
 protected:
   SocketBuffered(size_t rxBufCount,
                  size_t rxBufSize);
+  SocketBuffered(SocketBuffered &&other);
+  virtual ~SocketBuffered();
+
+  SocketBuffered &operator=(SocketBuffered &&other);
 
   SocketBufferPtr GetBuffer();
 
 protected:
-  ResourcePool<SocketBuffer> m_pool;
+  std::unique_ptr<ResourcePool<SocketBuffer>> m_pool;
   size_t m_rxBufSize;
 };
 
