@@ -20,9 +20,11 @@ public:
 protected:
   SocketBuffered(size_t rxBufCount,
                  size_t rxBufSize);
+  SocketBuffered(SocketBuffered const &other) = delete;
   SocketBuffered(SocketBuffered &&other);
   virtual ~SocketBuffered();
 
+  SocketBuffered &operator=(SocketBuffered const &other) = delete;
   SocketBuffered &operator=(SocketBuffered &&other);
 
   SocketBufferPtr GetBuffer();
