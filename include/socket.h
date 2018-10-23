@@ -44,6 +44,9 @@ struct SocketUdp : public Socket
   /// @throws  If binding fails.
   SocketUdp(SocketAddress const &bindAddress);
 
+  SocketUdp(SocketUdp const &other) = delete;
+  SocketUdp(SocketUdp &&other);
+
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
@@ -80,6 +83,9 @@ public:
   /// Create a TCP socket connected to given address.
   /// @throws  If connect fails.
   SocketTcpClient(SocketAddress const &connectAddress);
+
+  SocketTcpClient(SocketTcpClient const &other) = delete;
+  SocketTcpClient(SocketTcpClient &&other);
 
   /// Reliably send data to connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking send.

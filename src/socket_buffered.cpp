@@ -62,7 +62,7 @@ SocketUdpBuffered::ReceiveFrom(Time timeout)
     buffer->data(), buffer->size(), timeout);
   buffer->resize(std::get<0>(t));
 
-  return {
+  return std::tuple<SocketUdpBuffered::SocketBufferPtr, SocketAddress>{
     std::move(buffer)
   , std::get<1>(t)
   };

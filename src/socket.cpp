@@ -46,6 +46,11 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   m_priv->SetSockOptBroadcast();
 }
 
+SocketUdp::SocketUdp(SocketUdp &&other)
+  : Socket(std::move(other))
+{
+}
+
 void SocketUdp::SendTo(char const *data, size_t size,
   SocketAddress const &dstAddress)
 {
@@ -61,7 +66,7 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
   char *data, size_t size, Time timeout)
 {
   auto t = m_priv->ReceiveFrom(data, size, timeout);
-  return {
+  return std::tuple<size_t, SocketAddress>{
     std::get<0>(t)
   , SocketAddress(std::move(std::get<1>(t)))
   };
@@ -73,6 +78,11 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
       connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   m_priv->Connect(connectAddress.priv->SockAddrTcp());
+}
+
+SocketTcpClient::SocketTcpClient(SocketTcpClient &&other)
+  : Socket(std::move(other))
+{
 }
 
 void SocketTcpClient::Send(const char *data, size_t size, Time timeout)
@@ -102,7 +112,7 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
 std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
 {
   auto t = m_priv->Listen(timeout);
-  return {
+  return std::tuple<SocketTcpClient, SocketAddress>{
     SocketTcpClient(std::move(std::get<0>(t)))
   , SocketAddress(std::move(std::get<1>(t)))
   };

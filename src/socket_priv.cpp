@@ -88,13 +88,19 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
     }
   } else {
     // timeout exceeded
-    return {0U, nullptr};
+    return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+      0U
+    , nullptr
+    };
   }
 
   auto ss = std::make_shared<SocketAddressStorage>();
   auto const received = ::recvfrom(fd, data, size, 0,
                                    ss->Addr(), ss->AddrLen());
-  return {received, std::move(ss)};
+  return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+    received
+  , std::move(ss)
+  };
 }
 
 void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
@@ -173,7 +179,11 @@ Socket::SocketPriv::Listen(Time timeout)
   auto client = std::make_unique<SocketPriv>(
     ::accept(fd, ss->Addr(), ss->AddrLen()));
 
-  return {std::move(client), std::move(ss)};
+  return std::tuple<std::unique_ptr<Socket::SocketPriv>,
+                    std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+    std::move(client)
+  , std::move(ss)
+  };
 }
 
 void Socket::SocketPriv::SetSockOptReuseAddr()
