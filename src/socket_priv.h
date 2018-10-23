@@ -31,7 +31,7 @@ struct Socket::SocketPriv
                  size_t size,
                  Time timeout);
 
-  std::tuple<size_t, std::shared_ptr<SocketAddressStorage>>
+  std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
   ReceiveFrom(char *data, size_t size, Time timeout);
 
   void Send(char const *data,
@@ -47,7 +47,7 @@ struct Socket::SocketPriv
   void Connect(SockAddr const &connectAddr);
 
   std::tuple<std::unique_ptr<SocketPriv>,
-             std::shared_ptr<SocketAddressStorage>>
+             std::shared_ptr<SocketAddress::SocketAddressPriv>>
   Listen(Time timeout);
 
   void SetSockOptReuseAddr();

@@ -78,7 +78,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
   }
 }
 
-std::tuple<size_t, std::shared_ptr<SocketAddressStorage>>
+std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
 {
   if(auto const result = SelectRead(timeout)) {
@@ -148,7 +148,7 @@ void Socket::SocketPriv::Bind(SockAddr const &sockAddr)
 }
 
 std::tuple<std::unique_ptr<Socket::SocketPriv>,
-           std::shared_ptr<SocketAddressStorage>>
+           std::shared_ptr<SocketAddress::SocketAddressPriv>>
 Socket::SocketPriv::Listen(Time timeout)
 {
   auto error = []() -> std::runtime_error {
