@@ -17,7 +17,7 @@ struct ResourceRecycler;
 template<typename Resource>
 class ResourcePool
 {
-  friend class ResourceRecycler<Resource>;
+  friend struct ResourceRecycler<Resource>;
 
 public:
   /// Create a resource pool with given maximum number of resources.
