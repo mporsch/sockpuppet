@@ -43,7 +43,7 @@ add_test(NAME sockpuppet_tcp_test COMMAND sockpuppet_tcp_test)
 add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test)
 add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test)
 add_custom_target(run_tests
-  COMMAND ${CMAKE_CTEST_COMMAND}
+  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --verbose
   DEPENDS sockpuppet_address_test
           sockpuppet_udp_test
           sockpuppet_tcp_test
