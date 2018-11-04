@@ -2,27 +2,27 @@
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 
 SocketAddress::SocketAddress(std::string const &uri)
-  : priv(std::make_shared<SocketAddressAddrinfo>(uri))
+  : m_priv(std::make_shared<SocketAddressAddrinfo>(uri))
 {
 }
 
 SocketAddress::SocketAddress(uint16_t port)
-  : priv(std::make_shared<SocketAddressAddrinfo>(port))
+  : m_priv(std::make_shared<SocketAddressAddrinfo>(port))
 {
 }
 
 SocketAddress::SocketAddress(std::shared_ptr<SocketAddressPriv> &&other)
-  : priv(std::move(other))
+  : m_priv(std::move(other))
 {
 }
 
 SocketAddress::SocketAddress(SocketAddress const &other)
-  : priv(other.priv)
+  : m_priv(other.m_priv)
 {
 }
 
 SocketAddress::SocketAddress(SocketAddress &&other)
-  : priv(std::move(other.priv))
+  : m_priv(std::move(other.m_priv))
 {
 }
 
@@ -32,21 +32,26 @@ SocketAddress::~SocketAddress()
 
 SocketAddress &SocketAddress::operator=(SocketAddress const &other)
 {
-  priv = other.priv;
+  m_priv = other.m_priv;
   return *this;
 }
 
 SocketAddress &SocketAddress::operator=(SocketAddress &&other)
 {
-  priv = std::move(other.priv);
+  m_priv = std::move(other.m_priv);
   return *this;
+}
+
+SocketAddress::SocketAddressPriv const *SocketAddress::Priv() const
+{
+  return m_priv.get();
 }
 
 namespace std {
   std::string to_string(SocketAddress const &addr)
   {
-    return (addr.priv ?
-      std::to_string(addr.priv->SockAddrUdp()) :
+    return (addr.Priv() ?
+      std::to_string(addr.Priv()->SockAddrUdp()) :
       "invalid");
   }
 } // namespace std

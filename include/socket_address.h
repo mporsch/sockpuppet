@@ -19,7 +19,10 @@ struct SocketAddress
   SocketAddress &operator=(SocketAddress const &other);
   SocketAddress &operator=(SocketAddress &&other);
 
-  std::shared_ptr<SocketAddressPriv> priv;
+  SocketAddressPriv const *Priv() const;
+
+private:
+  std::shared_ptr<SocketAddressPriv> m_priv;
 };
 
 namespace std {

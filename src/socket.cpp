@@ -40,9 +40,9 @@ size_t Socket::GetReceiveBufferSize()
 
 SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      bindAddress.priv->Family(), SOCK_DGRAM, IPPROTO_UDP))
+      bindAddress.Priv()->Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
-  m_priv->Bind(bindAddress.priv->SockAddrUdp());
+  m_priv->Bind(bindAddress.Priv()->SockAddrUdp());
   m_priv->SetSockOptBroadcast();
 }
 
@@ -54,7 +54,7 @@ SocketUdp::SocketUdp(SocketUdp &&other)
 void SocketUdp::SendTo(char const *data, size_t size,
   SocketAddress const &dstAddress)
 {
-  m_priv->SendTo(data, size, dstAddress.priv->SockAddrUdp());
+  m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
 }
 
 size_t SocketUdp::Receive(char *data, size_t size, Time timeout)
@@ -75,9 +75,9 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
 
 SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
+      connectAddress.Priv()->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
-  m_priv->Connect(connectAddress.priv->SockAddrTcp());
+  m_priv->Connect(connectAddress.Priv()->SockAddrTcp());
 }
 
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other)
@@ -103,10 +103,10 @@ SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
 
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
+      bindAddress.Priv()->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   m_priv->SetSockOptReuseAddr();
-  m_priv->Bind(bindAddress.priv->SockAddrTcp());
+  m_priv->Bind(bindAddress.Priv()->SockAddrTcp());
 }
 
 std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
