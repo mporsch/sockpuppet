@@ -16,7 +16,6 @@ So welcome! Have a look around, give it a try and if something is horribly wrong
 - [x] exceptions with meaningful system-provided error messages
 - [x] library includes do not pull any system headers
 - [x] static and dynamic library build targets
-- [ ] proper interface documentation :weary:
 - [ ] exhaustive tests :cold_sweat:
 - [ ] UDP multicast
 - [ ] asynchronous receipt using trigger thread interface (and some thread safety, maybe)
