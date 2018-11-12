@@ -14,6 +14,7 @@
 class Socket
 {
   friend class SocketBuffered;
+  friend class SocketAsync;
 
 public:
   using Time = std::chrono::duration<uint32_t, std::micro>;

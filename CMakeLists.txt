@@ -24,6 +24,10 @@ add_library(sockpuppet
   include/socket_address.h
   src/socket_address_priv.cpp
   src/socket_address_priv.h
+  src/socket_async.cpp
+  include/socket_async.h
+  src/socket_async_priv.cpp
+  src/socket_async_priv.h
   src/socket_buffered.cpp
   include/socket_buffered.h
   src/socket_buffered_priv.cpp

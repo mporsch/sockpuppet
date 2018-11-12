@@ -14,6 +14,8 @@
 /// be created by the user.
 class SocketBuffered
 {
+  friend class SocketAsync;
+
 public:
   using Time = Socket::Time;
   using SocketBuffer = std::vector<char>;
