@@ -121,9 +121,21 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   m_priv->Bind(bindAddress.Priv()->SockAddrTcp());
 }
 
+SocketTcpServer::SocketTcpServer(SocketTcpServer &&other)
+  : Socket(std::move(other))
+{
+}
+
+SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other)
+{
+  Socket::operator=(std::move(other));
+  return *this;
+}
+
 std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
 {
-  auto t = m_priv->Listen(timeout);
+  m_priv->Listen();
+  auto t = m_priv->Accept(timeout);
   return std::tuple<SocketTcpClient, SocketAddress>{
     SocketTcpClient(std::move(std::get<0>(t)))
   , SocketAddress(std::move(std::get<1>(t)))

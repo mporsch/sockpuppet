@@ -48,9 +48,11 @@ struct Socket::SocketPriv
 
   void Connect(SockAddr const &connectAddr);
 
+  void Listen();
+
   std::tuple<std::unique_ptr<SocketPriv>,
              std::shared_ptr<SocketAddress::SocketAddressPriv>>
-  Listen(Time timeout);
+  Accept(Time timeout);
 
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();

@@ -120,6 +120,12 @@ struct SocketTcpServer : public Socket
   /// @throws  If binding fails.
   SocketTcpServer(SocketAddress const &bindAddress);
 
+  SocketTcpServer(SocketTcpServer const &other) = delete;
+  SocketTcpServer(SocketTcpServer &&other);
+
+  SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
+  SocketTcpServer &operator=(SocketTcpServer &&other);
+
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; 0 causes blocking listen.
   /// @throws  If listen or accept fails or timeout occurs.

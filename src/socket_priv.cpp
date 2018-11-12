@@ -169,26 +169,26 @@ void Socket::SocketPriv::Bind(SockAddr const &sockAddr)
   }
 }
 
+void Socket::SocketPriv::Listen()
+{
+  if(::listen(fd, 1)) {
+    throw std::runtime_error("failed to listen: "
+                             + std::string(std::strerror(errno)));
+  }
+}
+
 std::tuple<std::unique_ptr<Socket::SocketPriv>,
            std::shared_ptr<SocketAddress::SocketAddressPriv>>
-Socket::SocketPriv::Listen(Time timeout)
+Socket::SocketPriv::Accept(Time timeout)
 {
-  auto error = []() -> std::runtime_error {
-    return std::runtime_error("failed to listen: "
-                              + std::string(std::strerror(errno)));
-  };
-
-  if(::listen(fd, 1)) {
-    throw error();
-  }
-
   if(timeout.count() > 0U) {
     if(auto const result = SelectRead(timeout)) {
       if(result < 0) {
-        throw error();
+        throw std::runtime_error("failed to accept: "
+                                 + std::string(std::strerror(errno)));
       }
     } else {
-      throw std::runtime_error("listen timed out");
+      throw std::runtime_error("accept timed out");
     }
   }
 
