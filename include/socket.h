@@ -8,20 +8,15 @@
 #include <memory> // for std::unique_ptr
 #include <tuple> // for std::tuple
 
-/// The socket base class sets general constraints (sockets
-/// are not copyable) and stores the hidden implementation.
+/// The socket base class stores the hidden implementation.
 /// It is created by its derived classes and is not intended
 /// to be created by the user.
-struct Socket
+class Socket
 {
+  friend class SocketBuffered;
+
+public:
   using Time = std::chrono::duration<uint32_t, std::micro>;
-
-  Socket(Socket const &other) = delete;
-  Socket(Socket &&other);
-  virtual ~Socket();
-
-  Socket &operator=(Socket const &other) = delete;
-  Socket &operator=(Socket &&other);
 
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
@@ -29,8 +24,15 @@ struct Socket
   size_t GetReceiveBufferSize();
 
   struct SocketPriv;
+
 protected:
   Socket(std::unique_ptr<SocketPriv> &&other);
+  Socket(Socket const &other) = delete;
+  Socket(Socket &&other);
+  virtual ~Socket();
+
+  Socket &operator=(Socket const &other) = delete;
+  Socket &operator=(Socket &&other);
 
 protected:
   std::unique_ptr<SocketPriv> m_priv;
@@ -46,6 +48,9 @@ struct SocketUdp : public Socket
 
   SocketUdp(SocketUdp const &other) = delete;
   SocketUdp(SocketUdp &&other);
+
+  SocketUdp &operator=(SocketUdp const &other) = delete;
+  SocketUdp &operator=(SocketUdp &&other);
 
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
@@ -75,17 +80,20 @@ struct SocketUdp : public Socket
 /// TCP (reliable communication) socket class that is either
 /// connected to provided peer address or to a peer accepted
 /// by the TCP server socket.
-class SocketTcpClient : public Socket
+struct SocketTcpClient : public Socket
 {
-  friend struct SocketTcpServer;
-
-public:
   /// Create a TCP socket connected to given address.
   /// @throws  If connect fails.
   SocketTcpClient(SocketAddress const &connectAddress);
 
+  /// Constructor for internal use.
+  SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
+
   SocketTcpClient(SocketTcpClient const &other) = delete;
   SocketTcpClient(SocketTcpClient &&other);
+
+  SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
+  SocketTcpClient &operator=(SocketTcpClient &&other);
 
   /// Reliably send data to connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking send.
@@ -101,9 +109,6 @@ public:
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
-
-private:
-  SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
 };
 
 /// TCP (reliable communication) socket class that is

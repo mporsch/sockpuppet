@@ -73,7 +73,7 @@ private:
         return (res.get() == resource);
       });
     if(it == std::end(m_busy)) {
-      throw std::runtime_error("returned invalid resource");
+      throw std::logic_error("returned invalid resource");
     }
 
     // move from busy to idle

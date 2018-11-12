@@ -8,8 +8,17 @@
 # include <arpa/inet.h> // for IPPROTO_UDP
 #endif // _WIN32
 
+Socket::Socket(std::unique_ptr<SocketPriv> &&other)
+  : m_priv(std::move(other))
+{
+}
+
 Socket::Socket(Socket &&other)
   : m_priv(std::move(other.m_priv))
+{
+}
+
+Socket::~Socket()
 {
 }
 
@@ -17,15 +26,6 @@ Socket &Socket::operator=(Socket &&other)
 {
   m_priv = std::move(other.m_priv);
   return *this;
-}
-
-Socket::Socket(std::unique_ptr<SocketPriv> &&other)
-  : m_priv(std::move(other))
-{
-}
-
-Socket::~Socket()
-{
 }
 
 size_t Socket::GetReceiveBufferSize()
@@ -49,6 +49,12 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
 SocketUdp::SocketUdp(SocketUdp &&other)
   : Socket(std::move(other))
 {
+}
+
+SocketUdp &SocketUdp::operator=(SocketUdp &&other)
+{
+  Socket::operator=(std::move(other));
+  return *this;
 }
 
 void SocketUdp::SendTo(char const *data, size_t size,
@@ -83,6 +89,12 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other)
   : Socket(std::move(other))
 {
+}
+
+SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other)
+{
+  Socket::operator=(std::move(other));
+  return *this;
 }
 
 void SocketTcpClient::Send(const char *data, size_t size, Time timeout)

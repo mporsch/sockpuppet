@@ -1,15 +1,15 @@
 #include "socket_buffered.h"
+#include "socket_buffered_priv.h" // for SocketBufferedPriv
 
-SocketBuffered::SocketBuffered(size_t rxBufCount,
-    size_t rxBufSize)
-  : m_pool(std::make_unique<ResourcePool<SocketBuffer>>(rxBufCount))
-  , m_rxBufSize(rxBufSize)
+SocketBuffered::SocketBuffered(Socket &&sock,
+    size_t rxBufCount, size_t rxBufSize)
+  : m_priv(std::make_unique<SocketBufferedPriv>(
+      std::move(*sock.m_priv), rxBufCount, rxBufSize))
 {
 }
 
 SocketBuffered::SocketBuffered(SocketBuffered &&other)
-  : m_pool(std::move(other.m_pool))
-  , m_rxBufSize(std::move(other.m_rxBufSize))
+  : m_priv(std::move(other.m_priv))
 {
 }
 
@@ -19,73 +19,70 @@ SocketBuffered::~SocketBuffered()
 
 SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other)
 {
-  m_pool = std::move(other.m_pool);
-  m_rxBufSize = std::move(other.m_rxBufSize);
+  m_priv = std::move(other.m_priv);
   return *this;
-}
-
-SocketBuffered::SocketBufferPtr SocketBuffered::GetBuffer()
-{
-  auto resource = m_pool->Get(m_rxBufSize);
-  resource->resize(m_rxBufSize);
-  return std::move(resource);
 }
 
 
 SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : SocketUdp(std::move(sock))
-  , SocketBuffered(rxBufCount,
-                   (rxBufSize ?
-                      rxBufSize :
-                      Socket::GetReceiveBufferSize()))
+  : SocketBuffered(std::move(sock), rxBufCount, rxBufSize)
 {
 }
 
-SocketUdpBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Time timeout)
+SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other)
+  : SocketBuffered(std::move(other))
 {
-  auto buffer = SocketBuffered::GetBuffer();
-
-  buffer->resize(
-    SocketUdp::Receive(
-      buffer->data(), buffer->size(), timeout));
-
-  return std::move(buffer);
 }
 
-std::tuple<SocketUdpBuffered::SocketBufferPtr, SocketAddress>
+SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other)
+{
+  SocketBuffered::operator=(std::move(other));
+  return *this;
+}
+
+void SocketUdpBuffered::SendTo(char const *data, size_t size,
+  SocketAddress const &dstAddress)
+{
+  m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
+}
+
+SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Time timeout)
+{
+  return m_priv->Receive(timeout);
+}
+
+std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
 SocketUdpBuffered::ReceiveFrom(Time timeout)
 {
-  auto buffer = SocketBuffered::GetBuffer();
-
-  auto t = SocketUdp::ReceiveFrom(
-    buffer->data(), buffer->size(), timeout);
-  buffer->resize(std::get<0>(t));
-
-  return std::tuple<SocketUdpBuffered::SocketBufferPtr, SocketAddress>{
-    std::move(buffer)
-  , std::get<1>(t)
-  };
+  return m_priv->ReceiveFrom(timeout);
 }
 
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : SocketTcpClient(std::move(sock))
-  , SocketBuffered(rxBufCount,
-                   (rxBufSize ?
-                      rxBufSize :
-                      Socket::GetReceiveBufferSize()))
+  : SocketBuffered(std::move(sock), rxBufCount, rxBufSize)
 {
+}
+
+SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other)
+  : SocketBuffered(std::move(other))
+{
+}
+
+SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other)
+{
+  SocketBuffered::operator=(std::move(other));
+  return *this;
+}
+
+void SocketTcpBuffered::Send(char const *data, size_t size,
+  Time timeout)
+{
+  m_priv->Send(data, size, timeout);
 }
 
 SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Time timeout)
 {
-  auto buffer = SocketBuffered::GetBuffer();
-
-  buffer->resize(
-    SocketTcpClient::Receive(
-      buffer->data(), buffer->size(), timeout));
-
-  return std::move(buffer);
+  return m_priv->Receive(timeout);
 }

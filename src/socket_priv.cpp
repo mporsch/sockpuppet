@@ -50,6 +50,12 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
   }
 }
 
+Socket::SocketPriv::SocketPriv(SocketPriv &&other)
+  : fd(other.fd)
+{
+  other.fd = -1;
+}
+
 Socket::SocketPriv::~SocketPriv()
 {
   if(fd >= 0) {

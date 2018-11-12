@@ -17,19 +17,21 @@ endif()
 
 # this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
+  include/resource_pool.h
   src/socket.cpp
   include/socket.h
-  src/socket_buffered.cpp
-  include/socket_buffered.h
   src/socket_address.cpp
   include/socket_address.h
   src/socket_address_priv.cpp
   src/socket_address_priv.h
+  src/socket_buffered.cpp
+  include/socket_buffered.h
+  src/socket_buffered_priv.cpp
+  src/socket_buffered_priv.h
   src/socket_guard.cpp
   src/socket_guard.h
   src/socket_priv.cpp
   src/socket_priv.h
-  include/resource_pool.h
 )
 
 include_directories(include)

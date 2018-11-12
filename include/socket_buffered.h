@@ -3,8 +3,9 @@
 
 #include "resource_pool.h" // for ResourcePool
 #include "socket_address.h" // for SocketAddress
-#include "socket.h" // for SocketUdp
+#include "socket.h" // for Socket
 
+#include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
 #include <vector> // for std::vector
 
@@ -14,11 +15,16 @@
 class SocketBuffered
 {
 public:
+  using Time = Socket::Time;
   using SocketBuffer = std::vector<char>;
-  using SocketBufferPtr = ResourcePool<SocketBuffer>::ResourcePtr;
+  using SocketBufferPool = ResourcePool<SocketBuffer>;
+  using SocketBufferPtr = SocketBufferPool::ResourcePtr;
+
+  struct SocketBufferedPriv;
 
 protected:
-  SocketBuffered(size_t rxBufCount,
+  SocketBuffered(Socket &&sock,
+                 size_t rxBufCount,
                  size_t rxBufSize);
   SocketBuffered(SocketBuffered const &other) = delete;
   SocketBuffered(SocketBuffered &&other);
@@ -27,20 +33,14 @@ protected:
   SocketBuffered &operator=(SocketBuffered const &other) = delete;
   SocketBuffered &operator=(SocketBuffered &&other);
 
-  SocketBufferPtr GetBuffer();
-
 protected:
-  std::unique_ptr<ResourcePool<SocketBuffer>> m_pool;
-  size_t m_rxBufSize;
+  std::unique_ptr<SocketBufferedPriv> m_priv;
 };
 
 /// UDP (unreliable communication) socket class that has an internal
 /// receive buffer pool and is bound to provided address.
-class SocketUdpBuffered
-  : public SocketUdp
-  , public SocketBuffered
+struct SocketUdpBuffered : public SocketBuffered
 {
-public:
   /// Create a UDP socket with internal buffer pool bound to given address.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
   /// @param  rxBufSize  Size of each receive buffer.
@@ -51,6 +51,20 @@ public:
   SocketUdpBuffered(SocketUdp &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
+
+  SocketUdpBuffered(SocketUdpBuffered const &other) = delete;
+  SocketUdpBuffered(SocketUdpBuffered &&other);
+
+  SocketUdpBuffered &operator=(SocketUdpBuffered const &other) = delete;
+  SocketUdpBuffered &operator=(SocketUdpBuffered &&other);
+
+  /// Unreliably send data to address.
+  /// @param  dstAddress  Address to send to; must match
+  ///                     IP family of bound address.
+  /// @throws  If sending fails locally.
+  void SendTo(char const *data,
+              size_t size,
+              SocketAddress const &dstAddress);
 
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; 0 causes blocking receipt.
@@ -68,11 +82,8 @@ public:
 /// TCP (reliable communication) socket class that has an internal
 /// receive buffer pool and is either connected to provided peer address or
 /// to a peer accepted by the TCP server socket.
-class SocketTcpBuffered
-  : public SocketTcpClient
-  , public SocketBuffered
+struct SocketTcpBuffered : public SocketBuffered
 {
-public:
   /// Create a TCP socket with internal buffer pool connected to given address.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
   /// @param  rxBufSize  Size of each receive buffer.
@@ -83,6 +94,19 @@ public:
   SocketTcpBuffered(SocketTcpClient &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
+
+  SocketTcpBuffered(SocketTcpBuffered const &other) = delete;
+  SocketTcpBuffered(SocketTcpBuffered &&other);
+
+  SocketTcpBuffered &operator=(SocketTcpBuffered const &other) = delete;
+  SocketTcpBuffered &operator=(SocketTcpBuffered &&other);
+
+  /// Reliably send data to connected peer.
+  /// @param  timeout  Timeout to use; 0 causes blocking send.
+  /// @throws  If sending fails.
+  void Send(char const *data,
+            size_t size,
+            Time timeout = Time(0U));
 
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking receipt.

@@ -25,7 +25,9 @@ struct Socket::SocketPriv
              int type,
              int protocol);
   SocketPriv(SOCKET fd);
-  ~SocketPriv();
+  SocketPriv(SocketPriv const &) = delete;
+  SocketPriv(SocketPriv &&other);
+  virtual ~SocketPriv();
 
   size_t Receive(char *data,
                  size_t size,
