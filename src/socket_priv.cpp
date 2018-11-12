@@ -233,8 +233,7 @@ int Socket::SocketPriv::GetSockOptRcvBuf()
   if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                    reinterpret_cast<char *>(&ret), &size) ||
       size != sizeof(ret)) {
-    throw std::runtime_error("failed to get socket option "
-                             "UDP receive buffer size: "
+    throw std::runtime_error("failed to get socket receive buffer size: "
                              + std::string(std::strerror(errno)));
   }
   return ret;

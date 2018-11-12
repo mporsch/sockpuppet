@@ -1,7 +1,7 @@
 #ifndef SOCKET_ASYNC
 #define SOCKET_ASYNC
 
-#include "socket_buffered.h" // for SocketUdpBuffered
+#include "socket_buffered.h" // for SocketBuffered
 
 #include <future> // for std::future
 #include <functional> // for std::function
@@ -90,11 +90,17 @@ struct SocketUdpAsync : public SocketAsync
                  ReceiveHandler handleReceive = nullptr,
                  ReceiveFromHandler handleReceiveFrom = nullptr);
 
+  SocketUdpAsync(SocketUdpAsync const &other) = delete;
+  SocketUdpAsync(SocketUdpAsync &&other);
+
+  SocketUdpAsync &operator=(SocketUdpAsync const &other) = delete;
+  SocketUdpAsync &operator=(SocketUdpAsync &&other);
+
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @throws  If sending fails locally.
-  std::future<void> SendTo(SocketBufferPtr buffer,
+  std::future<void> SendTo(SocketBufferPtr &&buffer,
                            SocketAddress const &dstAddress);
 };
 
@@ -113,7 +119,7 @@ struct SocketTcpAsyncClient : public SocketAsync
 
   /// Reliably send data to connected peer.
   /// @throws  If sending fails.
-  std::future<void> Send(SocketBufferPtr buffer);
+  std::future<void> Send(SocketBufferPtr &&buffer);
 };
 
 struct SocketTcpAsyncServer : public SocketAsync

@@ -1,11 +1,7 @@
 #include "socket_async_priv.h"
 
-#ifdef _WIN32
-# include <Winsock2.h> // for SOCKET
-#else
-# include <sys/select.h> // for fd_set
+#ifndef _WIN32
 # include <unistd.h> // for ::pipe
-using SOCKET = int;
 #endif // _WIN32
 
 #include <cstring> // for std::strerror
@@ -151,7 +147,8 @@ SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
   }
 }
 
-std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBuffered::SocketBufferPtr buffer)
+std::future<void> SocketAsync::SocketAsyncPriv::Send(
+  SocketBufferPtr &&buffer)
 {
   std::promise<void> promise;
   auto ret = promise.get_future();
@@ -173,7 +170,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBuffered::SocketBuffe
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-  SocketBuffered::SocketBufferPtr buffer, SockAddr const &dstAddr)
+  SocketBufferPtr &&buffer, SockAddr const &dstAddr)
 {
   std::promise<void> promise;
   auto ret = promise.get_future();

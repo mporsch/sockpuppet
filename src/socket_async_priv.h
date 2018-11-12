@@ -66,11 +66,11 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   SocketAsyncPriv(SocketBuffered::SocketBufferedPriv &&buff,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
                   SocketAsync::Handlers handlers);
-  ~SocketAsyncPriv();
+  virtual ~SocketAsyncPriv();
 
-  std::future<void> Send(SocketBuffered::SocketBufferPtr buffer);
+  std::future<void> Send(SocketBuffered::SocketBufferPtr &&buffer);
 
-  std::future<void> SendTo(SocketBuffered::SocketBufferPtr buffer,
+  std::future<void> SendTo(SocketBuffered::SocketBufferPtr &&buffer,
                            SockAddr const &dstAddr);
 
   void AsyncFillFdSet(SOCKET &fdMax,

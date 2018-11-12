@@ -85,11 +85,22 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 {
 }
 
-std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr buffer,
+std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
   SocketAddress const &dstAddress)
 {
   return m_priv->SendTo(std::move(buffer),
                         dstAddress.Priv()->SockAddrUdp());
+}
+
+SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other)
+  : SocketAsync(std::move(other))
+{
+}
+
+SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other)
+{
+  SocketAsync::operator=(std::move(other));
+  return *this;
 }
 
 
@@ -119,7 +130,7 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
   return *this;
 }
 
-std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr buffer)
+std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
 {
   return m_priv->Send(std::move(buffer));
 }
