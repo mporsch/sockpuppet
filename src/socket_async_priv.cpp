@@ -1,6 +1,9 @@
 #include "socket_async_priv.h"
 
-#ifndef _WIN32
+#ifdef _WIN32
+# include <io.h> // for ::pipe
+# include <fcntl.h> // for O_BINARY
+#else
 # include <unistd.h> // for ::pipe
 #endif // _WIN32
 
@@ -8,10 +11,23 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
+namespace
+{
+  static size_t const pipeSize = 256U;
+  int CreatePipe(int fdPipe[2])
+  {
+#ifdef _WIN32
+    return ::_pipe(fdPipe, pipeSize, O_BINARY);
+#else
+    return ::pipe(fdPipe);
+#endif // _WIN32
+  }
+} // unnamed namespace
+
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : shouldStop(false)
 {
-  if(::pipe(fdPipe)) {
+  if(CreatePipe(fdPipe)) {
     throw std::runtime_error("failed to create signalling pipe :"
                              + std::string(std::strerror(errno)));
   }
@@ -34,7 +50,7 @@ void SocketDriver::SocketDriverPriv::Step()
     socks = sockets;
   }
 
-  SOCKET fdMax = -1;
+  int fdMax = -1;
   fd_set rfds;
   fd_set wfds;
   FD_ZERO(&rfds);
@@ -48,11 +64,12 @@ void SocketDriver::SocketDriverPriv::Step()
 
   if(auto const result = ::select(fdMax + 1, &rfds, &wfds, nullptr, nullptr)) {
     if(result < 0) {
-      throw std::runtime_error("select failed");
+      throw std::runtime_error("select failed: "
+                               + std::string(std::strerror(errno)));
     } else {
       // readable/writable
       if(FD_ISSET(fdPipe[0], &rfds)) {
-        char dump[256];
+        char dump[pipeSize];
         (void)::read(fdPipe[0], dump, sizeof(dump));
       } else {
         for(auto &&sock : socks) {
@@ -192,11 +209,11 @@ std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
   return ret;
 }
 
-void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(SOCKET &fdMax,
+void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(int &fdMax,
   fd_set &rfds, fd_set &wfds)
 {
   if(handlers.connect || handlers.receive || handlers.receiveFrom) {
-    fdMax = std::max(fdMax, this->fd);
+    fdMax = std::max(fdMax, static_cast<int>(this->fd));
     FD_SET(this->fd, &rfds);
   }
 
@@ -204,7 +221,7 @@ void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(SOCKET &fdMax,
     std::lock_guard<std::mutex> lock(sendQMtx);
 
     if(!sendQ.empty() || !sendToQ.empty()) {
-      fdMax = std::max(fdMax, this->fd);
+      fdMax = std::max(fdMax, static_cast<int>(this->fd));
       FD_SET(this->fd, &wfds);
     }
   }

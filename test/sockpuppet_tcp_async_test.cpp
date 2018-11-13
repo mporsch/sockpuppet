@@ -11,7 +11,7 @@ struct Server
 {
   SocketTcpAsyncServer server;
   SocketDriver &driver;
-  unsigned int bytesReceived;
+  size_t bytesReceived;
   std::deque<SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 

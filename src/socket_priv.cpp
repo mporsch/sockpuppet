@@ -29,6 +29,16 @@ namespace {
     , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
     };
   }
+
+  void SetInvalid(SOCKET &fd)
+  {
+    fd = -1;
+  }
+
+  bool IsValid(SOCKET const &fd)
+  {
+    return (fd != -1);
+  }
 } // unnamed namespace
 
 Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
@@ -53,12 +63,12 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
 Socket::SocketPriv::SocketPriv(SocketPriv &&other)
   : fd(other.fd)
 {
-  other.fd = -1;
+  SetInvalid(other.fd);
 }
 
 Socket::SocketPriv::~SocketPriv()
 {
-  if(fd >= 0) {
+  if(IsValid(fd)) {
 #ifdef _WIN32
     (void)closesocket(fd);
 #else

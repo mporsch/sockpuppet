@@ -8,7 +8,7 @@
 #include <memory> // for std::unique_ptr
 #include <vector> // for std::vector
 
-class SocketTcpAsyncClient;
+struct SocketTcpAsyncClient;
 
 class SocketDriver
 {

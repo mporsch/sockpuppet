@@ -5,11 +5,8 @@
 #include "socket_async.h" // for SocketAsync
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
-#ifdef _WIN32
-# include <Winsock2.h> // for SOCKET
-#else
+#ifndef _WIN32
 # include <sys/select.h> // for fd_set
-using SOCKET = int;
 #endif // _WIN32
 
 #include <future> // for std::future
@@ -73,7 +70,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> SendTo(SocketBuffered::SocketBufferPtr &&buffer,
                            SockAddr const &dstAddr);
 
-  void AsyncFillFdSet(SOCKET &fdMax,
+  void AsyncFillFdSet(int &fdMax,
                       fd_set &rfds,
                       fd_set &wfds);
   void AsyncCheckFdSet(fd_set const &rfds,
