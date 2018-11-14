@@ -5,8 +5,11 @@
 #include "socket_async.h" // for SocketAsync
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
-#ifndef _WIN32
+#ifdef _WIN32
+# include <WinSock2.h> // for fd_set
+#else
 # include <sys/select.h> // for fd_set
+using SOCKET = int;
 #endif // _WIN32
 
 #include <future> // for std::future
@@ -17,7 +20,9 @@ struct SocketDriver::SocketDriverPriv
 {
   std::vector<std::reference_wrapper<SocketAsync::SocketAsyncPriv>> sockets;
   std::mutex socketsMtx;
-  int fdPipe[2];
+  SocketAddressAddrinfo pipeToAddr;
+  Socket::SocketPriv pipeFrom;
+  Socket::SocketPriv pipeTo;
   bool shouldStop;
 
   SocketDriverPriv();
@@ -70,7 +75,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> SendTo(SocketBuffered::SocketBufferPtr &&buffer,
                            SockAddr const &dstAddr);
 
-  void AsyncFillFdSet(int &fdMax,
+  void AsyncFillFdSet(SOCKET &fdMax,
                       fd_set &rfds,
                       fd_set &wfds);
   void AsyncCheckFdSet(fd_set const &rfds,

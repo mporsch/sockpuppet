@@ -1,44 +1,24 @@
 #include "socket_async_priv.h"
 
-#ifdef _WIN32
-# include <io.h> // for ::pipe
-# include <fcntl.h> // for O_BINARY
-#else
-# include <unistd.h> // for ::pipe
-#endif // _WIN32
-
 #include <cstring> // for std::strerror
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
-namespace
-{
-  static size_t const pipeSize = 256U;
-  int CreatePipe(int fdPipe[2])
-  {
-#ifdef _WIN32
-    return ::_pipe(fdPipe, pipeSize, O_BINARY);
-#else
-    return ::pipe(fdPipe);
-#endif // _WIN32
-  }
-} // unnamed namespace
-
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : shouldStop(false)
+  , pipeToAddr(SocketAddressAddrinfo("localhost:65369"))
+  , pipeFrom(pipeToAddr.SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  , pipeTo(pipeToAddr.SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
 {
-  if(CreatePipe(fdPipe)) {
-    throw std::runtime_error("failed to create signalling pipe :"
-                             + std::string(std::strerror(errno)));
-  }
+  pipeTo.Bind(pipeToAddr.SockAddrUdp());
+
+  SocketAddressAddrinfo pipeFromAddr(0);
+  pipeFrom.Bind(pipeFromAddr.SockAddrUdp());
 }
 
 SocketDriver::SocketDriverPriv::~SocketDriverPriv()
 {
   Stop();
-
-  (void)::close(fdPipe[0]);
-  (void)::close(fdPipe[1]);
 }
 
 void SocketDriver::SocketDriverPriv::Step()
@@ -50,7 +30,7 @@ void SocketDriver::SocketDriverPriv::Step()
     socks = sockets;
   }
 
-  int fdMax = -1;
+  SOCKET fdMax = -1;
   fd_set rfds;
   fd_set wfds;
   FD_ZERO(&rfds);
@@ -59,18 +39,18 @@ void SocketDriver::SocketDriverPriv::Step()
     sock.get().AsyncFillFdSet(fdMax, rfds, wfds);
   }
 
-  FD_SET(fdPipe[0], &rfds);
-  fdMax = std::max(fdMax, fdPipe[0]);
+  FD_SET(pipeTo.fd, &rfds);
+  fdMax = std::max(fdMax, pipeTo.fd);
 
-  if(auto const result = ::select(fdMax + 1, &rfds, &wfds, nullptr, nullptr)) {
+  if(auto const result = ::select(static_cast<int>(fdMax + 1), &rfds, &wfds, nullptr, nullptr)) {
     if(result < 0) {
       throw std::runtime_error("select failed: "
                                + std::string(std::strerror(errno)));
     } else {
       // readable/writable
-      if(FD_ISSET(fdPipe[0], &rfds)) {
-        char dump[pipeSize];
-        (void)::read(fdPipe[0], dump, sizeof(dump));
+      if(FD_ISSET(pipeTo.fd, &rfds)) {
+        char dump[256U];
+        (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
       } else {
         for(auto &&sock : socks) {
           sock.get().AsyncCheckFdSet(rfds, wfds);
@@ -128,11 +108,7 @@ void SocketDriver::SocketDriverPriv::Unregister(
 void SocketDriver::SocketDriverPriv::Bump()
 {
   static char const one = '1';
-  auto const result = ::write(fdPipe[1], &one, sizeof(one));
-  if(result < 0) {
-    throw std::runtime_error("failed write to signalling pipe :"
-                             + std::string(std::strerror(errno)));
-  }
+  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr.SockAddrUdp());
 }
 
 
@@ -209,11 +185,11 @@ std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
   return ret;
 }
 
-void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(int &fdMax,
+void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(SOCKET &fdMax,
   fd_set &rfds, fd_set &wfds)
 {
   if(handlers.connect || handlers.receive || handlers.receiveFrom) {
-    fdMax = std::max(fdMax, static_cast<int>(this->fd));
+    fdMax = std::max(fdMax, this->fd);
     FD_SET(this->fd, &rfds);
   }
 
@@ -221,7 +197,7 @@ void SocketAsync::SocketAsyncPriv::AsyncFillFdSet(int &fdMax,
     std::lock_guard<std::mutex> lock(sendQMtx);
 
     if(!sendQ.empty() || !sendToQ.empty()) {
-      fdMax = std::max(fdMax, static_cast<int>(this->fd));
+      fdMax = std::max(fdMax, this->fd);
       FD_SET(this->fd, &wfds);
     }
   }
