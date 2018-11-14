@@ -19,7 +19,7 @@ int main(int, char **)
 {
   SocketDriver driver;
 
-  SocketAddress serverAddress(8554);
+  SocketAddress serverAddress("localhost:8554");
   SocketUdpAsync server({serverAddress}, driver, nullptr, HandleReceiveFrom);
 
   ResourcePool<std::vector<char>> sendPool;

@@ -65,10 +65,13 @@ int main(int, char **)
 {
   SocketDriver driver;
 
-  SocketAddress serverAddress(8554);
+  SocketAddress serverAddress("localhost:8554");
   Server server(serverAddress, driver);
 
   auto thread = std::thread(&SocketDriver::Run, &driver);
+
+  // wait for server to come up
+  std::this_thread::sleep_for(std::chrono::seconds(1));
 
   ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
   SocketTcpAsyncClient clients[] = {
