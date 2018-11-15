@@ -249,6 +249,18 @@ int Socket::SocketPriv::GetSockOptRcvBuf()
   return ret;
 }
 
+std::shared_ptr<SocketAddressStorage> Socket::SocketPriv::GetSockName()
+{
+  auto ss = std::make_shared<SocketAddressStorage>();
+
+  if (::getsockname(fd, ss->Addr(), ss->AddrLen())) {
+    throw std::runtime_error("failed to get socket address: "
+                             + std::string(std::strerror(errno)));
+  }
+
+  return ss;
+}
+
 int Socket::SocketPriv::SelectRead(Time timeout)
 {
   auto rfds = ToFdSet(fd);

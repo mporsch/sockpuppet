@@ -60,6 +60,7 @@ struct Socket::SocketPriv
                   int value,
                   char const *name);
   int GetSockOptRcvBuf();
+  std::shared_ptr<SocketAddressStorage> GetSockName();
 
   /// @return  0: timed out, <0: fd closed, >0: readable/writable
   int SelectRead(Time timeout);
