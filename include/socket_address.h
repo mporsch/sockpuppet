@@ -43,6 +43,9 @@ private:
   std::shared_ptr<SocketAddressPriv> m_priv;
 };
 
+bool operator<(SocketAddress const &lhs,
+               SocketAddress const &rhs);
+
 namespace std {
   std::string to_string(SocketAddress const &addr);
 }

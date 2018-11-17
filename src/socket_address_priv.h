@@ -24,6 +24,9 @@ struct SockAddr
   int family;
 };
 
+bool operator<(SockAddr const &lhs,
+               SockAddr const &rhs);
+
 struct SocketAddress::SocketAddressPriv
 {
   virtual SockAddr SockAddrTcp() const = 0;
@@ -31,14 +34,17 @@ struct SocketAddress::SocketAddressPriv
   virtual int Family() const = 0;
 };
 
-struct AddrInfoDeleter
-{
-  void operator()(addrinfo *ptr);
-};
-using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
+bool operator<(SocketAddress::SocketAddressPriv const &lhs,
+               SocketAddress::SocketAddressPriv const &rhs);
 
 struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
 {
+  struct AddrInfoDeleter
+  {
+    void operator()(addrinfo *ptr);
+  };
+  using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
+
   AddrInfoPtr info;
 
   SocketAddressAddrinfo(std::string const &uri);

@@ -47,6 +47,12 @@ SocketAddress::SocketAddressPriv const *SocketAddress::Priv() const
   return m_priv.get();
 }
 
+
+bool operator<(SocketAddress const &lhs, SocketAddress const &rhs)
+{
+  return (*lhs.Priv() < *rhs.Priv());
+}
+
 namespace std {
   std::string to_string(SocketAddress const &addr)
   {

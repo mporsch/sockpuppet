@@ -2,6 +2,7 @@
 #include "socket_guard.h" // for SocketGuard
 
 #include <algorithm> // for std::count
+#include <cstring> // for std::memcmp
 #include <stdexcept> // for std::runtime_error
 
 namespace {
@@ -17,7 +18,7 @@ namespace {
     return (std::count(std::begin(host), std::end(host), ':') > 1U);
   }
 
-  AddrInfoPtr ParseUri(std::string const &uri)
+  SocketAddressAddrinfo::AddrInfoPtr ParseUri(std::string const &uri)
   {
     if(uri.empty()) {
       throw std::invalid_argument("empty uri");
@@ -95,10 +96,10 @@ namespace {
                                  + gai_strerror(result));
       }
     }
-    return AddrInfoPtr(info);
+    return SocketAddressAddrinfo::AddrInfoPtr(info);
   }
 
-  AddrInfoPtr ParsePort(std::string const &port)
+  SocketAddressAddrinfo::AddrInfoPtr ParsePort(std::string const &port)
   {
     SocketGuard guard;
 
@@ -112,11 +113,38 @@ namespace {
                                + port + ": "
                                + gai_strerror(result));
     }
-    return AddrInfoPtr(info);
+    return SocketAddressAddrinfo::AddrInfoPtr(info);
   }
 } // unnamed namespace
 
-void AddrInfoDeleter::operator()(addrinfo *ptr)
+bool operator<(SockAddr const &lhs,
+               SockAddr const &rhs)
+{
+  if(lhs.family < rhs.family) {
+    return true;
+  } else if(lhs.family > rhs.family) {
+    return false;
+  } else {
+    if(lhs.addrLen < rhs.addrLen) {
+      return true;
+    } else if(lhs.addrLen > rhs.addrLen) {
+      return false;
+    } else {
+      auto const cmp = std::memcmp(lhs.addr, rhs.addr, lhs.addrLen);
+      return (cmp < 0);
+    }
+  }
+}
+
+
+bool operator<(SocketAddress::SocketAddressPriv const &lhs,
+               SocketAddress::SocketAddressPriv const &rhs)
+{
+  return (lhs.SockAddrUdp() < rhs.SockAddrUdp());
+}
+
+
+void SocketAddressAddrinfo::AddrInfoDeleter::operator()(addrinfo *ptr)
 {
   freeaddrinfo(ptr);
 }
@@ -160,11 +188,11 @@ SockAddr SocketAddressAddrinfo::SockAddrTcp() const
 SockAddr SocketAddressAddrinfo::SockAddrUdp() const
 {
   if(auto const it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
-      return SockAddr{
-        it->ai_addr
-      , static_cast<socklen_t>(it->ai_addrlen)
-      , it->ai_family
-      };
+    return SockAddr{
+      it->ai_addr
+    , static_cast<socklen_t>(it->ai_addrlen)
+    , it->ai_family
+    };
   } else {
     throw std::logic_error("address is not valid for UDP");
   }
