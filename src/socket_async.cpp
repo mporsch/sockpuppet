@@ -72,12 +72,25 @@ SocketAsync &SocketAsync::operator=(SocketAsync &&other)
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
     SocketDriver &driver,
-    ReceiveHandler handleReceive,
-    ReceiveFromHandler handleReceiveFrom)
+    ReceiveHandler handleReceive)
   : SocketAsync(std::move(buff),
                 driver,
                 Handlers{
                   handleReceive
+                , nullptr
+                , nullptr
+                , nullptr
+                })
+{
+}
+
+SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
+    SocketDriver &driver,
+    ReceiveFromHandler handleReceiveFrom)
+  : SocketAsync(std::move(buff),
+                driver,
+                Handlers{
+                  nullptr
                 , handleReceiveFrom
                 , nullptr
                 , nullptr

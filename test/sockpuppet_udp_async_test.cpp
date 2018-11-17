@@ -15,16 +15,20 @@ void HandleReceiveFrom(
   success = true;
 }
 
+void ReceiveDummy(SocketBuffered::SocketBufferPtr)
+{
+}
+
 int main(int, char **)
 {
   SocketDriver driver;
 
   SocketAddress serverAddress("localhost:8554");
-  SocketUdpAsync server({serverAddress}, driver, nullptr, HandleReceiveFrom);
+  SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
 
   ResourcePool<std::vector<char>> sendPool;
   SocketAddress clientAddress;
-  SocketUdpAsync client({clientAddress}, driver);
+  SocketUdpAsync client({clientAddress}, driver, ReceiveDummy);
 
   auto thread = std::thread(&SocketDriver::Run, &driver);
 

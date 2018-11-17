@@ -129,7 +129,8 @@ std::tuple<SOCKET, fd_set, fd_set> SocketDriver::SocketDriverPriv::PrepareFds()
   };
 }
 
-std::function<void()> SocketDriver::SocketDriverPriv::CollectFdTask(
+SocketDriver::SocketDriverPriv::FdTask
+SocketDriver::SocketDriverPriv::CollectFdTask(
   fd_set const &rfds, fd_set const &wfds)
 {
   std::lock_guard<std::mutex> lock(socketsMtx);
@@ -205,7 +206,8 @@ void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
   }
 }
 
-std::function<void()> SocketAsync::SocketAsyncPriv::DriverCollectFdTask(
+SocketDriver::SocketDriverPriv::FdTask
+SocketAsync::SocketAsyncPriv::DriverCollectFdTask(
   fd_set const &rfds, fd_set const &wfds)
 {
   if(FD_ISSET(this->fd, &rfds)) {

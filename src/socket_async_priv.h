@@ -16,10 +16,12 @@ using SOCKET = int;
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
+#include <vector> // for std::vector
 
 struct SocketDriver::SocketDriverPriv
 {
   using SocketRef = std::reference_wrapper<SocketAsync::SocketAsyncPriv>;
+  using FdTask = std::function<void()>;
 
   std::vector<SocketRef> sockets;
   std::mutex socketsMtx;
@@ -43,7 +45,7 @@ struct SocketDriver::SocketDriverPriv
   void Unbump();
 
   std::tuple<SOCKET, fd_set, fd_set> PrepareFds();
-  std::function<void()> CollectFdTask(fd_set const &rfds, fd_set const &wfds);
+  FdTask CollectFdTask(fd_set const &rfds, fd_set const &wfds);
 };
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
@@ -110,8 +112,10 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
                         fd_set &rfds,
                         fd_set &wfds);
 
-  std::function<void()> DriverCollectFdTask(fd_set const &rfds,
-                                            fd_set const &wfds);
+  SocketDriver::SocketDriverPriv::FdTask
+  DriverCollectFdTask(fd_set const &rfds,
+                      fd_set const &wfds);
+
   void DriverHandleReadable();
   void DriverHandleWritable();
 };

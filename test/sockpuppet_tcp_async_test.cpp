@@ -65,6 +65,14 @@ struct Server
   }
 };
 
+void ReceiveDummy(SocketBuffered::SocketBufferPtr)
+{
+}
+
+void DisconnectDummy(SocketAddress)
+{
+}
+
 static size_t const clientCount = 3U;
 static size_t const clientSendCount = 5U;
 static size_t const clientSendSize = 1000U;
@@ -88,7 +96,12 @@ int main(int, char **)
     std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
     for(auto &&client : clients)
     {
-      client.reset(new SocketTcpAsyncClient({serverAddress}, driver));
+      client.reset(
+        new SocketTcpAsyncClient(
+          {serverAddress},
+          driver,
+          ReceiveDummy,
+          DisconnectDummy));
 
       for(size_t i = 0; i < clientSendCount; ++i) {
         auto buffer = clientSendPool.Get(clientSendSize);

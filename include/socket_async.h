@@ -6,9 +6,6 @@
 #include <future> // for std::future
 #include <functional> // for std::function
 #include <memory> // for std::unique_ptr
-#include <vector> // for std::vector
-
-struct SocketTcpAsyncClient;
 
 class SocketDriver
 {
@@ -35,8 +32,6 @@ private:
 
 class SocketAsync
 {
-  friend class SocketDriver;
-
 public:
   using Time = SocketBuffered::Time;
   using SocketBuffer = SocketBuffered::SocketBuffer;
@@ -87,8 +82,10 @@ struct SocketUdpAsync : public SocketAsync
 {
   SocketUdpAsync(SocketUdpBuffered &&buff,
                  SocketDriver &driver,
-                 ReceiveHandler handleReceive = nullptr,
-                 ReceiveFromHandler handleReceiveFrom = nullptr);
+                 ReceiveHandler handleReceive);
+  SocketUdpAsync(SocketUdpBuffered &&buff,
+                 SocketDriver &driver,
+                 ReceiveFromHandler handleReceiveFrom);
 
   SocketUdpAsync(SocketUdpAsync const &other) = delete;
   SocketUdpAsync(SocketUdpAsync &&other);
@@ -108,8 +105,8 @@ struct SocketTcpAsyncClient : public SocketAsync
 {
   SocketTcpAsyncClient(SocketTcpBuffered &&buff,
                        SocketDriver &driver,
-                       ReceiveHandler handleReceive = nullptr,
-                       DisconnectHandler handleDisconnect = nullptr);
+                       ReceiveHandler handleReceive,
+                       DisconnectHandler handleDisconnect);
 
   SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
   SocketTcpAsyncClient(SocketTcpAsyncClient &&other);
@@ -126,7 +123,7 @@ struct SocketTcpAsyncServer : public SocketAsync
 {
   SocketTcpAsyncServer(SocketTcpServer &&sock,
                        SocketDriver &driver,
-                       ConnectHandler handleConnect = nullptr);
+                       ConnectHandler handleConnect);
 };
 
 #endif // SOCKET_ASYNC
