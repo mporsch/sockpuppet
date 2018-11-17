@@ -4,6 +4,7 @@
 #include <functional> // for std::bind
 #include <iostream> // for std::cout
 #include <map> // for std::map
+#include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <thread> // for std::thread
 
@@ -64,6 +65,10 @@ struct Server
   }
 };
 
+static size_t const clientCount = 3U;
+static size_t const clientSendCount = 5U;
+static size_t const clientSendSize = 1000U;
+
 int main(int, char **)
 {
   SocketDriver driver;
@@ -76,28 +81,38 @@ int main(int, char **)
   // wait for server to come up
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
+  bool success = true;
+
   {
     ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
-    SocketTcpAsyncClient clients[] = {
-      SocketTcpAsyncClient({serverAddress}, driver)
-    , SocketTcpAsyncClient({serverAddress}, driver)
-    , SocketTcpAsyncClient({serverAddress}, driver)
-    };
+    std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
     for(auto &&client : clients)
     {
-      for(int i = 0; i < 3; ++i) {
-        auto buffer = clientSendPool.Get(100U);
-        client.Send(std::move(buffer)).wait();
+      client.reset(new SocketTcpAsyncClient({serverAddress}, driver));
+
+      for(size_t i = 0; i < clientSendCount; ++i) {
+        auto buffer = clientSendPool.Get(clientSendSize);
+        client->Send(std::move(buffer)).wait();
       }
     }
 
+    success &= (server.serverHandlers.size() == clientCount);
+
+    // wait for everything to be transmitted
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
+
+  // wait for all clients to disconnect
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  success &= server.serverHandlers.empty();
 
   if(thread.joinable()) {
     driver.Stop();
     thread.join();
   }
 
-  return (server.bytesReceived == 900U ? EXIT_SUCCESS : EXIT_FAILURE);
+  success &= (server.bytesReceived == clientCount * clientSendCount * clientSendSize);
+
+  return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }
