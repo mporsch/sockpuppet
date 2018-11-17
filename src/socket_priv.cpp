@@ -91,7 +91,8 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
     }
   }
 
-  if(auto const received = ::recv(fd, data, size, 0)) {
+  auto const received = ::recv(fd, data, size, 0);
+  if(received > 0) {
     return received;
   } else {
     throw std::runtime_error("connection closed");
