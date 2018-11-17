@@ -3,16 +3,16 @@
 
 #include <functional> // for std::bind
 #include <iostream> // for std::cout
+#include <map> // for std::map
 #include <mutex> // for std::mutex
 #include <thread> // for std::thread
-#include <vector> // for std::vector
 
 struct Server
 {
   SocketTcpAsyncServer server;
   SocketDriver &driver;
   size_t bytesReceived;
-  std::deque<SocketTcpAsyncClient> serverHandlers;
+  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 
   Server(SocketAddress bindAddress,
@@ -36,21 +36,31 @@ struct Server
   {
     std::lock_guard<std::mutex> lock(mtx);
 
-    std::cout << "server accepted connection from "
-      << std::to_string(std::get<1>(t)) << std::endl;
+    auto &&clientAddress = std::get<1>(t);
 
-    serverHandlers.emplace_back(
+    std::cout << "server accepted connection from "
+      << std::to_string(clientAddress) << std::endl;
+
+    (void)serverHandlers.emplace(
+      std::make_pair(
+        clientAddress,
         SocketTcpAsyncClient({std::move(std::get<0>(t))},
                              driver,
                              std::bind(&Server::HandleReceive, this, std::placeholders::_1),
-                             std::bind(&Server::HandleDisconnect, this, std::placeholders::_1)));
+                             std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
   }
 
   void HandleDisconnect(SocketAddress clientAddress)
   {
     std::lock_guard<std::mutex> lock(mtx);
 
-    // TODO
+    std::cout << "server closing connection to "
+      << std::to_string(clientAddress) << std::endl;
+
+    auto const it = serverHandlers.find(clientAddress);
+    if(it != std::end(serverHandlers)) {
+      serverHandlers.erase(it);
+    }
   }
 };
 
@@ -66,21 +76,23 @@ int main(int, char **)
   // wait for server to come up
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
-  SocketTcpAsyncClient clients[] = {
-    SocketTcpAsyncClient({serverAddress}, driver)
-  , SocketTcpAsyncClient({serverAddress}, driver)
-  , SocketTcpAsyncClient({serverAddress}, driver)
-  };
-  for(auto &&client : clients)
   {
-    for(int i = 0; i < 3; ++i) {
-      auto buffer = clientSendPool.Get(100U);
-      client.Send(std::move(buffer)).wait();
+    ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
+    SocketTcpAsyncClient clients[] = {
+      SocketTcpAsyncClient({serverAddress}, driver)
+    , SocketTcpAsyncClient({serverAddress}, driver)
+    , SocketTcpAsyncClient({serverAddress}, driver)
+    };
+    for(auto &&client : clients)
+    {
+      for(int i = 0; i < 3; ++i) {
+        auto buffer = clientSendPool.Get(100U);
+        client.Send(std::move(buffer)).wait();
+      }
     }
-  }
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+  }
 
   if(thread.joinable()) {
     driver.Stop();
