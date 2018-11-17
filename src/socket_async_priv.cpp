@@ -6,11 +6,13 @@
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : shouldStop(false)
-  , pipeToAddr(SocketAddressAddrinfo("localhost:65369"))
-  , pipeFrom(pipeToAddr.SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
-  , pipeTo(pipeToAddr.SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  , pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
+  , pipeFrom(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  , pipeTo(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
 {
-  pipeTo.Bind(pipeToAddr.SockAddrUdp());
+  // bind to system-assigned port number and update address accordingly
+  pipeTo.Bind(pipeToAddr->SockAddrUdp());
+  pipeToAddr = pipeTo.GetSockName();
 
   SocketAddressAddrinfo pipeFromAddr(0);
   pipeFrom.Bind(pipeFromAddr.SockAddrUdp());
@@ -92,7 +94,7 @@ void SocketDriver::SocketDriverPriv::Unregister(
 void SocketDriver::SocketDriverPriv::Bump()
 {
   static char const one = '1';
-  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr.SockAddrUdp());
+  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->SockAddrUdp());
 }
 
 void SocketDriver::SocketDriverPriv::Unbump()

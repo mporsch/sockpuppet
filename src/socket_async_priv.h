@@ -23,7 +23,7 @@ struct SocketDriver::SocketDriverPriv
 
   std::vector<SocketRef> sockets;
   std::mutex socketsMtx;
-  SocketAddressAddrinfo pipeToAddr;
+  std::shared_ptr<SocketAddress::SocketAddressPriv> pipeToAddr;
   Socket::SocketPriv pipeFrom;
   Socket::SocketPriv pipeTo;
   bool shouldStop;
