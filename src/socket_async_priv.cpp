@@ -43,7 +43,7 @@ void SocketDriver::SocketDriverPriv::Step()
   if(FD_ISSET(pipeTo.fd, &rfds)) {
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
-  } else if(auto task = CollectFdTask(rfds, wfds)) {
+  } else if(auto const task = CollectFdTask(rfds, wfds)) {
     // because any of the user tasks may unregister/destroy a socket,
     // the safe approach is to handle only one task at a time
     task();
@@ -164,6 +164,10 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(
   , handlers(handlers)
 {
   driver->Register(*this);
+
+  if(handlers.disconnect) {
+    peerAddr = this->GetPeerName();
+  }
 }
 
 SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
@@ -239,7 +243,7 @@ try {
   }
 } catch(std::runtime_error const &) {
   if(handlers.disconnect) {
-    handlers.disconnect(SocketAddress(this->GetPeerName()));
+    handlers.disconnect(SocketAddress(peerAddr));
   }
 }
 

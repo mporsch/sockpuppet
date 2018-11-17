@@ -70,6 +70,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   SendQ sendQ;
   SendToQ sendToQ;
   std::mutex sendQMtx;
+  std::shared_ptr<SocketAddress::SocketAddressPriv> peerAddr;
 
   SocketAsyncPriv(SocketPriv &&sock,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,

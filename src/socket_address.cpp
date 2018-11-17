@@ -11,7 +11,7 @@ SocketAddress::SocketAddress(uint16_t port)
 {
 }
 
-SocketAddress::SocketAddress(std::shared_ptr<SocketAddressPriv> &&other)
+SocketAddress::SocketAddress(std::shared_ptr<SocketAddressPriv> other)
   : m_priv(std::move(other))
 {
 }

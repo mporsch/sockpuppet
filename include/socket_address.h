@@ -27,7 +27,7 @@ struct SocketAddress
   SocketAddress(uint16_t port = 0U);
 
   /// Constructor for internal use.
-  SocketAddress(std::shared_ptr<SocketAddressPriv> &&other);
+  SocketAddress(std::shared_ptr<SocketAddressPriv> other);
 
   SocketAddress(SocketAddress const &other);
   SocketAddress(SocketAddress &&other);
