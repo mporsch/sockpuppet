@@ -55,8 +55,9 @@ struct Server
   {
     std::lock_guard<std::mutex> lock(mtx);
 
-    std::cout << "server closing connection to "
-      << std::to_string(clientAddress) << std::endl;
+    std::cout << "client "
+      << std::to_string(clientAddress)
+      << " closed connection to server" << std::endl;
 
     auto const it = serverHandlers.find(clientAddress);
     if(it != std::end(serverHandlers)) {
@@ -73,6 +74,17 @@ void DisconnectDummy(SocketAddress)
 {
 }
 
+std::unique_ptr<SocketTcpAsyncClient> leftAloneClient;
+
+void HandleDisconnect(SocketAddress serverAddress)
+{
+  leftAloneClient.reset();
+
+  std::cout << "server "
+    << std::to_string(serverAddress)
+    << " closed connection" << std::endl;
+}
+
 static size_t const clientCount = 3U;
 static size_t const clientSendCount = 5U;
 static size_t const clientSendSize = 1000U;
@@ -82,7 +94,7 @@ int main(int, char **)
   SocketDriver driver;
 
   SocketAddress serverAddress("localhost:8554");
-  Server server(serverAddress, driver);
+  auto server = std::make_unique<Server>(serverAddress, driver);
 
   auto thread = std::thread(&SocketDriver::Run, &driver);
 
@@ -109,23 +121,42 @@ int main(int, char **)
       }
     }
 
-    success &= (server.serverHandlers.size() == clientCount);
-
     // wait for everything to be transmitted
     std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    success &= (server->serverHandlers.size() == clientCount);
   }
 
   // wait for all clients to disconnect
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  success &= server.serverHandlers.empty();
+  success &= server->serverHandlers.empty();
+  success &= (server->bytesReceived ==
+              clientCount
+              * clientSendCount
+              * clientSendSize);
+
+  // try the disconnect the other way around
+  leftAloneClient.reset(
+    new SocketTcpAsyncClient(
+      {serverAddress},
+      driver,
+      ReceiveDummy,
+      HandleDisconnect));
+
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  server.reset();
+
+  // wait for server handler to disconnect
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  success &= !leftAloneClient;
 
   if(thread.joinable()) {
     driver.Stop();
     thread.join();
   }
-
-  success &= (server.bytesReceived == clientCount * clientSendCount * clientSendSize);
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }
