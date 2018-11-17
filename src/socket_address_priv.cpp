@@ -106,7 +106,7 @@ namespace {
     hints.ai_family = AF_INET; // force IPv4 here
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
     addrinfo *info;
-    if(auto const result = getaddrinfo(nullptr, port.c_str(),
+    if(auto const result = getaddrinfo("localhost", port.c_str(),
                                        &hints, &info)) {
       throw std::runtime_error("failed to parse port "
                                + port + ": "
