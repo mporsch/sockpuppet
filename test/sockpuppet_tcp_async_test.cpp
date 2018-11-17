@@ -46,18 +46,11 @@ struct Server
                              std::bind(&Server::HandleDisconnect, this, std::placeholders::_1)));
   }
 
-  void HandleDisconnect(SocketTcpAsyncClient *instance)
+  void HandleDisconnect(SocketAddress clientAddress)
   {
     std::lock_guard<std::mutex> lock(mtx);
 
-    serverHandlers.erase(
-          std::remove_if(std::begin(serverHandlers),
-                         std::end(serverHandlers),
-                         [&](SocketTcpAsyncClient const &client) -> bool
-                         {
-                           return (&client == instance);
-                         }),
-          std::end(serverHandlers));
+    // TODO
   }
 };
 

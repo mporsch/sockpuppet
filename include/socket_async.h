@@ -51,7 +51,7 @@ public:
     void(std::tuple<SocketTcpClient, SocketAddress>)
   >;
   using DisconnectHandler = std::function<
-    void(SocketTcpAsyncClient *)
+    void(SocketAddress)
   >;
 
   struct SocketAsyncPriv;

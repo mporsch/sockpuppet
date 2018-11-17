@@ -237,7 +237,7 @@ try {
   }
 } catch(std::runtime_error const &) {
   if(handlers.disconnect) {
-    handlers.disconnect(nullptr); // TODO
+    handlers.disconnect(SocketAddress(this->GetPeerName()));
   }
 }
 

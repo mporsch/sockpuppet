@@ -261,6 +261,18 @@ std::shared_ptr<SocketAddressStorage> Socket::SocketPriv::GetSockName()
   return ss;
 }
 
+std::shared_ptr<SocketAddressStorage> Socket::SocketPriv::GetPeerName()
+{
+  auto ss = std::make_shared<SocketAddressStorage>();
+
+  if (::getpeername(fd, ss->Addr(), ss->AddrLen())) {
+    throw std::runtime_error("failed to get peer address: "
+                             + std::string(std::strerror(errno)));
+  }
+
+  return ss;
+}
+
 int Socket::SocketPriv::SelectRead(Time timeout)
 {
   auto rfds = ToFdSet(fd);
