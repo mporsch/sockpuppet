@@ -6,6 +6,7 @@
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
+#include <thread> // for std::thread
 
 template<typename Resource>
 struct ResourceRecycler;
@@ -28,6 +29,17 @@ public:
 
   ResourcePool(ResourcePool const &other) = delete;
   ResourcePool(ResourcePool &&other) = delete;
+
+  ~ResourcePool()
+  {
+    // wait for all resources to come home
+    std::unique_lock<std::mutex> lock(m_mtx);
+    while(!m_busy.empty()) {
+      lock.unlock();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      lock.lock();
+    }
+  }
 
   ResourcePool &operator=(ResourcePool const &other) = delete;
   ResourcePool &operator=(ResourcePool &&other) = delete;
