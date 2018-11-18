@@ -12,7 +12,7 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
   std::unique_ptr<SocketBufferPool> pool;
   size_t rxBufSize;
 
-  SocketBufferedPriv(Socket::SocketPriv &&sock,
+  SocketBufferedPriv(SocketPriv &&sock,
                      size_t rxBufCount,
                      size_t rxBufSize);
   SocketBufferedPriv(SocketBufferedPriv const &) = delete;
@@ -21,8 +21,8 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
 
   SocketBufferPtr GetBuffer();
 
-  SocketBufferPtr Receive(Socket::Time timeout);
-  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Socket::Time timeout);
+  SocketBufferPtr Receive(Time timeout);
+  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout);
 };
 
 #endif // SOCKET_BUFFERED_PRIV_H

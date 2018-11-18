@@ -1,8 +1,8 @@
 #include "socket_buffered_priv.h"
 
-SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(Socket::SocketPriv &&sock,
+SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketPriv &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : Socket::SocketPriv(std::move(sock))
+  : SocketPriv(std::move(sock))
   , pool(std::make_unique<ResourcePool<SocketBuffer>>(rxBufCount))
   , rxBufSize((rxBufSize ?
                  rxBufSize :
@@ -11,7 +11,7 @@ SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(Socket::SocketPriv &&sock
 }
 
 SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketBufferedPriv &&other)
-  : Socket::SocketPriv(std::move(other))
+  : SocketPriv(std::move(other))
   , pool(std::move(other.pool))
   , rxBufSize(other.rxBufSize)
 {
@@ -23,13 +23,15 @@ SocketBuffered::SocketBufferedPriv::~SocketBufferedPriv()
 
 SocketBuffered::SocketBufferPtr SocketBuffered::SocketBufferedPriv::GetBuffer()
 {
-  auto resource = pool->Get(rxBufSize);
-  resource->resize(rxBufSize);
-  return std::move(resource);
+  auto buffer = pool->Get(rxBufSize);
+
+  buffer->resize(rxBufSize);
+
+  return buffer;
 }
 
 SocketBuffered::SocketBufferPtr
-SocketBuffered::SocketBufferedPriv::Receive(Socket::Time timeout)
+SocketBuffered::SocketBufferedPriv::Receive(Time timeout)
 {
   auto buffer = GetBuffer();
 
@@ -37,11 +39,11 @@ SocketBuffered::SocketBufferedPriv::Receive(Socket::Time timeout)
     SocketPriv::Receive(
       buffer->data(), buffer->size(), timeout));
 
-  return std::move(buffer);
+  return buffer;
 }
 
 std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
-SocketBuffered::SocketBufferedPriv::ReceiveFrom(Socket::Time timeout)
+SocketBuffered::SocketBufferedPriv::ReceiveFrom(Time timeout)
 {
   auto buffer = GetBuffer();
 
@@ -49,7 +51,7 @@ SocketBuffered::SocketBufferedPriv::ReceiveFrom(Socket::Time timeout)
     buffer->data(), buffer->size(), timeout);
   buffer->resize(std::get<0>(t));
 
-  return std::tuple<SocketUdpBuffered::SocketBufferPtr, SocketAddress>{
+  return std::tuple<SocketBufferPtr, SocketAddress>{
     std::move(buffer)
   , SocketAddress(std::move(std::get<1>(t)))
   };
