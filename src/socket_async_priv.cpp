@@ -30,7 +30,11 @@ void SocketDriver::SocketDriverPriv::Step()
   auto &&rfds = std::get<1>(t);
   auto &&wfds = std::get<2>(t);
 
-  if(auto const result = ::select(static_cast<int>(fdMax + 1), &rfds, &wfds, nullptr, nullptr)) {
+  if(auto const result = ::select(static_cast<int>(fdMax + 1),
+                                  &rfds,
+                                  &wfds,
+                                  nullptr,
+                                  nullptr)) {
     if(result < 0) {
       throw std::runtime_error("select failed: "
                                + std::string(std::strerror(errno)));
@@ -103,19 +107,21 @@ void SocketDriver::SocketDriverPriv::Unbump()
   (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
 }
 
-std::tuple<SOCKET, fd_set, fd_set> SocketDriver::SocketDriverPriv::PrepareFds()
+std::tuple<SOCKET, fd_set, fd_set>
+SocketDriver::SocketDriverPriv::PrepareFds()
 {
-  std::lock_guard<std::mutex> lock(socketsMtx);
-
   SOCKET fdMax = -1;
   fd_set rfds;
   fd_set wfds;
   FD_ZERO(&rfds);
   FD_ZERO(&wfds);
 
-  // have the sockets set their file descriptors
-  for(auto &&sock : sockets) {
-    sock.get().DriverPrepareFds(fdMax, rfds, wfds);
+  { // have the sockets set their file descriptors
+    std::lock_guard<std::mutex> lock(socketsMtx);
+
+    for(auto &&sock : sockets) {
+      sock.get().DriverPrepareFds(fdMax, rfds, wfds);
+    }
   }
 
   // set the signalling socket file descriptor
@@ -131,7 +137,7 @@ std::tuple<SOCKET, fd_set, fd_set> SocketDriver::SocketDriverPriv::PrepareFds()
 
 SocketDriver::SocketDriverPriv::FdTask
 SocketDriver::SocketDriverPriv::CollectFdTask(
-  fd_set const &rfds, fd_set const &wfds)
+    fd_set const &rfds, fd_set const &wfds)
 {
   std::lock_guard<std::mutex> lock(socketsMtx);
 
@@ -145,20 +151,16 @@ SocketDriver::SocketDriverPriv::CollectFdTask(
 }
 
 
-SocketAsync::SocketAsyncPriv::SocketAsyncPriv(
-    SocketPriv &&sock,
-    std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
-    Handlers handlers)
+SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock,
+    std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
                     driver,
                     handlers)
 {
 }
 
-SocketAsync::SocketAsyncPriv::SocketAsyncPriv(
-    SocketBufferedPriv &&buff,
-    std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
-    Handlers handlers)
+SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
+    std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketBufferedPriv(std::move(buff))
   , driver(driver)
   , handlers(handlers)
@@ -177,23 +179,19 @@ SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
   }
 }
 
-std::future<void> SocketAsync::SocketAsyncPriv::Send(
-  SocketBufferPtr &&buffer)
+std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBufferPtr &&buffer)
 {
-  return DoSend(sendQ,
-                std::move(buffer));
+  return DoSend(sendQ, std::move(buffer));
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-  SocketBufferPtr &&buffer, SockAddr const &dstAddr)
+    SocketBufferPtr &&buffer, SockAddr const &dstAddr)
 {
-  return DoSend(sendToQ,
-                std::move(buffer),
-                dstAddr);
+  return DoSend(sendToQ, std::move(buffer), dstAddr);
 }
 
 void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
-  fd_set &rfds, fd_set &wfds)
+    fd_set &rfds, fd_set &wfds)
 {
   if(handlers.connect || handlers.receive || handlers.receiveFrom) {
     fdMax = std::max(fdMax, this->fd);
@@ -212,7 +210,7 @@ void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
 
 SocketDriver::SocketDriverPriv::FdTask
 SocketAsync::SocketAsyncPriv::DriverCollectFdTask(
-  fd_set const &rfds, fd_set const &wfds)
+    fd_set const &rfds, fd_set const &wfds)
 {
   if(FD_ISSET(this->fd, &rfds)) {
     return std::bind(&SocketAsyncPriv::DriverHandleReadable, this);

@@ -45,7 +45,8 @@ struct SocketDriver::SocketDriverPriv
   void Unbump();
 
   std::tuple<SOCKET, fd_set, fd_set> PrepareFds();
-  FdTask CollectFdTask(fd_set const &rfds, fd_set const &wfds);
+  FdTask CollectFdTask(fd_set const &rfds,
+                       fd_set const &wfds);
 };
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv

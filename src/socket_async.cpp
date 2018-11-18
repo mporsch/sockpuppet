@@ -39,16 +39,14 @@ void SocketDriver::Stop()
 
 
 SocketAsync::SocketAsync(Socket &&sock,
-    SocketDriver &driver,
-    Handlers handlers)
+    SocketDriver &driver, Handlers handlers)
   : m_priv(std::make_unique<SocketAsyncPriv>(
       std::move(*sock.m_priv), driver.m_priv, handlers))
 {
 }
 
 SocketAsync::SocketAsync(SocketBuffered &&buff,
-    SocketDriver &driver,
-    Handlers handlers)
+    SocketDriver &driver, Handlers handlers)
   : m_priv(std::make_unique<SocketAsyncPriv>(
       std::move(*buff.m_priv), driver.m_priv, handlers))
 {
@@ -71,8 +69,7 @@ SocketAsync &SocketAsync::operator=(SocketAsync &&other)
 
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
-    SocketDriver &driver,
-    ReceiveHandler handleReceive)
+    SocketDriver &driver, ReceiveHandler handleReceive)
   : SocketAsync(std::move(buff),
                 driver,
                 Handlers{
@@ -85,8 +82,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
-    SocketDriver &driver,
-    ReceiveFromHandler handleReceiveFrom)
+    SocketDriver &driver, ReceiveFromHandler handleReceiveFrom)
   : SocketAsync(std::move(buff),
                 driver,
                 Handlers{
@@ -118,10 +114,8 @@ SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other)
 
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(
-    SocketTcpBuffered &&buff,
-    SocketDriver &driver,
-    ReceiveHandler handleReceive,
-    DisconnectHandler handleDisconnect)
+    SocketTcpBuffered &&buff, SocketDriver &driver,
+    ReceiveHandler handleReceive, DisconnectHandler handleDisconnect)
   : SocketAsync(std::move(buff),
                 driver,
                 SocketAsync::Handlers{
@@ -149,10 +143,8 @@ std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
 }
 
 
-SocketTcpAsyncServer::SocketTcpAsyncServer(
-    SocketTcpServer &&sock,
-    SocketDriver &driver,
-    ConnectHandler handleConnect)
+SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
+    SocketDriver &driver, ConnectHandler handleConnect)
   : SocketAsync(std::move(sock),
                 driver,
                 SocketAsync::Handlers{
