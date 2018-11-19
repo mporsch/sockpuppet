@@ -5,10 +5,11 @@
 #include <string> // for std::string
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
-  : shouldStop(false)
-  , pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
+  : pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
   , pipeFrom(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  , shouldStop(false)
+  , isBumped(false)
 {
   // bind to system-assigned port number and update address accordingly
   pipeTo.Bind(pipeToAddr->SockAddrUdp());
@@ -48,6 +49,9 @@ void SocketDriver::SocketDriverPriv::Step()
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
   } else if(auto const task = CollectFdTask(rfds, wfds)) {
+    // note the thread ID to avoid deadlocking if we trigger a socket close
+    threadId = std::this_thread::get_id();
+
     // because any of the user tasks may unregister/destroy a socket,
     // the safe approach is to handle only one task at a time
     task();
@@ -65,7 +69,7 @@ void SocketDriver::SocketDriverPriv::Run()
 void SocketDriver::SocketDriverPriv::Stop()
 {
   shouldStop = true;
-  Bump();
+  Bump(false);
 }
 
 void SocketDriver::SocketDriverPriv::Register(
@@ -85,26 +89,41 @@ void SocketDriver::SocketDriverPriv::Unregister(
       std::remove_if(
         std::begin(sockets),
         std::end(sockets),
-        [&](SocketRef s) -> bool
-        {
+        [&](SocketRef s) -> bool {
           return (&s.get() == &sock);
         }),
       std::end(sockets));
   }
 
-  Bump();
+  Bump(threadId != std::this_thread::get_id());
 }
 
-void SocketDriver::SocketDriverPriv::Bump()
+void SocketDriver::SocketDriverPriv::Bump(bool block)
 {
+  std::unique_lock<std::mutex> lock(isBumpedMtx);
+
   static char const one = '1';
   pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->SockAddrUdp());
+
+  isBumped = true;
+
+  if(block) {
+    cv.wait(lock,
+      [this]() -> bool {
+        return !isBumped;
+      });
+  }
 }
 
 void SocketDriver::SocketDriverPriv::Unbump()
 {
+  std::lock_guard<std::mutex> lock(isBumpedMtx);
+
   char dump[256U];
   (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
+
+  isBumped = false;
+  cv.notify_one();
 }
 
 std::tuple<SOCKET, fd_set, fd_set>

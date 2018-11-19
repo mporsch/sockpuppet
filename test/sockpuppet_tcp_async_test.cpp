@@ -10,10 +10,10 @@
 
 struct Server
 {
+  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
   SocketTcpAsyncServer server;
   SocketDriver &driver;
   size_t bytesReceived;
-  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 
   Server(SocketAddress bindAddress,
