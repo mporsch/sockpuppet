@@ -2,11 +2,11 @@
 #define RESOURCE_POOL_H
 
 #include <algorithm> // for std::find_if
+#include <cassert> // for assert
 #include <deque> // for std::deque
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
-#include <thread> // for std::thread
 
 template<typename Resource>
 struct ResourceRecycler;
@@ -32,13 +32,7 @@ public:
 
   ~ResourcePool()
   {
-    // wait for all resources to come home
-    std::unique_lock<std::mutex> lock(m_mtx);
-    while(!m_busy.empty()) {
-      lock.unlock();
-      std::this_thread::sleep_for(std::chrono::milliseconds(10));
-      lock.lock();
-    }
+    assert(m_busy.empty());
   }
 
   ResourcePool &operator=(ResourcePool const &other) = delete;
@@ -50,7 +44,7 @@ public:
   /// @return  Pointer to resource. The resource is still owned by
   ///          the resource pool; the user must not change the pointer.
   /// @throws  If more resources are obtained than initially agreed upon.
-  /// @note  Mind that all resources are invalidated when destroying
+  /// @note  Mind that all resources must be returned before destroying
   ///        the resouce pool.
   template<typename... Args>
   ResourcePtr Get(Args&&... args)
