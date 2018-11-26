@@ -67,6 +67,8 @@ struct Socket::SocketPriv
   int SelectRead(Time timeout);
   int SelectWrite(Time timeout);
   int Select(fd_set *rfds, fd_set *wfds, Time timeout);
+
+  static timeval ToTimeval(Time time);
 };
 
 #endif // SOCKET_PRIV_H

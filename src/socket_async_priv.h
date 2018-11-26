@@ -57,7 +57,8 @@ struct SocketDriver::SocketDriverPriv
   SocketDriverPriv();
   ~SocketDriverPriv();
 
-  void Step();
+  void Step(SocketBuffered::Time timeout);
+  void Step(timeval *tv);
 
   void Run();
   void Stop();

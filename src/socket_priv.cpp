@@ -18,18 +18,6 @@ namespace {
     return fds;
   }
 
-  timeval ToTimeval(Socket::Time time)
-  {
-    using namespace std::chrono;
-
-    auto const usec = duration_cast<microseconds>(time).count();
-
-    return {
-      static_cast<decltype(timeval::tv_sec)>(usec / 1000000U)
-    , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
-    };
-  }
-
   void SetInvalid(SOCKET &fd)
   {
     fd = -1;
@@ -292,6 +280,18 @@ int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds, Time timeout)
   // highest-numbered file descriptor in any of the three sets, plus 1
   // windows ignores the parameter
 
-  timeval tv = ToTimeval(timeout);
+  auto tv = ToTimeval(timeout);
   return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
+}
+
+timeval Socket::SocketPriv::ToTimeval(Time time)
+{
+  using namespace std::chrono;
+
+  auto const usec = duration_cast<microseconds>(time).count();
+
+  return {
+    static_cast<decltype(timeval::tv_sec)>(usec / 1000000U)
+  , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
+  };
 }

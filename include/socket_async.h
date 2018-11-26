@@ -25,7 +25,9 @@ public:
   SocketDriver &operator=(SocketDriver &&other);
 
   /// Run one iteration on the attached sockets.
-  void Step();
+  /// @param  timeout  Timeout to use; 0 allows blocking if
+  ///                  all attached sockets are idle.
+  void Step(SocketBuffered::Time timeout = SocketBuffered::Time(0));
 
   /// Continuously run the attached sockets.
   /// @note  Blocking call. Returns only after Stop() from another thread.

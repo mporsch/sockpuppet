@@ -52,7 +52,17 @@ SocketDriver::SocketDriverPriv::~SocketDriverPriv()
   Stop();
 }
 
-void SocketDriver::SocketDriverPriv::Step()
+void SocketDriver::SocketDriverPriv::Step(SocketBuffered::Time timeout)
+{
+  if(timeout.count() > 0U) {
+    auto tv = Socket::SocketPriv::ToTimeval(timeout);
+    Step(&tv);
+  } else {
+    Step(nullptr);
+  }
+}
+
+void SocketDriver::SocketDriverPriv::Step(timeval *tv)
 {
   StepGuard guard(*this);
 
@@ -65,13 +75,13 @@ void SocketDriver::SocketDriverPriv::Step()
                                   &rfds,
                                   &wfds,
                                   nullptr,
-                                  nullptr)) {
+                                  tv)) {
     if(result < 0) {
       throw std::runtime_error("select failed: "
                                + std::string(std::strerror(errno)));
     }
   } else {
-    throw std::runtime_error("select timed out");
+    return;
   }
 
   // one or more sockets is readable/writable
@@ -86,7 +96,7 @@ void SocketDriver::SocketDriverPriv::Step()
 void SocketDriver::SocketDriverPriv::Run()
 {
   while(!shouldStop) {
-    Step();
+    Step(nullptr);
   }
   shouldStop = false;
 }
