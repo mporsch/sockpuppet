@@ -39,11 +39,11 @@ protected:
   std::unique_ptr<SocketBufferedPriv> m_priv;
 };
 
-/// UDP (unreliable communication) socket class that has an internal
-/// receive buffer pool and is bound to provided address.
+/// UDP (unreliable communication) socket class that adds an internal
+/// receive buffer pool to the regular UDP socket class.
 struct SocketUdpBuffered : public SocketBuffered
 {
-  /// Create a UDP socket with internal buffer pool bound to given address.
+  /// Create a UDP socket with additional internal buffer pool.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
   /// @param  rxBufSize  Size of each receive buffer.
   ///                    (0 -> use OS-determined maximum receive size.
@@ -81,12 +81,11 @@ struct SocketUdpBuffered : public SocketBuffered
   std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout = Time(0));
 };
 
-/// TCP (reliable communication) socket class that has an internal
-/// receive buffer pool and is either connected to provided peer address or
-/// to a peer accepted by the TCP server socket.
+/// TCP (reliable communication) socket class that adds an internal
+/// receive buffer pool to the regular TCP client socket class.
 struct SocketTcpBuffered : public SocketBuffered
 {
-  /// Create a TCP socket with internal buffer pool connected to given address.
+  /// Create a TCP socket with additional internal buffer pool.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
   /// @param  rxBufSize  Size of each receive buffer.
   ///                    (0 -> use OS-determined maximum receive size.
