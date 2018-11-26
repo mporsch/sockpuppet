@@ -12,7 +12,6 @@
 using SOCKET = int;
 #endif // _WIN32
 
-#include <functional> // for std::function
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
@@ -21,7 +20,6 @@ using SOCKET = int;
 struct SocketDriver::SocketDriverPriv
 {
   using SocketRef = std::reference_wrapper<SocketAsync::SocketAsyncPriv>;
-  using FdTask = std::function<void()>;
 
   // StepGuard and StopGuard perform a handshake to obtain stepMtx
   // with pauseMtx used to force Step() to yield
@@ -71,8 +69,8 @@ struct SocketDriver::SocketDriverPriv
   void Unbump();
 
   std::tuple<SOCKET, fd_set, fd_set> PrepareFds();
-  FdTask CollectFdTask(fd_set const &rfds,
-                       fd_set const &wfds);
+  void DoOneFdTask(fd_set const &rfds,
+                   fd_set const &wfds);
 };
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
@@ -139,13 +137,10 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   void DriverPrepareFds(SOCKET &fdMax,
                         fd_set &rfds,
                         fd_set &wfds);
-
-  SocketDriver::SocketDriverPriv::FdTask
-  DriverCollectFdTask(fd_set const &rfds,
+  bool DriverDoFdTask(fd_set const &rfds,
                       fd_set const &wfds);
-
-  void DriverHandleReadable();
-  void DriverHandleWritable();
+  void DriverDoFdTaskReadable();
+  void DriverDoFdTaskWritable();
 };
 
 #endif // SOCKET_ASYNC_PRIV

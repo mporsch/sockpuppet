@@ -78,10 +78,8 @@ void SocketDriver::SocketDriverPriv::Step()
   if(FD_ISSET(pipeTo.fd, &rfds)) {
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
-  } else if(auto const task = CollectFdTask(rfds, wfds)) {
-    // because any of the user tasks may unregister/destroy a socket,
-    // the safe approach is to handle only one task at a time
-    task();
+  } else {
+    DoOneFdTask(rfds, wfds);
   }
 }
 
@@ -157,17 +155,15 @@ SocketDriver::SocketDriverPriv::PrepareFds()
   };
 }
 
-SocketDriver::SocketDriverPriv::FdTask
-SocketDriver::SocketDriverPriv::CollectFdTask(
+void SocketDriver::SocketDriverPriv::DoOneFdTask(
     fd_set const &rfds, fd_set const &wfds)
 {
+  // user task may unregister/destroy a socket -> handle only one
   for(auto &&sock : sockets) {
-    if(auto const task = sock.get().DriverCollectFdTask(rfds, wfds)) {
-      return task;
+    if(sock.get().DriverDoFdTask(rfds, wfds)) {
+      break;
     }
   }
-
-  return nullptr;
 }
 
 
@@ -228,20 +224,20 @@ void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
   }
 }
 
-SocketDriver::SocketDriverPriv::FdTask
-SocketAsync::SocketAsyncPriv::DriverCollectFdTask(
+bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(
     fd_set const &rfds, fd_set const &wfds)
 {
   if(FD_ISSET(this->fd, &rfds)) {
-    return std::bind(&SocketAsyncPriv::DriverHandleReadable, this);
+    DriverDoFdTaskReadable();
+    return true;
   } else if(FD_ISSET(this->fd, &wfds)) {
-    return std::bind(&SocketAsyncPriv::DriverHandleWritable, this);
-  } else {
-    return nullptr;
+    DriverDoFdTaskWritable();
+    return true;
   }
+  return false;
 }
 
-void SocketAsync::SocketAsyncPriv::DriverHandleReadable()
+void SocketAsync::SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
     auto t = this->Accept(Time(0));
@@ -265,7 +261,7 @@ try {
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverHandleWritable()
+void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
 {
   std::unique_lock<std::mutex> lock(sendQMtx);
 
