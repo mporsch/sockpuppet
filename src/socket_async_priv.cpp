@@ -4,12 +4,40 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
+SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
+  : stepLock(priv.stepMtx)
+  , pauseLock(priv.pauseMtx, std::defer_lock)
+{
+}
+
+SocketDriver::SocketDriverPriv::StepGuard::~StepGuard()
+{
+  stepLock.unlock();
+  pauseLock.lock();
+}
+
+
+SocketDriver::SocketDriverPriv::PauseGuard::PauseGuard(SocketDriverPriv &priv)
+  : stepLock(priv.stepMtx, std::defer_lock)
+  , pauseLock(priv.pauseMtx, std::defer_lock)
+{
+  if(!stepLock.try_lock()) {
+    pauseLock.lock();
+    priv.Bump();
+    stepLock.lock();
+  }
+}
+
+SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard()
+{
+}
+
+
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
   , pipeFrom(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
   , shouldStop(false)
-  , isBumped(false)
 {
   // bind to system-assigned port number and update address accordingly
   pipeTo.Bind(pipeToAddr->SockAddrUdp());
@@ -26,6 +54,8 @@ SocketDriver::SocketDriverPriv::~SocketDriverPriv()
 
 void SocketDriver::SocketDriverPriv::Step()
 {
+  StepGuard guard(*this);
+
   auto t = PrepareFds();
   auto &&fdMax = std::get<0>(t);
   auto &&rfds = std::get<1>(t);
@@ -49,9 +79,6 @@ void SocketDriver::SocketDriverPriv::Step()
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
   } else if(auto const task = CollectFdTask(rfds, wfds)) {
-    // note the thread ID to avoid deadlocking if we trigger a socket close
-    threadId = std::this_thread::get_id();
-
     // because any of the user tasks may unregister/destroy a socket,
     // the safe approach is to handle only one task at a time
     task();
@@ -69,61 +96,40 @@ void SocketDriver::SocketDriverPriv::Run()
 void SocketDriver::SocketDriverPriv::Stop()
 {
   shouldStop = true;
-  Bump(false);
+  Bump();
 }
 
 void SocketDriver::SocketDriverPriv::Register(
     SocketAsync::SocketAsyncPriv &sock)
 {
-  std::lock_guard<std::mutex> lock(socketsMtx);
+  PauseGuard guard(*this);
   sockets.emplace_back(sock);
 }
 
 void SocketDriver::SocketDriverPriv::Unregister(
     SocketAsync::SocketAsyncPriv &sock)
 {
-  {
-    std::lock_guard<std::mutex> lock(socketsMtx);
-
-    sockets.erase(
-      std::remove_if(
-        std::begin(sockets),
-        std::end(sockets),
-        [&](SocketRef s) -> bool {
-          return (&s.get() == &sock);
-        }),
-      std::end(sockets));
-  }
-
-  Bump(threadId != std::this_thread::get_id());
+  PauseGuard guard(*this);
+  sockets.erase(
+    std::remove_if(
+      std::begin(sockets),
+      std::end(sockets),
+      [&](SocketRef s) -> bool {
+        return (&s.get() == &sock);
+      }),
+    std::end(sockets));
 }
 
-void SocketDriver::SocketDriverPriv::Bump(bool block)
+void SocketDriver::SocketDriverPriv::Bump()
 {
-  std::unique_lock<std::mutex> lock(isBumpedMtx);
-
   static char const one = '1';
   pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->SockAddrUdp());
-
-  isBumped = true;
-
-  if(block) {
-    cv.wait(lock,
-      [this]() -> bool {
-        return !isBumped;
-      });
-  }
 }
 
 void SocketDriver::SocketDriverPriv::Unbump()
 {
-  std::lock_guard<std::mutex> lock(isBumpedMtx);
-
   char dump[256U];
   (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
-
-  isBumped = false;
-  cv.notify_one();
 }
 
 std::tuple<SOCKET, fd_set, fd_set>
@@ -135,12 +141,9 @@ SocketDriver::SocketDriverPriv::PrepareFds()
   FD_ZERO(&rfds);
   FD_ZERO(&wfds);
 
-  { // have the sockets set their file descriptors
-    std::lock_guard<std::mutex> lock(socketsMtx);
-
-    for(auto &&sock : sockets) {
-      sock.get().DriverPrepareFds(fdMax, rfds, wfds);
-    }
+  // have the sockets set their file descriptors
+  for(auto &&sock : sockets) {
+    sock.get().DriverPrepareFds(fdMax, rfds, wfds);
   }
 
   // set the signalling socket file descriptor
@@ -158,8 +161,6 @@ SocketDriver::SocketDriverPriv::FdTask
 SocketDriver::SocketDriverPriv::CollectFdTask(
     fd_set const &rfds, fd_set const &wfds)
 {
-  std::lock_guard<std::mutex> lock(socketsMtx);
-
   for(auto &&sock : sockets) {
     if(auto const task = sock.get().DriverCollectFdTask(rfds, wfds)) {
       return task;

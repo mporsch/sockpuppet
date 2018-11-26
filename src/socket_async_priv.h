@@ -12,32 +12,49 @@
 using SOCKET = int;
 #endif // _WIN32
 
-#include <atomic> // for std::atomic
-#include <condition_variable> // for std::condition_variable
 #include <functional> // for std::function
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
 #include <vector> // for std::vector
-#include <thread> // for std::thread::id
 
 struct SocketDriver::SocketDriverPriv
 {
   using SocketRef = std::reference_wrapper<SocketAsync::SocketAsyncPriv>;
   using FdTask = std::function<void()>;
 
-  std::vector<SocketRef> sockets;
-  std::mutex socketsMtx;
+  // StepGuard and StopGuard perform a handshake to obtain stepMtx
+  // with pauseMtx used to force Step() to yield
+
+  struct StepGuard
+  {
+    std::unique_lock<std::recursive_mutex> stepLock;
+    std::unique_lock<std::recursive_mutex> pauseLock;
+
+    StepGuard(SocketDriverPriv &priv);
+    StepGuard(StepGuard const &) = delete;
+    StepGuard(StepGuard &&) = delete;
+    ~StepGuard();
+  };
+
+  struct PauseGuard
+  {
+    std::unique_lock<std::recursive_mutex> stepLock;
+    std::unique_lock<std::recursive_mutex> pauseLock;
+
+    PauseGuard(SocketDriverPriv &priv);
+    PauseGuard(PauseGuard const &) = delete;
+    PauseGuard(PauseGuard &&) = delete;
+    ~PauseGuard();
+  };
+
   std::shared_ptr<SocketAddress::SocketAddressPriv> pipeToAddr;
   Socket::SocketPriv pipeFrom;
   Socket::SocketPriv pipeTo;
+  std::recursive_mutex stepMtx;
+  std::recursive_mutex pauseMtx;
+  std::vector<SocketRef> sockets; // guarded by stepMtx
   bool shouldStop;
-
-  bool isBumped;
-  std::mutex isBumpedMtx;
-  std::condition_variable cv;
-
-  std::atomic<std::thread::id> threadId;
 
   SocketDriverPriv();
   ~SocketDriverPriv();
@@ -50,7 +67,7 @@ struct SocketDriver::SocketDriverPriv
   void Register(SocketAsync::SocketAsyncPriv &sock);
   void Unregister(SocketAsync::SocketAsyncPriv &sock);
 
-  void Bump(bool block);
+  void Bump();
   void Unbump();
 
   std::tuple<SOCKET, fd_set, fd_set> PrepareFds();
@@ -113,7 +130,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
     }
 
     if(auto const ptr = driver.lock()) {
-      ptr->Bump(false);
+      ptr->Bump();
     }
 
     return ret;
