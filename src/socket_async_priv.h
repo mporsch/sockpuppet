@@ -76,19 +76,9 @@ struct SocketDriver::SocketDriverPriv
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 {
-  struct SendQElement
-  {
-    std::promise<void> promise;
-    SocketBufferPtr buffer;
-  };
+  using SendQElement = std::tuple<std::promise<void>, SocketBufferPtr>;
   using SendQ = std::queue<SendQElement>;
-
-  struct SendToQElement
-  {
-    std::promise<void> promise;
-    SocketBufferPtr buffer;
-    SockAddr addr;
-  };
+  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, SockAddr>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -121,11 +111,8 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
     {
       std::lock_guard<std::mutex> lock(sendQMtx);
 
-      q.emplace(
-        QueueElement{
-          std::move(promise)
-        , std::forward<Args>(args)...
-        });
+      q.emplace(std::move(promise),
+                std::forward<Args>(args)...);
     }
 
     if(auto const ptr = driver.lock()) {
