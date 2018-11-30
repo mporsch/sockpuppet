@@ -282,8 +282,13 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
 
     auto &&promise = std::get<0>(e);
     auto &&buffer = std::get<1>(e);
-    SocketPriv::Send(buffer->data(), buffer->size(), Time(0));
-    promise.set_value();
+
+    try {
+      SocketPriv::Send(buffer->data(), buffer->size(), Time(0));
+      promise.set_value();
+    } catch(std::exception const &e) {
+      promise.set_exception(std::make_exception_ptr(e));
+    }
   } else if(!sendToQ.empty()) {
     auto e = std::move(sendToQ.front());
     sendToQ.pop();
@@ -292,8 +297,13 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
     auto &&promise = std::get<0>(e);
     auto &&buffer = std::get<1>(e);
     auto &&addr = std::get<2>(e);
-    SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
-    promise.set_value();
+
+    try {
+      SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
+      promise.set_value();
+    } catch(std::exception const &e) {
+      promise.set_exception(std::make_exception_ptr(e));
+    }
   } else {
     throw std::logic_error("send buffer emptied unexpectedly");
   }
