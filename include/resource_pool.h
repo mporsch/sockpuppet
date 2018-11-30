@@ -32,7 +32,7 @@ public:
 
   ~ResourcePool()
   {
-    assert(m_busy.empty());
+    assert(m_busy.empty()); // throw immediately instead of segfault later
   }
 
   ResourcePool &operator=(ResourcePool const &other) = delete;

@@ -1,11 +1,13 @@
-#ifndef SOCKET_ASYNC
-#define SOCKET_ASYNC
+#ifndef SOCKET_ASYNC_H
+#define SOCKET_ASYNC_H
 
+#include "socket_address.h" // for SocketAddress
 #include "socket_buffered.h" // for SocketBuffered
 
 #include <future> // for std::future
 #include <functional> // for std::function
 #include <memory> // for std::unique_ptr
+#include <tuple> // for std::tuple
 
 /// Socket driver that runs one or multiple attached socket classes and
 /// may be run by a dedicated thread or stepped iteratively.
@@ -167,4 +169,4 @@ struct SocketTcpAsyncServer : public SocketAsync
                        ConnectHandler handleConnect);
 };
 
-#endif // SOCKET_ASYNC
+#endif // SOCKET_ASYNC_H

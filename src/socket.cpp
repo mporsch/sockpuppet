@@ -58,7 +58,7 @@ SocketUdp &SocketUdp::operator=(SocketUdp &&other)
 }
 
 void SocketUdp::SendTo(char const *data, size_t size,
-  SocketAddress const &dstAddress)
+    SocketAddress const &dstAddress)
 {
   m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
 }
@@ -69,7 +69,7 @@ size_t SocketUdp::Receive(char *data, size_t size, Time timeout)
 }
 
 std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
-  char *data, size_t size, Time timeout)
+    char *data, size_t size, Time timeout)
 {
   auto t = m_priv->ReceiveFrom(data, size, timeout);
   return std::tuple<size_t, SocketAddress>{

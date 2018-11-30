@@ -7,6 +7,7 @@
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <tuple> // for std::tuple
 #include <vector> // for std::vector
 
 /// The buffered socket base class stores the receive buffer pool.

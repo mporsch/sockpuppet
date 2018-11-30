@@ -25,7 +25,7 @@ namespace {
 
   bool IsValid(SOCKET const &fd)
   {
-    return (fd != -1);
+    return (fd >= 0);
   }
 } // unnamed namespace
 
@@ -33,7 +33,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
   : socketGuard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
 {
-  if(fd < 0) {
+  if(!IsValid(fd)) {
     throw std::runtime_error("failed to create socket: "
                              + std::string(std::strerror(errno)));
   }
@@ -42,7 +42,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
 Socket::SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
 {
-  if(fd < 0) {
+  if(!IsValid(fd)) {
     throw std::runtime_error("failed to create socket: "
                              + std::string(std::strerror(errno)));
   }
@@ -137,7 +137,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
 }
 
 void Socket::SocketPriv::SendTo(char const *data, size_t size,
-  SockAddr const &dstAddr)
+    SockAddr const &dstAddr)
 {
   if(size != ::sendto(fd, data, size, 0,
                       dstAddr.addr, dstAddr.addrLen)) {
@@ -214,7 +214,7 @@ void Socket::SocketPriv::SetSockOptBroadcast()
 }
 
 void Socket::SocketPriv::SetSockOpt(int id, int value,
-  char const *name)
+    char const *name)
 {
   if (::setsockopt(fd, SOL_SOCKET, id,
                    reinterpret_cast<char const *>(&value), sizeof(value))) {

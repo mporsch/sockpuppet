@@ -1,5 +1,5 @@
-#ifndef SOCKET_ASYNC_PRIV
-#define SOCKET_ASYNC_PRIV
+#ifndef SOCKET_ASYNC_PRIV_H
+#define SOCKET_ASYNC_PRIV_H
 
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 #include "socket_async.h" // for SocketAsync
@@ -12,6 +12,7 @@
 using SOCKET = int;
 #endif // _WIN32
 
+#include <atomic> // for std::atomic
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
@@ -52,7 +53,7 @@ struct SocketDriver::SocketDriverPriv
   std::recursive_mutex stepMtx;
   std::recursive_mutex pauseMtx;
   std::vector<SocketRef> sockets; // guarded by stepMtx
-  bool shouldStop;
+  std::atomic<bool> shouldStop;
 
   SocketDriverPriv();
   ~SocketDriverPriv();
@@ -83,9 +84,9 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
   Handlers handlers;
+  std::mutex sendQMtx;
   SendQ sendQ;
   SendToQ sendToQ;
-  std::mutex sendQMtx;
   std::shared_ptr<SocketAddress::SocketAddressPriv> peerAddr;
 
   SocketAsyncPriv(SocketPriv &&sock,
@@ -97,30 +98,11 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   virtual ~SocketAsyncPriv();
 
   std::future<void> Send(SocketBufferPtr &&buffer);
-
   std::future<void> SendTo(SocketBufferPtr &&buffer,
                            SockAddr const &dstAddr);
-
   template<typename QueueElement, typename... Args>
   std::future<void> DoSend(std::queue<QueueElement> &q,
-                           Args&&... args)
-  {
-    std::promise<void> promise;
-    auto ret = promise.get_future();
-
-    {
-      std::lock_guard<std::mutex> lock(sendQMtx);
-
-      q.emplace(std::move(promise),
-                std::forward<Args>(args)...);
-    }
-
-    if(auto const ptr = driver.lock()) {
-      ptr->Bump();
-    }
-
-    return ret;
-  }
+                           Args&&... args);
 
   void DriverPrepareFds(SOCKET &fdMax,
                         fd_set &rfds,
@@ -131,4 +113,4 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   void DriverDoFdTaskWritable();
 };
 
-#endif // SOCKET_ASYNC_PRIV
+#endif // SOCKET_ASYNC_PRIV_H

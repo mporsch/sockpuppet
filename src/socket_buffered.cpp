@@ -42,7 +42,7 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other)
 }
 
 void SocketUdpBuffered::SendTo(char const *data, size_t size,
-  SocketAddress const &dstAddress)
+    SocketAddress const &dstAddress)
 {
   m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
 }
@@ -77,7 +77,7 @@ SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other)
 }
 
 void SocketTcpBuffered::Send(char const *data, size_t size,
-  Time timeout)
+    Time timeout)
 {
   m_priv->Send(data, size, timeout);
 }

@@ -4,6 +4,14 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
+namespace {
+  void FillFdSet(SOCKET &fdMax, fd_set &fds, SOCKET fd)
+  {
+    fdMax = std::max(fdMax, fd);
+    FD_SET(fd, &fds);
+  }
+} // unnamed namespace
+
 SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
   : stepLock(priv.stepMtx)
   , pauseLock(priv.pauseMtx, std::defer_lock)
@@ -71,6 +79,10 @@ void SocketDriver::SocketDriverPriv::Step(timeval *tv)
   auto &&rfds = std::get<1>(t);
   auto &&wfds = std::get<2>(t);
 
+  // unix expects the first ::select parameter to be the
+  // highest-numbered file descriptor in any of the three sets, plus 1
+  // windows ignores the parameter
+
   if(auto const result = ::select(static_cast<int>(fdMax + 1),
                                   &rfds,
                                   &wfds,
@@ -81,6 +93,7 @@ void SocketDriver::SocketDriverPriv::Step(timeval *tv)
                                + std::string(std::strerror(errno)));
     }
   } else {
+    // timeout exceeded
     return;
   }
 
@@ -155,8 +168,7 @@ SocketDriver::SocketDriverPriv::PrepareFds()
   }
 
   // set the signalling socket file descriptor
-  FD_SET(pipeTo.fd, &rfds);
-  fdMax = std::max(fdMax, pipeTo.fd);
+  FillFdSet(fdMax, rfds, pipeTo.fd);
 
   return std::tuple<SOCKET, fd_set, fd_set>{
     fdMax
@@ -216,20 +228,39 @@ std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }
 
+template<typename QueueElement, typename... Args>
+std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
+    std::queue<QueueElement> &q, Args&&... args)
+{
+  std::promise<void> promise;
+  auto ret = promise.get_future();
+
+  {
+    std::lock_guard<std::mutex> lock(sendQMtx);
+
+    q.emplace(std::move(promise),
+              std::forward<Args>(args)...);
+  }
+
+  if(auto const ptr = driver.lock()) {
+    ptr->Bump();
+  }
+
+  return ret;
+}
+
 void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
     fd_set &rfds, fd_set &wfds)
 {
   if(handlers.connect || handlers.receive || handlers.receiveFrom) {
-    fdMax = std::max(fdMax, this->fd);
-    FD_SET(this->fd, &rfds);
+    FillFdSet(fdMax, rfds, this->fd);
   }
 
   {
     std::lock_guard<std::mutex> lock(sendQMtx);
 
     if(!sendQ.empty() || !sendToQ.empty()) {
-      fdMax = std::max(fdMax, this->fd);
-      FD_SET(this->fd, &wfds);
+      FillFdSet(fdMax, wfds, this->fd);
     }
   }
 }
