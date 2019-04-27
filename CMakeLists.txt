@@ -15,6 +15,11 @@ if(${BUILD_SHARED_LIBS})
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif()
 
+if(MINGW)
+  # allow MinGW to drop compatibility with legacy windows
+  add_definitions(-D_WIN32_WINNT=0x0600)
+endif(MINGW)
+
 # this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
   include/resource_pool.h
