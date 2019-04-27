@@ -130,7 +130,8 @@ bool operator<(SockAddr const &lhs,
     } else if(lhs.addrLen > rhs.addrLen) {
       return false;
     } else {
-      auto const cmp = std::memcmp(lhs.addr, rhs.addr, lhs.addrLen);
+      auto const cmp = std::memcmp(lhs.addr, rhs.addr,
+                                   static_cast<size_t>(lhs.addrLen));
       return (cmp < 0);
     }
   }
