@@ -16,6 +16,8 @@ using SOCKET = int;
 #include <memory> // for std::shared_ptr
 #include <tuple> // for std::tuple
 
+namespace sockpuppet {
+
 struct Socket::SocketPriv
 {
   SocketGuard socketGuard;  ///< Guard to initialize socket subsystem on windows
@@ -70,5 +72,7 @@ struct Socket::SocketPriv
 
   static timeval ToTimeval(Time time);
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_PRIV_H

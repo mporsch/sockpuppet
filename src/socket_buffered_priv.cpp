@@ -1,5 +1,7 @@
 #include "socket_buffered_priv.h"
 
+namespace sockpuppet {
+
 SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketPriv &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : SocketPriv(std::move(sock))
@@ -54,3 +56,5 @@ SocketBuffered::SocketBufferedPriv::ReceiveFrom(Time timeout)
   , SocketAddress(std::move(std::get<1>(t)))
   };
 }
+
+} // namespace sockpuppet

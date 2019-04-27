@@ -8,6 +8,8 @@
 #include <memory> // for std::unique_ptr
 #include <tuple> // for std::tuple
 
+namespace sockpuppet {
+
 /// The socket base class stores the hidden implementation.
 /// It is created by its derived classes and is not intended
 /// to be created by the user.
@@ -135,5 +137,7 @@ struct SocketTcpServer : public Socket
   /// @throws  If listen or accept fails or timeout occurs.
   std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0U));
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_H

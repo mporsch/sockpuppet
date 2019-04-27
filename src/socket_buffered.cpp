@@ -1,6 +1,8 @@
 #include "socket_buffered.h"
 #include "socket_buffered_priv.h" // for SocketBufferedPriv
 
+namespace sockpuppet {
+
 SocketBuffered::SocketBuffered(Socket &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : m_priv(std::make_unique<SocketBufferedPriv>(
@@ -88,3 +90,5 @@ SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Time timeout)
 {
   return m_priv->Receive(timeout);
 }
+
+} // namespace sockpuppet

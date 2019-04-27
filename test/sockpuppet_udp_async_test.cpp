@@ -5,6 +5,8 @@
 #include <iostream> // for std::cout
 #include <thread> // for std::this_thread
 
+using namespace sockpuppet;
+
 static std::atomic<bool> success(false);
 
 void HandleReceiveFrom(

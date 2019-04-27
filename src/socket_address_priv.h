@@ -18,6 +18,8 @@
 #include <memory> // for std::unique_ptr
 #include <string> // for std::string
 
+namespace sockpuppet {
+
 struct SockAddr
 {
   sockaddr const *addr;
@@ -74,8 +76,10 @@ struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
   int Family() const override;
 };
 
+} // namespace sockpuppet
+
 namespace std {
-  std::string to_string(SockAddr const &sockAddr);
+  std::string to_string(sockpuppet::SockAddr const &sockAddr);
 }
 
 #endif // SOCKET_ADDRESS_PRIV_H

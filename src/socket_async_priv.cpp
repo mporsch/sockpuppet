@@ -4,6 +4,8 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
+namespace sockpuppet {
+
 namespace {
   void FillFdSet(SOCKET &fdMax, fd_set &fds, SOCKET fd)
   {
@@ -337,3 +339,5 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
     throw std::logic_error("send buffer emptied unexpectedly");
   }
 }
+
+} // namespace sockpuppet

@@ -4,6 +4,8 @@
 #include <iostream> // for std::cout
 #include <string> // for std::string
 
+using namespace sockpuppet;
+
 void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 try {
   auto &&client = std::get<0>(t);

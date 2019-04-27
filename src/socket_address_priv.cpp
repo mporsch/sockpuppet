@@ -5,6 +5,8 @@
 #include <cstring> // for std::memcmp
 #include <stdexcept> // for std::runtime_error
 
+namespace sockpuppet {
+
 namespace {
   bool IsNumeric(char c)
   {
@@ -245,10 +247,12 @@ int SocketAddressStorage::Family() const
   return storage.ss_family;
 }
 
+} // namespace sockpuppet
+
 namespace std {
-  std::string to_string(SockAddr const &sockAddr)
+  std::string to_string(sockpuppet::SockAddr const &sockAddr)
   {
-    SocketGuard guard;
+    sockpuppet::SocketGuard guard;
 
     char host[NI_MAXHOST];
     char service[NI_MAXSERV];

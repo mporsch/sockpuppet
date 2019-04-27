@@ -5,6 +5,8 @@
 #include <memory> // for std::shared_ptr
 #include <string> // for std::string
 
+namespace sockpuppet {
+
 struct SocketAddress
 {
   /// Pimpl to hide away the OS-specifics.
@@ -46,8 +48,10 @@ private:
 bool operator<(SocketAddress const &lhs,
                SocketAddress const &rhs);
 
+} // namespace sockpuppet
+
 namespace std {
-  std::string to_string(SocketAddress const &addr);
+  std::string to_string(sockpuppet::SocketAddress const &addr);
 }
 
 #endif // SOCKET_ADDRESS_H

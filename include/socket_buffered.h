@@ -10,6 +10,8 @@
 #include <tuple> // for std::tuple
 #include <vector> // for std::vector
 
+namespace sockpuppet {
+
 /// The buffered socket base class stores the receive buffer pool.
 /// It is created by its derived classes and is not intended to
 /// be created by the user.
@@ -118,5 +120,7 @@ struct SocketTcpBuffered : public SocketBuffered
   /// @throws  If receipt fails or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Time timeout = Time(0U));
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_BUFFERED_H

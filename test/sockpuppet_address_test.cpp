@@ -3,6 +3,8 @@
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 
+using namespace sockpuppet;
+
 template<typename... Args>
 void Test(Args&&... args)
 {

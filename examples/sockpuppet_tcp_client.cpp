@@ -4,6 +4,8 @@
 #include <iostream> // for std::cout
 #include <string> // for std::string
 
+using namespace sockpuppet;
+
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {

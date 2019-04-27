@@ -5,6 +5,8 @@
 #include <string> // for std::string
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 static std::string const response =
   std::string("HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n")
   + R"(<!DOCTYPE html>

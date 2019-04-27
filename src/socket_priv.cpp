@@ -9,6 +9,8 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
+namespace sockpuppet {
+
 namespace {
   fd_set ToFdSet(SOCKET fd)
   {
@@ -295,3 +297,5 @@ timeval Socket::SocketPriv::ToTimeval(Time time)
   , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
   };
 }
+
+} // namespace sockpuppet

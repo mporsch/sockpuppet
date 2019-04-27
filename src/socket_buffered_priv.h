@@ -7,6 +7,8 @@
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
 
+namespace sockpuppet {
+
 struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
 {
   std::unique_ptr<SocketBufferPool> pool;
@@ -24,5 +26,7 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
   SocketBufferPtr Receive(Time timeout);
   std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout);
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_BUFFERED_PRIV_H

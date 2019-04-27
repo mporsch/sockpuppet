@@ -5,6 +5,8 @@
 #include <random> // for std::default_random_engine
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 bool success = true;
 std::vector<char> referenceData(10000000U);
 

@@ -2,6 +2,8 @@
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 #include "socket_async_priv.h" // for SocketAsyncPriv
 
+namespace sockpuppet {
+
 SocketDriver::SocketDriver()
   : m_priv(std::make_shared<SocketDriverPriv>())
 {
@@ -155,3 +157,5 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
 {
   m_priv->Listen();
 }
+
+} // namespace sockpuppet

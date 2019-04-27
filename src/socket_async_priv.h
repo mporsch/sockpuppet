@@ -18,6 +18,8 @@ using SOCKET = int;
 #include <queue> // for std::queue
 #include <vector> // for std::vector
 
+namespace sockpuppet {
+
 struct SocketDriver::SocketDriverPriv
 {
   using SocketRef = std::reference_wrapper<SocketAsync::SocketAsyncPriv>;
@@ -112,5 +114,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   void DriverDoFdTaskReadable();
   void DriverDoFdTaskWritable();
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_ASYNC_PRIV_H

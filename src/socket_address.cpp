@@ -1,6 +1,8 @@
 #include "socket_address.h"
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 
+namespace sockpuppet {
+
 SocketAddress::SocketAddress(std::string const &uri)
   : m_priv(std::make_shared<SocketAddressAddrinfo>(uri))
 {
@@ -51,8 +53,10 @@ bool operator<(SocketAddress const &lhs, SocketAddress const &rhs)
   return (*lhs.Priv() < *rhs.Priv());
 }
 
+} // namespace sockpuppet
+
 namespace std {
-  std::string to_string(SocketAddress const &addr)
+  std::string to_string(sockpuppet::SocketAddress const &addr)
   {
     return (addr.Priv() ?
       std::to_string(addr.Priv()->SockAddrUdp()) :

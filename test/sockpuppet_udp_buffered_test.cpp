@@ -6,6 +6,8 @@
 #include <random> // for std::default_random_engine
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 static std::atomic<bool> success(true);
 
 void Server(SocketAddress serverAddress,

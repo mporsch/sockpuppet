@@ -9,6 +9,8 @@
 #include <memory> // for std::unique_ptr
 #include <tuple> // for std::tuple
 
+namespace sockpuppet {
+
 /// Socket driver that runs one or multiple attached socket classes and
 /// may be run by a dedicated thread or stepped iteratively.
 class SocketDriver
@@ -170,5 +172,7 @@ struct SocketTcpAsyncServer : public SocketAsync
                        SocketDriver &driver,
                        ConnectHandler handleConnect);
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_ASYNC_H

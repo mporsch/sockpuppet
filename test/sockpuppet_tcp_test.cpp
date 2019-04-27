@@ -15,6 +15,8 @@
 #include <string> // for std::string
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 static int const clientCount = 3;
 
 bool success = true;

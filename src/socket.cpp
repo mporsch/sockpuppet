@@ -8,6 +8,8 @@
 # include <arpa/inet.h> // for IPPROTO_UDP
 #endif // _WIN32
 
+namespace sockpuppet {
+
 Socket::Socket(std::unique_ptr<SocketPriv> &&other)
   : m_priv(std::move(other))
 {
@@ -146,3 +148,5 @@ std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Time timeout)
   , SocketAddress(std::move(std::get<1>(t)))
   };
 }
+
+} // namespace sockpuppet

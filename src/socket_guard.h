@@ -3,6 +3,8 @@
 
 #include <mutex> // for std::mutex
 
+namespace sockpuppet {
+
 class SocketGuard
 {
 public:
@@ -18,5 +20,7 @@ private:
   static unsigned int m_instanceCount;
   static std::mutex m_mtx;
 };
+
+} // namespace sockpuppet
 
 #endif // SOCKET_GUARD_H

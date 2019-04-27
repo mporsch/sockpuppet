@@ -6,6 +6,8 @@
 #include <string> // for std::string
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 static std::atomic<bool> success(true);
 
 void Server(SocketAddress serverAddr)

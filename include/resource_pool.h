@@ -8,6 +8,8 @@
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
 
+namespace sockpuppet {
+
 template<typename Resource>
 struct ResourceRecycler;
 
@@ -105,5 +107,7 @@ struct ResourceRecycler
     pool.Return(ptr);
   }
 };
+
+} // namespace sockpuppet
 
 #endif // RESOURCE_POOL_H

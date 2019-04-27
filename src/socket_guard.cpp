@@ -7,6 +7,8 @@
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::to_string
 
+namespace sockpuppet {
+
 unsigned int SocketGuard::m_instanceCount{};
 std::mutex SocketGuard::m_mtx{};
 
@@ -39,3 +41,5 @@ SocketGuard::~SocketGuard()
   }
 #endif // _WIN32
 }
+
+} // namespace sockpuppet

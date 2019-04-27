@@ -8,6 +8,8 @@
 #include <mutex> // for std::mutex
 #include <thread> // for std::thread
 
+using namespace sockpuppet;
+
 struct Server
 {
   std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
