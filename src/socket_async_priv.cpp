@@ -191,7 +191,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock,
     std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
                     driver,
-                    handlers)
+                    std::move(handlers))
 {
 }
 

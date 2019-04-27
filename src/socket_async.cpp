@@ -69,7 +69,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
   : SocketAsync(std::move(buff),
                 driver,
                 Handlers{
-                  handleReceive
+                  std::move(handleReceive)
                 , nullptr
                 , nullptr
                 , nullptr
@@ -83,7 +83,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
                 driver,
                 Handlers{
                   nullptr
-                , handleReceiveFrom
+                , std::move(handleReceiveFrom)
                 , nullptr
                 , nullptr
                 })
@@ -117,10 +117,10 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
   : SocketAsync(std::move(buff),
                 driver,
                 SocketAsync::Handlers{
-                  handleReceive
+                  std::move(handleReceive)
                 , nullptr
                 , nullptr
-                , handleDisconnect})
+                , std::move(handleDisconnect)})
 {
 }
 
@@ -150,7 +150,7 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
                 SocketAsync::Handlers{
                   nullptr
                 , nullptr
-                , handleConnect
+                , std::move(handleConnect)
                 , nullptr})
 {
   m_priv->Listen();
