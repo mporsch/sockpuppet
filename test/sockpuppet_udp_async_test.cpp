@@ -1,10 +1,11 @@
 #include "socket_async.h" // for SocketUdpAsync
 #include "resource_pool.h" // for ResourcePool
 
+#include <atomic> // for std::atomic
 #include <iostream> // for std::cout
 #include <thread> // for std::this_thread
 
-bool success = false;
+static std::atomic<bool> success(false);
 
 void HandleReceiveFrom(
   std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress> t)
@@ -27,7 +28,7 @@ int main(int, char **)
   SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
 
   ResourcePool<std::vector<char>> sendPool;
-  SocketAddress clientAddress;
+  SocketAddress clientAddress("localhost");
   SocketUdpAsync client({clientAddress}, driver, ReceiveDummy);
 
   auto thread = std::thread(&SocketDriver::Run, &driver);

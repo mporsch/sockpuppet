@@ -1,11 +1,12 @@
 #include "socket.h" // for SocketUdp
 
+#include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 #include <string> // for std::string
 #include <thread> // for std::thread
 
-bool success = true;
+static std::atomic<bool> success(true);
 
 void Server(SocketAddress serverAddr)
 try {
@@ -38,7 +39,7 @@ try {
 
 void Client(SocketAddress serverAddr)
 try {
-  SocketAddress clientAddr;
+  SocketAddress clientAddr("localhost");
   SocketUdp client(clientAddr);
 
   std::cout << "sending from "

@@ -1,14 +1,15 @@
 #include "socket_buffered.h" // for SocketUdpBuffered
 
 #include <algorithm> // for std::generate
+#include <atomic> // for std::atomic
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
 #include <thread> // for std::thread
 
-bool success = true;
-std::vector<char> referenceData(10000000U);
+static std::atomic<bool> success(true);
 
-void Server(SocketAddress serverAddress)
+void Server(SocketAddress serverAddress,
+            std::vector<char> const &referenceData)
 try {
   SocketUdpBuffered server(serverAddress, 0U, 1500U);
 
@@ -53,9 +54,10 @@ try {
   success = false;
 }
 
-void Client(SocketAddress serverAddress)
+void Client(SocketAddress serverAddress,
+            std::vector<char> const &referenceData)
 try {
-  SocketAddress clientAddress;
+  SocketAddress clientAddress("localhost");
   SocketUdpBuffered client(clientAddress);
 
   std::cout << "client sending reference data to server "
@@ -88,24 +90,25 @@ int main(int, char **)
   std::cout << "generating random reference data" << std::endl;
 
   std::default_random_engine generator;
-  std::uniform_int_distribution<> distribution(
+  std::uniform_int_distribution<char> distribution(
     std::numeric_limits<char>::min(),
     std::numeric_limits<char>::max());
   auto gen = [&]() -> char {
     return distribution(generator);
   };
+  std::vector<char> referenceData(10000000U);
   std::generate(std::begin(referenceData),
                 std::end(referenceData),
                 gen);
 
   // start client and server threads
   SocketAddress serverAddr("localhost:8554");
-  std::thread server(Server, serverAddr);
+  std::thread server(Server, serverAddr, referenceData);
 
   // wait for server to come up
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  std::thread client(Client, serverAddr);
+  std::thread client(Client, serverAddr, referenceData);
 
   // wait for both to finish
   if(server.joinable()) {
