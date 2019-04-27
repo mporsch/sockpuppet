@@ -30,11 +30,11 @@ protected:
                  size_t rxBufCount,
                  size_t rxBufSize);
   SocketBuffered(SocketBuffered const &other) = delete;
-  SocketBuffered(SocketBuffered &&other);
+  SocketBuffered(SocketBuffered &&other) noexcept;
   virtual ~SocketBuffered();
 
   SocketBuffered &operator=(SocketBuffered const &other) = delete;
-  SocketBuffered &operator=(SocketBuffered &&other);
+  SocketBuffered &operator=(SocketBuffered &&other) noexcept;
 
 protected:
   std::unique_ptr<SocketBufferedPriv> m_priv;
@@ -56,10 +56,11 @@ struct SocketUdpBuffered : public SocketBuffered
                     size_t rxBufSize = 0U);
 
   SocketUdpBuffered(SocketUdpBuffered const &other) = delete;
-  SocketUdpBuffered(SocketUdpBuffered &&other);
+  SocketUdpBuffered(SocketUdpBuffered &&other) noexcept;
+  ~SocketUdpBuffered() override;
 
   SocketUdpBuffered &operator=(SocketUdpBuffered const &other) = delete;
-  SocketUdpBuffered &operator=(SocketUdpBuffered &&other);
+  SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
 
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
@@ -98,10 +99,11 @@ struct SocketTcpBuffered : public SocketBuffered
                     size_t rxBufSize = 0U);
 
   SocketTcpBuffered(SocketTcpBuffered const &other) = delete;
-  SocketTcpBuffered(SocketTcpBuffered &&other);
+  SocketTcpBuffered(SocketTcpBuffered &&other) noexcept;
+  ~SocketTcpBuffered() override;
 
   SocketTcpBuffered &operator=(SocketTcpBuffered const &other) = delete;
-  SocketTcpBuffered &operator=(SocketTcpBuffered &&other);
+  SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 
   /// Reliably send data to connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking send.

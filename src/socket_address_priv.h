@@ -30,6 +30,7 @@ bool operator<(SockAddr const &lhs,
 
 struct SocketAddress::SocketAddressPriv
 {
+  virtual ~SocketAddressPriv();
   virtual SockAddr SockAddrTcp() const = 0;
   virtual SockAddr SockAddrUdp() const = 0;
   virtual int Family() const = 0;

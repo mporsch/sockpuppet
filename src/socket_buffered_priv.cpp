@@ -10,16 +10,14 @@ SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketPriv &&sock,
 {
 }
 
-SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketBufferedPriv &&other)
+SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketBufferedPriv &&other) noexcept
   : SocketPriv(std::move(other))
   , pool(std::move(other.pool))
   , rxBufSize(other.rxBufSize)
 {
 }
 
-SocketBuffered::SocketBufferedPriv::~SocketBufferedPriv()
-{
-}
+SocketBuffered::SocketBufferedPriv::~SocketBufferedPriv() = default;
 
 SocketBuffered::SocketBufferPtr SocketBuffered::SocketBufferedPriv::GetBuffer()
 {

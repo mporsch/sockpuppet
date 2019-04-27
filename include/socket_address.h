@@ -30,11 +30,11 @@ struct SocketAddress
   SocketAddress(std::shared_ptr<SocketAddressPriv> other);
 
   SocketAddress(SocketAddress const &other);
-  SocketAddress(SocketAddress &&other);
+  SocketAddress(SocketAddress &&other) noexcept;
   ~SocketAddress();
 
   SocketAddress &operator=(SocketAddress const &other);
-  SocketAddress &operator=(SocketAddress &&other);
+  SocketAddress &operator=(SocketAddress &&other) noexcept;
 
   /// Pimpl getter for internal use.
   SocketAddressPriv const *Priv() const;

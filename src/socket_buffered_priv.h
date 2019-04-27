@@ -16,8 +16,8 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
                      size_t rxBufCount,
                      size_t rxBufSize);
   SocketBufferedPriv(SocketBufferedPriv const &) = delete;
-  SocketBufferedPriv(SocketBufferedPriv &&other);
-  virtual ~SocketBufferedPriv();
+  SocketBufferedPriv(SocketBufferedPriv &&other) noexcept;
+  ~SocketBufferedPriv() override;
 
   SocketBufferPtr GetBuffer();
 

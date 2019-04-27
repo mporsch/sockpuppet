@@ -20,11 +20,11 @@ public:
   SocketDriver();
 
   SocketDriver(SocketDriver const &) = delete;
-  SocketDriver(SocketDriver &&other);
+  SocketDriver(SocketDriver &&other) noexcept;
   ~SocketDriver();
 
   SocketDriver &operator=(SocketDriver const &) = delete;
-  SocketDriver &operator=(SocketDriver &&other);
+  SocketDriver &operator=(SocketDriver &&other) noexcept;
 
   /// Run one iteration on the attached sockets.
   /// @param  timeout  Timeout to use; 0 allows blocking if
@@ -85,11 +85,11 @@ protected:
               SocketDriver &driver,
               Handlers handlers);
   SocketAsync(SocketAsync const &other) = delete;
-  SocketAsync(SocketAsync &&other);
+  SocketAsync(SocketAsync &&other) noexcept;
   virtual ~SocketAsync();
 
   SocketAsync &operator=(SocketAsync const &other) = delete;
-  SocketAsync &operator=(SocketAsync &&other);
+  SocketAsync &operator=(SocketAsync &&other) noexcept;
 
 protected:
   std::unique_ptr<SocketAsyncPriv> m_priv;
@@ -116,10 +116,11 @@ struct SocketUdpAsync : public SocketAsync
                  ReceiveFromHandler handleReceiveFrom);
 
   SocketUdpAsync(SocketUdpAsync const &other) = delete;
-  SocketUdpAsync(SocketUdpAsync &&other);
+  SocketUdpAsync(SocketUdpAsync &&other) noexcept;
+  ~SocketUdpAsync() override;
 
   SocketUdpAsync &operator=(SocketUdpAsync const &other) = delete;
-  SocketUdpAsync &operator=(SocketUdpAsync &&other);
+  SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
 
   /// Enqueue data to unreliably send to address.
   /// @param  dstAddress  Address to send to; must match
@@ -146,10 +147,11 @@ struct SocketTcpAsyncClient : public SocketAsync
                        DisconnectHandler handleDisconnect);
 
   SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient(SocketTcpAsyncClient &&other);
+  SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
+  ~SocketTcpAsyncClient() override;
 
   SocketTcpAsyncClient &operator=(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other);
+  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
 
   /// Enqueue data to reliably send to connected peer.
   /// @return  Future object to fulfill when data was actually sent.

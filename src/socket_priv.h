@@ -26,7 +26,7 @@ struct Socket::SocketPriv
              int protocol);
   SocketPriv(SOCKET fd);
   SocketPriv(SocketPriv const &) = delete;
-  SocketPriv(SocketPriv &&other);
+  SocketPriv(SocketPriv &&other) noexcept;
   virtual ~SocketPriv();
 
   size_t Receive(char *data,
@@ -44,7 +44,7 @@ struct Socket::SocketPriv
               size_t size,
               SockAddr const &dstAddr);
 
-  void Bind(SockAddr const &bindAddr);
+  void Bind(SockAddr const &sockAddr);
 
   void Connect(SockAddr const &connectAddr);
 

@@ -21,14 +21,12 @@ SocketAddress::SocketAddress(SocketAddress const &other)
 {
 }
 
-SocketAddress::SocketAddress(SocketAddress &&other)
+SocketAddress::SocketAddress(SocketAddress &&other) noexcept
   : m_priv(std::move(other.m_priv))
 {
 }
 
-SocketAddress::~SocketAddress()
-{
-}
+SocketAddress::~SocketAddress() = default;
 
 SocketAddress &SocketAddress::operator=(SocketAddress const &other)
 {
@@ -36,7 +34,7 @@ SocketAddress &SocketAddress::operator=(SocketAddress const &other)
   return *this;
 }
 
-SocketAddress &SocketAddress::operator=(SocketAddress &&other)
+SocketAddress &SocketAddress::operator=(SocketAddress &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;

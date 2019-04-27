@@ -36,9 +36,7 @@ SocketDriver::SocketDriverPriv::PauseGuard::PauseGuard(SocketDriverPriv &priv)
   }
 }
 
-SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard()
-{
-}
+SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard() = default;
 
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()

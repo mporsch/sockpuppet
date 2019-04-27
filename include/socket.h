@@ -29,11 +29,11 @@ public:
 protected:
   Socket(std::unique_ptr<SocketPriv> &&other);
   Socket(Socket const &other) = delete;
-  Socket(Socket &&other);
+  Socket(Socket &&other) noexcept;
   virtual ~Socket();
 
   Socket &operator=(Socket const &other) = delete;
-  Socket &operator=(Socket &&other);
+  Socket &operator=(Socket &&other) noexcept;
 
 protected:
   std::unique_ptr<SocketPriv> m_priv;
@@ -48,10 +48,11 @@ struct SocketUdp : public Socket
   SocketUdp(SocketAddress const &bindAddress);
 
   SocketUdp(SocketUdp const &other) = delete;
-  SocketUdp(SocketUdp &&other);
+  SocketUdp(SocketUdp &&other) noexcept;
+  ~SocketUdp() override;
 
   SocketUdp &operator=(SocketUdp const &other) = delete;
-  SocketUdp &operator=(SocketUdp &&other);
+  SocketUdp &operator=(SocketUdp &&other) noexcept;
 
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
@@ -91,10 +92,11 @@ struct SocketTcpClient : public Socket
   SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
 
   SocketTcpClient(SocketTcpClient const &other) = delete;
-  SocketTcpClient(SocketTcpClient &&other);
+  SocketTcpClient(SocketTcpClient &&other) noexcept;
+  ~SocketTcpClient() override;
 
   SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
-  SocketTcpClient &operator=(SocketTcpClient &&other);
+  SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
   /// Reliably send data to connected peer.
   /// @param  timeout  Timeout to use; 0 causes blocking send.
@@ -122,10 +124,11 @@ struct SocketTcpServer : public Socket
   SocketTcpServer(SocketAddress const &bindAddress);
 
   SocketTcpServer(SocketTcpServer const &other) = delete;
-  SocketTcpServer(SocketTcpServer &&other);
+  SocketTcpServer(SocketTcpServer &&other) noexcept;
+  ~SocketTcpServer() override;
 
   SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
-  SocketTcpServer &operator=(SocketTcpServer &&other);
+  SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
 
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; 0 causes blocking listen.

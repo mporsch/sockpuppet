@@ -7,16 +7,14 @@ SocketDriver::SocketDriver()
 {
 }
 
-SocketDriver::SocketDriver(SocketDriver &&other)
+SocketDriver::SocketDriver(SocketDriver &&other) noexcept
   : m_priv(std::move(other.m_priv))
 {
 }
 
-SocketDriver::~SocketDriver()
-{
-}
+SocketDriver::~SocketDriver() = default;
 
-SocketDriver &SocketDriver::operator=(SocketDriver &&other)
+SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
@@ -52,16 +50,14 @@ SocketAsync::SocketAsync(SocketBuffered &&buff,
 {
 }
 
-SocketAsync::SocketAsync(SocketAsync &&other)
+SocketAsync::SocketAsync(SocketAsync &&other) noexcept
   : m_priv(std::move(other.m_priv))
 {
 }
 
-SocketAsync::~SocketAsync()
-{
-}
+SocketAsync::~SocketAsync() = default;
 
-SocketAsync &SocketAsync::operator=(SocketAsync &&other)
+SocketAsync &SocketAsync::operator=(SocketAsync &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
@@ -101,12 +97,14 @@ std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
                         dstAddress.Priv()->SockAddrUdp());
 }
 
-SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other)
+SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept
   : SocketAsync(std::move(other))
 {
 }
 
-SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other)
+SocketUdpAsync::~SocketUdpAsync() = default;
+
+SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept
 {
   SocketAsync::operator=(std::move(other));
   return *this;
@@ -126,12 +124,14 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
 {
 }
 
-SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other)
+SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept
   : SocketAsync(std::move(other))
 {
 }
 
-SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other)
+SocketTcpAsyncClient::~SocketTcpAsyncClient() = default;
+
+SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other) noexcept
 {
   SocketAsync::operator=(std::move(other));
   return *this;

@@ -8,16 +8,14 @@ SocketBuffered::SocketBuffered(Socket &&sock,
 {
 }
 
-SocketBuffered::SocketBuffered(SocketBuffered &&other)
+SocketBuffered::SocketBuffered(SocketBuffered &&other) noexcept
   : m_priv(std::move(other.m_priv))
 {
 }
 
-SocketBuffered::~SocketBuffered()
-{
-}
+SocketBuffered::~SocketBuffered() = default;
 
-SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other)
+SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
@@ -30,12 +28,14 @@ SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
 {
 }
 
-SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other)
+SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept
   : SocketBuffered(std::move(other))
 {
 }
 
-SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other)
+SocketUdpBuffered::~SocketUdpBuffered() = default;
+
+SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept
 {
   SocketBuffered::operator=(std::move(other));
   return *this;
@@ -65,12 +65,14 @@ SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
 {
 }
 
-SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other)
+SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept
   : SocketBuffered(std::move(other))
 {
 }
 
-SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other)
+SocketTcpBuffered::~SocketTcpBuffered() = default;
+
+SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexcept
 {
   SocketBuffered::operator=(std::move(other));
   return *this;

@@ -13,16 +13,14 @@ Socket::Socket(std::unique_ptr<SocketPriv> &&other)
 {
 }
 
-Socket::Socket(Socket &&other)
+Socket::Socket(Socket &&other) noexcept
   : m_priv(std::move(other.m_priv))
 {
 }
 
-Socket::~Socket()
-{
-}
+Socket::~Socket() = default;
 
-Socket &Socket::operator=(Socket &&other)
+Socket &Socket::operator=(Socket &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
@@ -46,12 +44,15 @@ SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   m_priv->SetSockOptBroadcast();
 }
 
-SocketUdp::SocketUdp(SocketUdp &&other)
+SocketUdp::SocketUdp(SocketUdp &&other) noexcept
   : Socket(std::move(other))
 {
 }
 
-SocketUdp &SocketUdp::operator=(SocketUdp &&other)
+SocketUdp::~SocketUdp() = default;
+
+
+SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept
 {
   Socket::operator=(std::move(other));
   return *this;
@@ -86,12 +87,14 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   m_priv->Connect(connectAddress.Priv()->SockAddrTcp());
 }
 
-SocketTcpClient::SocketTcpClient(SocketTcpClient &&other)
+SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
   : Socket(std::move(other))
 {
 }
 
-SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other)
+SocketTcpClient::~SocketTcpClient() = default;
+
+SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept
 {
   Socket::operator=(std::move(other));
   return *this;
@@ -121,12 +124,14 @@ SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   m_priv->Bind(bindAddress.Priv()->SockAddrTcp());
 }
 
-SocketTcpServer::SocketTcpServer(SocketTcpServer &&other)
+SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept
   : Socket(std::move(other))
 {
 }
 
-SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other)
+SocketTcpServer::~SocketTcpServer() = default;
+
+SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept
 {
   Socket::operator=(std::move(other));
   return *this;

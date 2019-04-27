@@ -48,7 +48,7 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
   }
 }
 
-Socket::SocketPriv::SocketPriv(SocketPriv &&other)
+Socket::SocketPriv::SocketPriv(SocketPriv &&other) noexcept
   : fd(other.fd)
 {
   SetInvalid(other.fd);

@@ -138,6 +138,8 @@ bool operator<(SockAddr const &lhs,
 }
 
 
+SocketAddress::SocketAddressPriv::~SocketAddressPriv() = default;
+
 bool operator<(SocketAddress::SocketAddressPriv const &lhs,
                SocketAddress::SocketAddressPriv const &rhs)
 {

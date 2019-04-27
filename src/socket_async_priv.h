@@ -95,7 +95,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   SocketAsyncPriv(SocketBufferedPriv &&buff,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
                   Handlers handlers);
-  virtual ~SocketAsyncPriv();
+  ~SocketAsyncPriv() override;
 
   std::future<void> Send(SocketBufferPtr &&buffer);
   std::future<void> SendTo(SocketBufferPtr &&buffer,
