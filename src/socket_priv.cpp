@@ -22,7 +22,7 @@ namespace {
 
   void SetInvalid(SOCKET &fd)
   {
-    fd = -1;
+    fd = static_cast<SOCKET>(-1);
   }
 
   bool IsValid(SOCKET const &fd)
@@ -83,7 +83,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 
   auto const received = ::recv(fd, data, size, 0);
   if(received > 0) {
-    return received;
+    return static_cast<size_t>(received);
   } else {
     throw std::runtime_error("connection closed");
   }
