@@ -101,6 +101,33 @@ namespace {
     return SocketAddressAddrinfo::AddrInfoPtr(info);
   }
 
+  SocketAddressAddrinfo::AddrInfoPtr ParseHostServ(std::string const &host,
+      std::string const &serv)
+  {
+    if(host.empty()) {
+      throw std::invalid_argument("empty host");
+    } else if(serv.empty()) {
+      throw std::invalid_argument("empty service");
+    }
+
+    addrinfo *info;
+    {
+      SocketGuard guard;
+
+      addrinfo hints{};
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_flags = AI_PASSIVE;
+      if(auto const result = getaddrinfo(host.c_str(), serv.c_str(),
+                                         &hints, &info)) {
+        throw std::runtime_error("failed to parse host/port \""
+                                 + host + "\", \""
+                                 + serv + "\": "
+                                 + gai_strerror(result));
+      }
+    }
+    return SocketAddressAddrinfo::AddrInfoPtr(info);
+  }
+
   SocketAddressAddrinfo::AddrInfoPtr ParsePort(std::string const &port)
   {
     SocketGuard guard;
@@ -148,6 +175,51 @@ bool operator<(SocketAddress::SocketAddressPriv const &lhs,
   return (lhs.SockAddrUdp() < rhs.SockAddrUdp());
 }
 
+std::string SocketAddress::SocketAddressPriv::Host() const
+{
+  SocketGuard guard;
+
+  auto const sockAddr = SockAddrUdp();
+
+  char host[NI_MAXHOST];
+  if(auto const result = getnameinfo(
+      sockAddr.addr, sockAddr.addrLen,
+      host, sizeof(host),
+      nullptr, 0,
+      NI_NUMERICHOST)) {
+    throw std::runtime_error(std::string("failed to print host: ")
+                             + gai_strerror(result));
+  }
+
+  return (sockAddr.family == AF_INET ?
+    std::string(host) :
+    std::string("[") + host + "]");
+}
+
+std::string SocketAddress::SocketAddressPriv::Service() const
+{
+  SocketGuard guard;
+
+  auto const sockAddr = SockAddrUdp();
+
+  char service[NI_MAXSERV];
+  if(auto const result = getnameinfo(
+      sockAddr.addr, sockAddr.addrLen,
+      nullptr, 0,
+      service, sizeof(service),
+      NI_NUMERICSERV)) {
+    throw std::runtime_error(std::string("failed to print service: ")
+                             + gai_strerror(result));
+  }
+
+  return std::string(service);
+}
+
+bool SocketAddress::SocketAddressPriv::IsV6() const
+{
+  return (Family() == AF_INET6);
+}
+
 
 void SocketAddressAddrinfo::AddrInfoDeleter::operator()(addrinfo *ptr)
 {
@@ -157,6 +229,12 @@ void SocketAddressAddrinfo::AddrInfoDeleter::operator()(addrinfo *ptr)
 
 SocketAddressAddrinfo::SocketAddressAddrinfo(std::string const &uri)
   : info(ParseUri(uri))
+{
+}
+
+SocketAddressAddrinfo::SocketAddressAddrinfo(const std::string &host,
+    const std::string &serv)
+  : info(ParseHostServ(host, serv))
 {
 }
 

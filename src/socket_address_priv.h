@@ -36,6 +36,10 @@ struct SocketAddress::SocketAddressPriv
   virtual SockAddr SockAddrTcp() const = 0;
   virtual SockAddr SockAddrUdp() const = 0;
   virtual int Family() const = 0;
+
+  std::string Host() const;
+  std::string Service() const;
+  bool IsV6() const;
 };
 
 bool operator<(SocketAddress::SocketAddressPriv const &lhs,
@@ -52,6 +56,7 @@ struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
   AddrInfoPtr info;
 
   SocketAddressAddrinfo(std::string const &uri);
+  SocketAddressAddrinfo(std::string const &host, std::string const &serv);
   SocketAddressAddrinfo(uint16_t port);
 
   addrinfo const *Find(int type, int protocol) const;

@@ -8,6 +8,12 @@ SocketAddress::SocketAddress(std::string const &uri)
 {
 }
 
+SocketAddress::SocketAddress(std::string const &host,
+    std::string const &service)
+  : m_priv(std::make_shared<SocketAddressAddrinfo>(host, service))
+{
+}
+
 SocketAddress::SocketAddress(uint16_t port)
   : m_priv(std::make_shared<SocketAddressAddrinfo>(port))
 {
@@ -40,6 +46,21 @@ SocketAddress &SocketAddress::operator=(SocketAddress &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
+}
+
+std::string SocketAddress::Host() const
+{
+  return m_priv->Host();
+}
+
+std::string SocketAddress::Service() const
+{
+  return m_priv->Service();
+}
+
+bool SocketAddress::IsV6() const
+{
+  return m_priv->IsV6();
 }
 
 SocketAddress::SocketAddressPriv const *SocketAddress::Priv() const

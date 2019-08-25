@@ -23,6 +23,13 @@ struct SocketAddress
   /// @throws  If parsing or host/service lookup fails.
   SocketAddress(std::string const &uri);
 
+  /// Create a local/remote host address from given host and service name.
+  /// @param  host  host name.
+  /// @param  service  service number or name for well-known services.
+  /// @throws  If host/service lookup fails.
+  SocketAddress(std::string const &host,
+                std::string const &service);
+
   /// Create a localhost address from given port number.
   /// @param  port  Port number.
   /// @throws  If parsing fails.
@@ -37,6 +44,15 @@ struct SocketAddress
 
   SocketAddress &operator=(SocketAddress const &other);
   SocketAddress &operator=(SocketAddress &&other) noexcept;
+
+  /// Retrieve the host name of the address.
+  std::string Host() const;
+
+  /// Retrieve the service name of the address.
+  std::string Service() const;
+
+  /// Return whether the address is an IPv6 address (rather than an IPv4 one).
+  bool IsV6() const;
 
   /// Pimpl getter for internal use.
   SocketAddressPriv const *Priv() const;
