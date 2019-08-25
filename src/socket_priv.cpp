@@ -144,7 +144,7 @@ void Socket::SocketPriv::SendTo(char const *data, size_t size,
   if(size != ::sendto(fd, data, size, 0,
                       dstAddr.addr, dstAddr.addrLen)) {
     throw std::runtime_error("failed to send to "
-                             + std::to_string(dstAddr)
+                             + to_string(dstAddr)
                              + ": "
                              + std::string(std::strerror(errno)));
   }
@@ -154,7 +154,7 @@ void Socket::SocketPriv::Connect(SockAddr const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
     throw std::runtime_error("failed to connect to "
-                             + std::to_string(connectAddr)
+                             + to_string(connectAddr)
                              + ": "
                              + std::string(std::strerror(errno)));
   }
@@ -164,7 +164,7 @@ void Socket::SocketPriv::Bind(SockAddr const &sockAddr)
 {
   if(::bind(fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
-                             + std::to_string(sockAddr)
+                             + to_string(sockAddr)
                              + ": "
                              + std::strerror(errno));
   }

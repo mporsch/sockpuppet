@@ -247,26 +247,24 @@ int SocketAddressStorage::Family() const
   return storage.ss_family;
 }
 
-} // namespace sockpuppet
+std::string to_string(SockAddr const &sockAddr)
+{
+  SocketGuard guard;
 
-namespace std {
-  std::string to_string(sockpuppet::SockAddr const &sockAddr)
-  {
-    sockpuppet::SocketGuard guard;
-
-    char host[NI_MAXHOST];
-    char service[NI_MAXSERV];
-    if(auto const result = getnameinfo(
-        sockAddr.addr, sockAddr.addrLen,
-        host, sizeof(host),
-        service, sizeof(service),
-        NI_NUMERICHOST | NI_NUMERICSERV)) {
-      throw std::runtime_error(std::string("failed to print address: ")
-                               + gai_strerror(result));
-    }
-
-    return (sockAddr.family == AF_INET ?
-      std::string(host) + ":" + service :
-      std::string("[") + host + "]" + ":" + service);
+  char host[NI_MAXHOST];
+  char service[NI_MAXSERV];
+  if(auto const result = getnameinfo(
+      sockAddr.addr, sockAddr.addrLen,
+      host, sizeof(host),
+      service, sizeof(service),
+      NI_NUMERICHOST | NI_NUMERICSERV)) {
+    throw std::runtime_error(std::string("failed to print address: ")
+                             + gai_strerror(result));
   }
-} // namespace std
+
+  return (sockAddr.family == AF_INET ?
+    std::string(host) + ":" + service :
+    std::string("[") + host + "]" + ":" + service);
+}
+
+} // namespace sockpuppet

@@ -18,7 +18,7 @@ void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
   std::vector<SocketUdpBuffered::SocketBufferPtr> storage;
 
   std::cout << "server receiving from "
-    << std::to_string(std::get<1>(t)) << std::endl;
+    << to_string(std::get<1>(t)) << std::endl;
 
   // receive until disconnect
   try {
@@ -62,7 +62,7 @@ try {
   SocketTcpBuffered client(serverAddress);
 
   std::cout << "client sending reference data to server "
-    << std::to_string(serverAddress) << std::endl;
+    << to_string(serverAddress) << std::endl;
 
   // send in randomly sized packets
   std::default_random_engine generator;

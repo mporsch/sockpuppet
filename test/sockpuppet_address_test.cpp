@@ -9,7 +9,7 @@ template<typename... Args>
 void Test(Args&&... args)
 {
   SocketAddress socketAddress(std::forward<Args>(args)...);
-  std::cout << std::to_string(socketAddress) << std::endl;
+  std::cout << to_string(socketAddress) << std::endl;
 }
 
 int main(int, char **)

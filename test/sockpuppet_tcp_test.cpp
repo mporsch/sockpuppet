@@ -27,7 +27,7 @@ try {
   auto &&clientAddr = std::get<1>(t);
 
   COUT << "server sending to "
-    << std::to_string(clientAddr) << std::endl;
+    << to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
   handler.Send(hello, sizeof(hello));
@@ -43,7 +43,7 @@ try {
   SocketTcpServer server(serverAddr);
 
   COUT << "server listening at "
-    << std::to_string(serverAddr) << std::endl;
+    << to_string(serverAddr) << std::endl;
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
@@ -67,7 +67,7 @@ try {
   SocketTcpClient client(serverAddr);
 
   COUT << "client " << std::this_thread::get_id()
-    << " connected to " << std::to_string(serverAddr)
+    << " connected to " << to_string(serverAddr)
     << std::endl;
 
   char buffer[256];
@@ -76,7 +76,7 @@ try {
   if(received > 0U &&
      std::string(buffer, received).find("hello") != std::string::npos) {
     COUT << "client received from "
-      << std::to_string(serverAddr) << std::endl;
+      << to_string(serverAddr) << std::endl;
 
     try {
       // the server closes the connection after the "hello" message

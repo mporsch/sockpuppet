@@ -53,13 +53,11 @@ bool operator<(SocketAddress const &lhs, SocketAddress const &rhs)
   return (*lhs.Priv() < *rhs.Priv());
 }
 
-} // namespace sockpuppet
+std::string to_string(SocketAddress const &addr)
+{
+  return (addr.Priv() ?
+    to_string(addr.Priv()->SockAddrUdp()) :
+    "invalid");
+}
 
-namespace std {
-  std::string to_string(sockpuppet::SocketAddress const &addr)
-  {
-    return (addr.Priv() ?
-      std::to_string(addr.Priv()->SockAddrUdp()) :
-      "invalid");
-  }
-} // namespace std
+} // namespace sockpuppet

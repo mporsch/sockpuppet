@@ -14,7 +14,7 @@ void Server(SocketAddress serverAddr)
 try {
   SocketUdp server(serverAddr);
 
-  std::cout << "receiving at " << std::to_string(serverAddr) << std::endl;
+  std::cout << "receiving at " << to_string(serverAddr) << std::endl;
 
   char buffer[256];
   auto received = server.Receive(buffer, sizeof(buffer),
@@ -28,7 +28,7 @@ try {
 
     if(received > 0U &&
        std::string(buffer, received).find("hello") != std::string::npos) {
-      std::cout << "received from " << std::to_string(clientAddr) << std::endl;
+      std::cout << "received from " << to_string(clientAddr) << std::endl;
       return;
     }
   }
@@ -45,8 +45,8 @@ try {
   SocketUdp client(clientAddr);
 
   std::cout << "sending from "
-    << std::to_string(clientAddr) << " to "
-    << std::to_string(serverAddr) << std::endl;
+    << to_string(clientAddr) << " to "
+    << to_string(serverAddr) << std::endl;
 
   for(int i = 0; i < 3; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -34,7 +34,7 @@ try {
   }
 
   std::cout << "sending HTTP response to "
-    << std::to_string(clientAddr) << std::endl;
+    << to_string(clientAddr) << std::endl;
 
   handler.Send(response.c_str(), response.size());
 
@@ -49,7 +49,7 @@ try {
   SocketTcpServer server(serverAddr);
 
   std::cout << "listening for HTTP requests at "
-    << std::to_string(serverAddr)
+    << to_string(serverAddr)
     << " <- open this address in your web browser" << std::endl;
 
   // fire and forget handler threads for each incoming client

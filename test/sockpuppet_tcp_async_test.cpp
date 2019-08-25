@@ -42,7 +42,7 @@ struct Server
     auto &&clientAddress = std::get<1>(t);
 
     std::cout << "server accepted connection from "
-      << std::to_string(clientAddress) << std::endl;
+      << to_string(clientAddress) << std::endl;
 
     (void)serverHandlers.emplace(
       std::make_pair(
@@ -58,7 +58,7 @@ struct Server
     std::lock_guard<std::mutex> lock(mtx);
 
     std::cout << "client "
-      << std::to_string(clientAddress)
+      << to_string(clientAddress)
       << " closed connection to server" << std::endl;
 
     auto const it = serverHandlers.find(clientAddress);
@@ -83,7 +83,7 @@ void HandleDisconnect(SocketAddress serverAddress)
   leftAloneClient.reset();
 
   std::cout << "server "
-    << std::to_string(serverAddress)
+    << to_string(serverAddress)
     << " closed connection" << std::endl;
 }
 

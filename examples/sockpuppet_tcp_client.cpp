@@ -19,7 +19,7 @@ try {
     SocketTcpClient client(serverAddr);
 
     std::cout << "connected to "
-      << std::to_string(serverAddr) << std::endl;
+      << to_string(serverAddr) << std::endl;
 
     for(;;) {
       std::string line;
@@ -33,7 +33,7 @@ try {
     }
 
     std::cout << "closing connection to "
-      << std::to_string(serverAddr) << std::endl;
+      << to_string(serverAddr) << std::endl;
   }
 
   return EXIT_SUCCESS;

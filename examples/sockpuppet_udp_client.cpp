@@ -24,8 +24,8 @@ try {
     SocketUdp sock(srcAddr);
 
     std::cout << "sending from "
-      << std::to_string(srcAddr) << " to "
-      << std::to_string(dstAddr) << std::endl;
+      << to_string(srcAddr) << " to "
+      << to_string(dstAddr) << std::endl;
 
     for(;;) {
       std::string line;

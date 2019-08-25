@@ -23,7 +23,7 @@ try {
     storage.emplace_back(std::move(std::get<0>(t)));
 
     std::cout << "server receiving from "
-      << std::to_string(std::get<1>(t)) << std::endl;
+      << to_string(std::get<1>(t)) << std::endl;
   }
 
   // receive until timeout
@@ -63,7 +63,7 @@ try {
   SocketUdpBuffered client(clientAddress);
 
   std::cout << "client sending reference data to server "
-    << std::to_string(serverAddress) << std::endl;
+    << to_string(serverAddress) << std::endl;
 
   // send in fixed packet sizes
   size_t pos = 0;

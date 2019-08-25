@@ -11,7 +11,7 @@ try {
   auto &&client = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
 
-  std::cout << "client " << std::to_string(clientAddr)
+  std::cout << "client " << to_string(clientAddr)
     << " connected" << std::endl;
 
   for(;;) {
@@ -36,7 +36,7 @@ try {
     SocketTcpServer server(serverAddr);
 
     for(;;) {
-      std::cout << "listening at " << std::to_string(serverAddr) << std::endl;
+      std::cout << "listening at " << to_string(serverAddr) << std::endl;
       ServerHandler(server.Listen());
     }
   }

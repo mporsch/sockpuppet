@@ -48,10 +48,8 @@ private:
 bool operator<(SocketAddress const &lhs,
                SocketAddress const &rhs);
 
-} // namespace sockpuppet
+std::string to_string(SocketAddress const &addr);
 
-namespace std {
-  std::string to_string(sockpuppet::SocketAddress const &addr);
-}
+} // namespace sockpuppet
 
 #endif // SOCKET_ADDRESS_H

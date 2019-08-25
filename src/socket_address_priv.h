@@ -76,10 +76,8 @@ struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
   int Family() const override;
 };
 
-} // namespace sockpuppet
+std::string to_string(SockAddr const &sockAddr);
 
-namespace std {
-  std::string to_string(sockpuppet::SockAddr const &sockAddr);
-}
+} // namespace sockpuppet
 
 #endif // SOCKET_ADDRESS_PRIV_H
