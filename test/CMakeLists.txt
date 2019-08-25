@@ -8,6 +8,9 @@ endif()
 add_executable(sockpuppet_address_test sockpuppet_address_test.cpp)
 target_link_libraries(sockpuppet_address_test sockpuppet)
 
+add_executable(sockpuppet_util_test sockpuppet_util_test.cpp)
+target_link_libraries(sockpuppet_util_test sockpuppet)
+
 add_executable(sockpuppet_udp_test sockpuppet_udp_test.cpp)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
   target_link_libraries(sockpuppet_udp_test sockpuppet pthread)

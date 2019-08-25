@@ -325,6 +325,21 @@ int SocketAddressStorage::Family() const
   return storage.ss_family;
 }
 
+std::vector<SocketAddress> SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
+{
+  auto const info = ParseUri("..localmachine");
+
+  std::vector<SocketAddress> ret;
+  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
+    auto ss = std::make_shared<SocketAddressStorage>();
+    std::memcpy(ss->Addr(), it->ai_addr, it->ai_addrlen);
+    ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
+    ss->size = static_cast<socklen_t>(it->ai_addrlen);
+    ret.emplace_back(std::move(ss));
+  }
+  return ret;
+}
+
 std::string to_string(SockAddr const &sockAddr)
 {
   SocketGuard guard;

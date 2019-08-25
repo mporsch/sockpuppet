@@ -4,6 +4,7 @@
 #include <cstdint> // for uint16_t
 #include <memory> // for std::shared_ptr
 #include <string> // for std::string
+#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -53,6 +54,8 @@ struct SocketAddress
 
   /// Return whether the address is an IPv6 address (rather than an IPv4 one).
   bool IsV6() const;
+
+  static std::vector<SocketAddress> GetLocalInterfaceAddresses();
 
   /// Pimpl getter for internal use.
   SocketAddressPriv const *Priv() const;

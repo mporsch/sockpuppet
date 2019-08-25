@@ -17,6 +17,7 @@
 #include <cstdint> // for uint16_t
 #include <memory> // for std::unique_ptr
 #include <string> // for std::string
+#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -40,6 +41,8 @@ struct SocketAddress::SocketAddressPriv
   std::string Host() const;
   std::string Service() const;
   bool IsV6() const;
+
+  static std::vector<SocketAddress> GetLocalInterfaceAddresses();
 };
 
 bool operator<(SocketAddress::SocketAddressPriv const &lhs,
