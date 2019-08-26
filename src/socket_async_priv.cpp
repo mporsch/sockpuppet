@@ -1,6 +1,7 @@
 #include "socket_async_priv.h"
 
 #include <cstring> // for std::strerror
+#include <limits> // for std::numeric_limits
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
@@ -156,7 +157,7 @@ void SocketDriver::SocketDriverPriv::Unbump()
 std::tuple<SOCKET, fd_set, fd_set>
 SocketDriver::SocketDriverPriv::PrepareFds()
 {
-  SOCKET fdMax = -1;
+  auto fdMax = std::numeric_limits<SOCKET>::min();
   fd_set rfds;
   fd_set wfds;
   FD_ZERO(&rfds);

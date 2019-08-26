@@ -12,7 +12,14 @@
 namespace sockpuppet {
 
 namespace {
-  fd_set ToFdSet(SOCKET fd)
+  static auto const fdInvalid =
+    #ifdef _WIN32
+      INVALID_SOCKET;
+    #else
+      SOCKET(-1);
+    #endif // _WIN32
+
+  fd_set ToFdSet(SOCKET const &fd)
   {
     fd_set fds;
     FD_ZERO(&fds);
@@ -22,12 +29,12 @@ namespace {
 
   void SetInvalid(SOCKET &fd)
   {
-    fd = static_cast<SOCKET>(-1);
+    fd = fdInvalid;
   }
 
   bool IsValid(SOCKET const &fd)
   {
-    return (fd >= 0);
+    return (fd != fdInvalid);
   }
 } // unnamed namespace
 
