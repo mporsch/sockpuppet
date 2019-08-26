@@ -1,20 +1,28 @@
 #include "socket_address.h" // for SocketAddress
+#include "socket.h" // for SocketUdp
 
+#include <algorithm> // for std::transform
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iomanip> // for std::setw
 #include <iostream> // for std::cerr
-#include <string> // for std::string
+#include <vector> // for std::vector
 
 using namespace sockpuppet;
 
 int main(int, char **)
 try {
-  auto addresses = SocketAddress::GetLocalInterfaceAddresses();
-  for(auto &&address : addresses)
-    std::cout << std::setw(40)
-              << to_string(address)
-              << " <-- " << (address.IsV6()  ? "IPv6" : "IPv4")
-              << std::endl;
+  std::vector<SocketUdp> sockets;
+  auto const addresses = SocketAddress::GetLocalInterfaceAddresses();
+  std::transform(std::begin(addresses), std::end(addresses),
+    std::back_inserter(sockets),
+    [](SocketAddress const &address) -> SocketUdp {
+      std::cout << std::setw(40)
+                << to_string(address)
+                << " <-- " << (address.IsV6()  ? "IPv6" : "IPv4")
+                << std::endl;
+
+      return SocketUdp(address);
+    });
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
