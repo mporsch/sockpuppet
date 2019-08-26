@@ -55,6 +55,7 @@ struct SocketAddress
   /// Return whether the address is an IPv6 address (rather than an IPv4 one).
   bool IsV6() const;
 
+  /// Return a list of the OS's network interface addresses.
   static std::vector<SocketAddress> GetLocalInterfaceAddresses();
 
   /// Pimpl getter for internal use.

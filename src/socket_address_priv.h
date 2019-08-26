@@ -39,6 +39,13 @@ struct CDeleter
   }
 };
 
+template <typename T>
+std::unique_ptr<T, CDeleter<T>> make_unique(T* ptr,
+    typename CDeleter<T>::DeleterFn fn)
+{
+  return std::unique_ptr<T, CDeleter<T>>(ptr, fn);
+}
+
 struct SockAddr
 {
   sockaddr const *addr;
