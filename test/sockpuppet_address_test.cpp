@@ -38,8 +38,8 @@ try {
   Test("rtsp://::1");
   Test("rtsp://a:b::c:1");
 
-  Test("[::1]", "554");
-  Test("[a:b::c:1]", "554");
+  Test("::1", "554");
+  Test("a:b::c:1", "554");
   Test("::1", "rtsp");
   Test("a:b::c:1", "rtsp");
 

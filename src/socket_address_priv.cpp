@@ -196,9 +196,7 @@ std::string SocketAddress::SocketAddressPriv::Host() const
                              + gai_strerror(result));
   }
 
-  return (sockAddr.family == AF_INET ?
-    std::string(host) :
-    std::string("[") + host + "]");
+  return std::string(host);
 }
 
 std::string SocketAddress::SocketAddressPriv::Service() const
