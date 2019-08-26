@@ -22,7 +22,7 @@ namespace {
 
   bool IsNumeric(std::string const &host)
   {
-    return (std::count(std::begin(host), std::end(host), ':') > 1U);
+    return (std::count(std::begin(host), std::end(host), ':') > 1);
   }
 
   SocketAddressAddrinfo::AddrInfoPtr ParseUri(std::string const &uri)
@@ -331,7 +331,7 @@ SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
     auto ss = std::make_shared<SocketAddressStorage>();
     ss->size = static_cast<socklen_t>(it->ai_addrlen);
-    std::memcpy(ss->Addr(), it->ai_addr, ss->size);
+    std::memcpy(ss->Addr(), it->ai_addr, static_cast<size_t>(ss->size));
     ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
     ret.emplace_back(std::move(ss));
   }
