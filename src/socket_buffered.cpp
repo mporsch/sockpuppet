@@ -46,7 +46,7 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 void SocketUdpBuffered::SendTo(char const *data, size_t size,
     SocketAddress const &dstAddress)
 {
-  m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
+  m_priv->SendTo(data, size, dstAddress.Priv().SockAddrUdp());
 }
 
 SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Time timeout)

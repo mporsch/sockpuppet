@@ -51,10 +51,9 @@ struct SockAddr
   sockaddr const *addr;
   socklen_t addrLen;
   int family;
-};
 
-bool operator<(SockAddr const &lhs,
-               SockAddr const &rhs);
+  bool operator<(SockAddr const &other) const;
+};
 
 struct SocketAddress::SocketAddressPriv
 {
@@ -67,11 +66,10 @@ struct SocketAddress::SocketAddressPriv
   std::string Service() const;
   bool IsV6() const;
 
+  bool operator<(SocketAddress::SocketAddressPriv const &other) const;
+
   static std::vector<SocketAddress> GetLocalInterfaceAddresses();
 };
-
-bool operator<(SocketAddress::SocketAddressPriv const &lhs,
-               SocketAddress::SocketAddressPriv const &rhs);
 
 struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
 {
@@ -104,6 +102,8 @@ struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
   SockAddr SockAddrUdp() const override;
   int Family() const override;
 };
+
+std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr);
 
 std::string to_string(SockAddr const &sockAddr);
 

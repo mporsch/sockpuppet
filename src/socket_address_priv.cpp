@@ -151,21 +151,20 @@ namespace {
   }
 } // unnamed namespace
 
-bool operator<(SockAddr const &lhs,
-    SockAddr const &rhs)
+bool SockAddr::operator<(SockAddr const &other) const
 {
-  if(lhs.family < rhs.family) {
+  if(family < other.family) {
     return true;
-  } else if(lhs.family > rhs.family) {
+  } else if(family > other.family) {
     return false;
   } else {
-    if(lhs.addrLen < rhs.addrLen) {
+    if(addrLen < other.addrLen) {
       return true;
-    } else if(lhs.addrLen > rhs.addrLen) {
+    } else if(addrLen > other.addrLen) {
       return false;
     } else {
-      auto const cmp = std::memcmp(lhs.addr, rhs.addr,
-        static_cast<size_t>(lhs.addrLen));
+      auto const cmp = std::memcmp(addr, other.addr,
+        static_cast<size_t>(addrLen));
       return (cmp < 0);
     }
   }
@@ -173,12 +172,6 @@ bool operator<(SockAddr const &lhs,
 
 
 SocketAddress::SocketAddressPriv::~SocketAddressPriv() = default;
-
-bool operator<(SocketAddress::SocketAddressPriv const &lhs,
-    SocketAddress::SocketAddressPriv const &rhs)
-{
-  return (lhs.SockAddrUdp() < rhs.SockAddrUdp());
-}
 
 std::string SocketAddress::SocketAddressPriv::Host() const
 {
@@ -221,6 +214,11 @@ std::string SocketAddress::SocketAddressPriv::Service() const
 bool SocketAddress::SocketAddressPriv::IsV6() const
 {
   return (Family() == AF_INET6);
+}
+
+bool SocketAddress::SocketAddressPriv::operator<(SocketAddressPriv const &other) const
+{
+  return (SockAddrUdp() < other.SockAddrUdp());
 }
 
 
@@ -363,6 +361,12 @@ SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
 #endif // _WIN32
 
   return ret;
+}
+
+
+std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr)
+{
+  return to_string(sockAddr.SockAddrUdp());
 }
 
 std::string to_string(SockAddr const &sockAddr)

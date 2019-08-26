@@ -50,17 +50,17 @@ SocketAddress &SocketAddress::operator=(SocketAddress &&other) noexcept
 
 std::string SocketAddress::Host() const
 {
-  return m_priv->Host();
+  return Priv().Host();
 }
 
 std::string SocketAddress::Service() const
 {
-  return m_priv->Service();
+  return Priv().Service();
 }
 
 bool SocketAddress::IsV6() const
 {
-  return m_priv->IsV6();
+  return Priv().IsV6();
 }
 
 std::vector<SocketAddress> SocketAddress::GetLocalInterfaceAddresses()
@@ -68,22 +68,23 @@ std::vector<SocketAddress> SocketAddress::GetLocalInterfaceAddresses()
   return SocketAddressPriv::GetLocalInterfaceAddresses();
 }
 
-SocketAddress::SocketAddressPriv const *SocketAddress::Priv() const
+SocketAddress::SocketAddressPriv const &SocketAddress::Priv() const
 {
-  return m_priv.get();
+  if(!m_priv) {
+    throw std::logic_error("invalid address");
+  }
+  return *m_priv.get();
 }
 
-
-bool operator<(SocketAddress const &lhs, SocketAddress const &rhs)
+bool SocketAddress::operator<(SocketAddress const &other) const
 {
-  return (*lhs.Priv() < *rhs.Priv());
+  return (Priv() < other.Priv());
 }
+
 
 std::string to_string(SocketAddress const &addr)
 {
-  return (addr.Priv() ?
-    to_string(addr.Priv()->SockAddrUdp()) :
-    "invalid");
+  return to_string(addr.Priv());
 }
 
 } // namespace sockpuppet

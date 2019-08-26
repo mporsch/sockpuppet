@@ -47,27 +47,32 @@ struct SocketAddress
   SocketAddress &operator=(SocketAddress &&other) noexcept;
 
   /// Retrieve the host name of the address.
+  /// @throws  If accessing a moved-from instance.
   std::string Host() const;
 
   /// Retrieve the service name of the address.
+  /// @throws  If accessing a moved-from instance.
   std::string Service() const;
 
   /// Return whether the address is an IPv6 address (rather than an IPv4 one).
+  /// @throws  If accessing a moved-from instance.
   bool IsV6() const;
 
   /// Return a list of the OS's network interface addresses.
   static std::vector<SocketAddress> GetLocalInterfaceAddresses();
 
   /// Pimpl getter for internal use.
-  SocketAddressPriv const *Priv() const;
+  /// @throws  If accessing a moved-from instance.
+  SocketAddressPriv const &Priv() const;
+
+  /// @throws  If accessing a moved-from instance.
+  bool operator<(SocketAddress const &other) const;
 
 private:
   std::shared_ptr<SocketAddressPriv> m_priv;
 };
 
-bool operator<(SocketAddress const &lhs,
-               SocketAddress const &rhs);
-
+/// @throws  If accessing a moved-from instance.
 std::string to_string(SocketAddress const &addr);
 
 } // namespace sockpuppet
