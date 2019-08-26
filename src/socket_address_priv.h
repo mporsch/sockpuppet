@@ -21,6 +21,24 @@
 
 namespace sockpuppet {
 
+template <typename T>
+struct CDeleter
+{
+  using DeleterFn = void(*)(T*);
+
+  DeleterFn fn;
+
+  CDeleter(DeleterFn fn)
+    : fn(fn)
+  {
+  }
+
+  void operator()(T *ptr)
+  {
+    fn(ptr);
+  }
+};
+
 struct SockAddr
 {
   sockaddr const *addr;
@@ -50,11 +68,7 @@ bool operator<(SocketAddress::SocketAddressPriv const &lhs,
 
 struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
 {
-  struct AddrInfoDeleter
-  {
-    void operator()(addrinfo *ptr);
-  };
-  using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
+  using AddrInfoPtr = std::unique_ptr<addrinfo, CDeleter<addrinfo>>;
 
   AddrInfoPtr info;
 

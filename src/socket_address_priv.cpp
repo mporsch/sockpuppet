@@ -1,6 +1,11 @@
 #include "socket_address_priv.h"
 #include "socket_guard.h" // for SocketGuard
 
+#ifndef _WIN32
+# include <ifaddrs.h> // for getifaddrs
+# include <net/if.h> // for IFF_LOOPBACK
+#endif // _WIN32
+
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
 #include <stdexcept> // for std::runtime_error
@@ -98,7 +103,7 @@ namespace {
                                  + gai_strerror(result));
       }
     }
-    return SocketAddressAddrinfo::AddrInfoPtr(info);
+    return SocketAddressAddrinfo::AddrInfoPtr(info, CDeleter<addrinfo>(freeaddrinfo));
   }
 
   SocketAddressAddrinfo::AddrInfoPtr ParseHostServ(std::string const &host,
@@ -125,7 +130,7 @@ namespace {
                                  + gai_strerror(result));
       }
     }
-    return SocketAddressAddrinfo::AddrInfoPtr(info);
+    return SocketAddressAddrinfo::AddrInfoPtr(info, CDeleter<addrinfo>(freeaddrinfo));
   }
 
   SocketAddressAddrinfo::AddrInfoPtr ParsePort(std::string const &port)
@@ -142,7 +147,7 @@ namespace {
                                + port + ": "
                                + gai_strerror(result));
     }
-    return SocketAddressAddrinfo::AddrInfoPtr(info);
+    return SocketAddressAddrinfo::AddrInfoPtr(info, CDeleter<addrinfo>(freeaddrinfo));
   }
 } // unnamed namespace
 
@@ -218,12 +223,6 @@ std::string SocketAddress::SocketAddressPriv::Service() const
 bool SocketAddress::SocketAddressPriv::IsV6() const
 {
   return (Family() == AF_INET6);
-}
-
-
-void SocketAddressAddrinfo::AddrInfoDeleter::operator()(addrinfo *ptr)
-{
-  freeaddrinfo(ptr);
 }
 
 
@@ -327,16 +326,43 @@ int SocketAddressStorage::Family() const
 
 std::vector<SocketAddress> SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
 {
+  std::vector<SocketAddress> ret;
+
+#ifdef _WIN32
   auto const info = ParseUri("..localmachine");
 
-  std::vector<SocketAddress> ret;
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
     auto ss = std::make_shared<SocketAddressStorage>();
-    std::memcpy(ss->Addr(), it->ai_addr, it->ai_addrlen);
-    ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
     ss->size = static_cast<socklen_t>(it->ai_addrlen);
+    std::memcpy(ss->Addr(), it->ai_addr, ss->size);
+    ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
     ret.emplace_back(std::move(ss));
   }
+
+#else
+
+  ifaddrs *addrsRaw;
+  if(auto const res = getifaddrs(&addrsRaw)) {
+    throw std::runtime_error("failed to get local interface addresses: "
+                             + std::string(std::strerror(errno)));
+  }
+  std::unique_ptr<ifaddrs, CDeleter<ifaddrs>> const addrs(addrsRaw, CDeleter<ifaddrs>(freeifaddrs));
+
+  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
+    if((it->ifa_addr != nullptr) &&
+       (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
+       ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
+      auto ss = std::make_shared<SocketAddressStorage>();
+      ss->size = static_cast<socklen_t>(it->ifa_addr->sa_family == AF_INET ?
+                                          sizeof(sockaddr_in) :
+                                          sizeof(sockaddr_in6));
+      std::memcpy(ss->Addr(), it->ifa_addr, ss->size);
+      ss->storage.ss_family = it->ifa_addr->sa_family;
+      ret.emplace_back(std::move(ss));
+    }
+  }
+#endif // _WIN32
+
   return ret;
 }
 
