@@ -28,6 +28,11 @@ Socket &Socket::operator=(Socket &&other) noexcept
   return *this;
 }
 
+SocketAddress Socket::LocalAddress()
+{
+  return SocketAddress(m_priv->GetSockName());
+}
+
 size_t Socket::ReceiveBufferSize()
 {
   auto const size = m_priv->GetSockOptRcvBuf();
