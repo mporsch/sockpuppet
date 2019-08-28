@@ -63,9 +63,9 @@ bool SocketAddress::IsV6() const
   return Priv().IsV6();
 }
 
-std::vector<SocketAddress> SocketAddress::GetLocalInterfaceAddresses()
+std::vector<SocketAddress> SocketAddress::LocalAddresses()
 {
-  return SocketAddressPriv::GetLocalInterfaceAddresses();
+  return SocketAddressPriv::LocalAddresses();
 }
 
 SocketAddress::SocketAddressPriv const &SocketAddress::Priv() const

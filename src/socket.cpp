@@ -28,7 +28,7 @@ Socket &Socket::operator=(Socket &&other) noexcept
   return *this;
 }
 
-size_t Socket::GetReceiveBufferSize()
+size_t Socket::ReceiveBufferSize()
 {
   auto const size = m_priv->GetSockOptRcvBuf();
   if(size < 0) {

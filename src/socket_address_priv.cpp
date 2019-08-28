@@ -215,6 +215,47 @@ bool SocketAddress::SocketAddressPriv::operator<(SocketAddressPriv const &other)
   return (SockAddrUdp() < other.SockAddrUdp());
 }
 
+std::vector<SocketAddress> SocketAddress::SocketAddressPriv::LocalAddresses()
+{
+  std::vector<SocketAddress> ret;
+
+#ifdef _WIN32
+  auto const info = ParseUri("..localmachine");
+
+  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
+    auto ss = std::make_shared<SocketAddressStorage>();
+    ss->size = static_cast<socklen_t>(it->ai_addrlen);
+    std::memcpy(ss->Addr(), it->ai_addr, static_cast<size_t>(ss->size));
+    ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
+    ret.emplace_back(std::move(ss));
+  }
+
+#else
+
+  ifaddrs *addrsRaw;
+  if(auto const res = ::getifaddrs(&addrsRaw)) {
+    throw std::runtime_error("failed to get local interface addresses: "
+                             + std::string(std::strerror(errno)));
+  }
+  auto const addrs = make_unique(addrsRaw, ::freeifaddrs);
+
+  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
+    if((it->ifa_addr != nullptr) &&
+       (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
+       ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
+      auto ss = std::make_shared<SocketAddressStorage>();
+      ss->size = static_cast<socklen_t>(it->ifa_addr->sa_family == AF_INET ?
+                                          sizeof(sockaddr_in) :
+                                          sizeof(sockaddr_in6));
+      std::memcpy(ss->Addr(), it->ifa_addr, ss->size);
+      ret.emplace_back(std::move(ss));
+    }
+  }
+#endif // _WIN32
+
+  return ret;
+}
+
 
 SocketAddressAddrinfo::SocketAddressAddrinfo(std::string const &uri)
   : info(ParseUri(uri))
@@ -309,48 +350,6 @@ SockAddr SocketAddressStorage::SockAddrUdp() const
 int SocketAddressStorage::Family() const
 {
   return storage.ss_family;
-}
-
-std::vector<SocketAddress>
-SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
-{
-  std::vector<SocketAddress> ret;
-
-#ifdef _WIN32
-  auto const info = ParseUri("..localmachine");
-
-  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
-    auto ss = std::make_shared<SocketAddressStorage>();
-    ss->size = static_cast<socklen_t>(it->ai_addrlen);
-    std::memcpy(ss->Addr(), it->ai_addr, static_cast<size_t>(ss->size));
-    ss->storage.ss_family = static_cast<decltype(ss->storage.ss_family)>(it->ai_family);
-    ret.emplace_back(std::move(ss));
-  }
-
-#else
-
-  ifaddrs *addrsRaw;
-  if(auto const res = ::getifaddrs(&addrsRaw)) {
-    throw std::runtime_error("failed to get local interface addresses: "
-                             + std::string(std::strerror(errno)));
-  }
-  auto const addrs = make_unique(addrsRaw, ::freeifaddrs);
-
-  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
-    if((it->ifa_addr != nullptr) &&
-       (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
-       ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
-      auto ss = std::make_shared<SocketAddressStorage>();
-      ss->size = static_cast<socklen_t>(it->ifa_addr->sa_family == AF_INET ?
-                                          sizeof(sockaddr_in) :
-                                          sizeof(sockaddr_in6));
-      std::memcpy(ss->Addr(), it->ifa_addr, ss->size);
-      ret.emplace_back(std::move(ss));
-    }
-  }
-#endif // _WIN32
-
-  return ret;
 }
 
 

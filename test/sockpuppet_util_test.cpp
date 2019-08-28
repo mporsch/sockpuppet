@@ -12,7 +12,7 @@ using namespace sockpuppet;
 int main(int, char **)
 try {
   std::vector<SocketUdp> sockets;
-  auto const addresses = SocketAddress::GetLocalInterfaceAddresses();
+  auto const addresses = SocketAddress::LocalAddresses();
   std::transform(std::begin(addresses), std::end(addresses),
     std::back_inserter(sockets),
     [](SocketAddress const &address) -> SocketUdp {

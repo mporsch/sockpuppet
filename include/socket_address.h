@@ -59,7 +59,7 @@ struct SocketAddress
   bool IsV6() const;
 
   /// Return a list of the OS's network interface addresses.
-  static std::vector<SocketAddress> GetLocalInterfaceAddresses();
+  static std::vector<SocketAddress> LocalAddresses();
 
   /// Pimpl getter for internal use.
   /// @throws  If accessing a moved-from instance.

@@ -67,7 +67,7 @@ struct SocketAddress::SocketAddressPriv
 
   bool operator<(SocketAddress::SocketAddressPriv const &other) const;
 
-  static std::vector<SocketAddress> GetLocalInterfaceAddresses();
+  static std::vector<SocketAddress> LocalAddresses();
 };
 
 struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
