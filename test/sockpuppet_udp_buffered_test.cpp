@@ -92,11 +92,11 @@ int main(int, char **)
   std::cout << "generating random reference data" << std::endl;
 
   std::default_random_engine generator;
-  std::uniform_int_distribution<char> distribution(
+  std::uniform_int_distribution<int> distribution(
     std::numeric_limits<char>::min(),
     std::numeric_limits<char>::max());
   auto gen = [&]() -> char {
-    return distribution(generator);
+    return static_cast<char>(distribution(generator));
   };
   std::vector<char> referenceData(10000000U);
   std::generate(std::begin(referenceData),
