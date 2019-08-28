@@ -53,6 +53,13 @@ else()
   target_link_libraries(sockpuppet_tcp_async_test sockpuppet)
 endif()
 
+add_executable(sockpuppet_broadcast_test sockpuppet_broadcast_test.cpp)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  target_link_libraries(sockpuppet_broadcast_test sockpuppet pthread)
+else()
+  target_link_libraries(sockpuppet_broadcast_test sockpuppet)
+endif()
+
 enable_testing()
 add_test(NAME sockpuppet_address_test COMMAND sockpuppet_address_test)
 add_test(NAME sockpuppet_udp_test COMMAND sockpuppet_udp_test)
