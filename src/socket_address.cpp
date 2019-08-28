@@ -63,6 +63,11 @@ bool SocketAddress::IsV6() const
   return Priv().IsV6();
 }
 
+SocketAddress SocketAddress::ToBroadcast() const
+{
+  return Priv().ToBroadcast();
+}
+
 std::vector<SocketAddress> SocketAddress::LocalAddresses()
 {
   return SocketAddressPriv::LocalAddresses();

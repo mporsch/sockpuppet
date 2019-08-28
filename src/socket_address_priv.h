@@ -65,6 +65,8 @@ struct SocketAddress::SocketAddressPriv
   std::string Service() const;
   bool IsV6() const;
 
+  SocketAddress ToBroadcast() const;
+
   bool operator<(SocketAddress::SocketAddressPriv const &other) const;
 
   static std::vector<SocketAddress> LocalAddresses();

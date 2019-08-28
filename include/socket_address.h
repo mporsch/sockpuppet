@@ -58,6 +58,8 @@ struct SocketAddress
   /// @throws  If accessing a moved-from instance.
   bool IsV6() const;
 
+  SocketAddress ToBroadcast() const;
+
   /// Return a list of the OS's network interface addresses.
   static std::vector<SocketAddress> LocalAddresses();
 

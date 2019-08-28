@@ -210,6 +210,48 @@ bool SocketAddress::SocketAddressPriv::IsV6() const
   return (Family() == AF_INET6);
 }
 
+SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
+{
+  if(IsV6()) {
+    throw std::invalid_argument("there are no IPv6 broadcast addresses");
+  }
+
+#ifdef _WIN32
+
+#else
+
+  ifaddrs *addrsRaw;
+  if(auto const res = ::getifaddrs(&addrsRaw)) {
+    throw std::runtime_error("failed to get local interface addresses: "
+                             + std::string(std::strerror(errno)));
+  }
+  auto const addrs = make_unique(addrsRaw, ::freeifaddrs);
+
+  auto const host = Host();
+
+  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
+    if((it->ifa_addr != nullptr) &&
+       (it->ifa_netmask != nullptr) &&
+       (it->ifa_addr->sa_family == AF_INET) &&
+       ((it->ifa_flags & IFF_LOOPBACK) == 0) &&
+       ((it->ifa_flags & IFF_BROADCAST) != 0)) {
+      auto ss = std::make_shared<SocketAddressStorage>();
+      ss->size = static_cast<socklen_t>(sizeof(sockaddr_in));
+      std::memcpy(ss->Addr(), it->ifa_addr, ss->size);
+
+      if(ss->Host() == host) {
+        std::memcpy(ss->Addr(), it->ifa_ifu.ifu_broadaddr, ss->size);
+        return SocketAddress(ss->Host(), Service());
+      }
+    }
+  }
+
+#endif // _WIN32
+
+  throw std::runtime_error("failed to get broadcast address matching to \""
+                           + to_string(*this) + "\"");
+}
+
 bool SocketAddress::SocketAddressPriv::operator<(SocketAddressPriv const &other) const
 {
   return (SockAddrUdp() < other.SockAddrUdp());
