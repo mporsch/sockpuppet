@@ -153,20 +153,14 @@ namespace {
 
 bool SockAddr::operator<(SockAddr const &other) const
 {
-  if(family < other.family) {
+  if(addrLen < other.addrLen) {
     return true;
-  } else if(family > other.family) {
+  } else if(addrLen > other.addrLen) {
     return false;
   } else {
-    if(addrLen < other.addrLen) {
-      return true;
-    } else if(addrLen > other.addrLen) {
-      return false;
-    } else {
-      auto const cmp = std::memcmp(addr, other.addr,
-        static_cast<size_t>(addrLen));
-      return (cmp < 0);
-    }
+    auto const cmp = std::memcmp(addr, other.addr,
+      static_cast<size_t>(addrLen));
+    return (cmp < 0);
   }
 }
 
@@ -256,7 +250,6 @@ SockAddr SocketAddressAddrinfo::SockAddrTcp() const
     return SockAddr{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
-    , it->ai_family
     };
   } else {
     throw std::logic_error("address is not valid for TCP");
@@ -269,7 +262,6 @@ SockAddr SocketAddressAddrinfo::SockAddrUdp() const
     return SockAddr{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
-    , it->ai_family
     };
   } else {
     throw std::logic_error("address is not valid for UDP");
@@ -306,7 +298,6 @@ SockAddr SocketAddressStorage::SockAddrTcp() const
   return SockAddr{
     reinterpret_cast<sockaddr const *>(&storage)
   , size
-  , storage.ss_family
   };
 }
 
@@ -354,7 +345,6 @@ SocketAddress::SocketAddressPriv::GetLocalInterfaceAddresses()
                                           sizeof(sockaddr_in) :
                                           sizeof(sockaddr_in6));
       std::memcpy(ss->Addr(), it->ifa_addr, ss->size);
-      ss->storage.ss_family = it->ifa_addr->sa_family;
       ret.emplace_back(std::move(ss));
     }
   }
@@ -384,7 +374,7 @@ std::string to_string(SockAddr const &sockAddr)
                              + ::gai_strerror(result));
   }
 
-  return (sockAddr.family == AF_INET ?
+  return (sockAddr.addr->sa_family == AF_INET ?
     std::string(host) + ":" + service :
     std::string("[") + host + "]" + ":" + service);
 }

@@ -50,7 +50,6 @@ struct SockAddr
 {
   sockaddr const *addr;
   socklen_t addrLen;
-  int family;
 
   bool operator<(SockAddr const &other) const;
 };

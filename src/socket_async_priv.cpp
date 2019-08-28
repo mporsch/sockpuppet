@@ -44,8 +44,8 @@ SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard() = default;
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
-  , pipeFrom(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
-  , pipeTo(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
+  , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , shouldStop(false)
 {
   // bind to system-assigned port number and update address accordingly
