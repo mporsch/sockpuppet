@@ -46,7 +46,7 @@ add_library(sockpuppet
 include_directories(include)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-  target_link_libraries(sockpuppet WS2_32.Lib)
+  target_link_libraries(sockpuppet WS2_32.Lib IPHLPAPI.lib)
 endif()
 
 if(${BUILD_TESTS})
