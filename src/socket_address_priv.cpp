@@ -222,57 +222,16 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
 
 #ifdef _WIN32
 
-
-//  auto getAdaptersAddresses = []() -> std::unique_ptr<char const[]> {
-//    // GetAdaptersAddresses may fail once on insufficient buffer size;
-//    // in this case try again with updated size
-//    ULONG storageSize = 8192U;
-//    std::unique_ptr<char[]> storage(new char[storageSize]);
-//
-//    for(int i = 0; i < 2; ++i) {
-//      if(::GetAdaptersAddresses(AF_INET,
-//          GAA_FLAG_INCLUDE_PREFIX,
-//          nullptr,
-//          reinterpret_cast<IP_ADAPTER_ADDRESSES*>(storage.get()),
-//          &storageSize)) {
-//        storage.reset(new char[storageSize]);
-//      } else {
-//        return storage;
-//      }
-//    }
-//    throw std::runtime_error("failed to get addresses using ::GetAdaptersAddresses");
-//  };
-//
-//  auto const adaptersAddressesStorage = getAdaptersAddresses();
-//  auto const adaptersAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES const*>(adaptersAddressesStorage.get());
-//
-//  for(auto adapter = adaptersAddresses; adapter != nullptr; adapter = adapter->Next) {
-//    if((adapter->FirstUnicastAddress != nullptr) &&
-//       (adapter->FirstMulticastAddress != nullptr)) {
-//      auto ss = std::make_shared<SocketAddressStorage>();
-//      ss->size = adapter->FirstUnicastAddress->Address.iSockaddrLength;
-//      std::memcpy(ss->Addr(), adapter->FirstUnicastAddress->Address.lpSockaddr, ss->size);
-//
-//      if(ss->Host() == host) {
-//        ss->size = adapter->FirstMulticastAddress->Address.iSockaddrLength;
-//        std::memcpy(ss->Addr(), adapter->FirstMulticastAddress->Address.lpSockaddr, ss->size);
-//        return SocketAddress(ss->Host(), Service());
-//      }
-//    }
-//  }
-
-
-
+  // GetAdaptersInfo returns IPv4 addresses only
   auto getAdaptersInfo = []() -> std::unique_ptr<char const[]> {
-    // GetAdaptersAddresses may fail once on insufficient buffer size;
-    // in this case try again with updated size
     ULONG storageSize = 4096U;
     std::unique_ptr<char[]> storage(new char[storageSize]);
 
     for(int i = 0; i < 2; ++i) {
       if(::GetAdaptersInfo(
-          reinterpret_cast<IP_ADAPTER_INFO*>(storage.get()),
+          reinterpret_cast<IP_ADAPTER_INFO *>(storage.get()),
           &storageSize)) {
+        // may fail once on insufficient buffer size -> try again with updated size
         storage.reset(new char[storageSize]);
       } else {
         return storage;
@@ -281,62 +240,37 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
     throw std::runtime_error("failed to get addresses using ::GetAdaptersInfo");
   };
 
+  auto fillPort = [](sockaddr *out, sockaddr const *in) {
+    reinterpret_cast<sockaddr_in *>(out)->sin_port =
+        reinterpret_cast<sockaddr_in const *>(in)->sin_port;
+  };
+
+  auto fillBroadcast = [](sockaddr *bcast, sockaddr const *ucast, sockaddr const *mask) {
+    // broadcast = (unicast | ~mask) for IPv4
+    reinterpret_cast<sockaddr_in *>(bcast)->sin_addr.S_un.S_addr =
+        reinterpret_cast<sockaddr_in const *>(ucast)->sin_addr.S_un.S_addr
+        | ~reinterpret_cast<sockaddr_in const *>(mask)->sin_addr.S_un.S_addr;
+  };
+
   auto const adaptersInfoStorage = getAdaptersInfo();
-  auto const adaptersInfo = reinterpret_cast<IP_ADAPTER_INFO const*>(adaptersInfoStorage.get());
+  auto const adaptersInfo = reinterpret_cast<IP_ADAPTER_INFO const *>(adaptersInfoStorage.get());
 
   for(auto adapter = adaptersInfo; adapter != nullptr; adapter = adapter->Next) {
     for(auto address = &adapter->IpAddressList; address != nullptr; address = address->Next) {
-      const SocketAddressAddrinfo addr(address->IpAddress.String);
-
-      if(addr.Host() == host) {
+      if(address->IpAddress.String == host) {
+        const SocketAddressAddrinfo addr(address->IpAddress.String);
         const SocketAddressAddrinfo mask(address->IpMask.String);
 
-        SocketAddressStorage broadcast;
-        broadcast.Addr()->sa_family = AF_INET;
-        reinterpret_cast<sockaddr_in*>(broadcast.Addr())->sin_addr.S_un.S_addr =
-          reinterpret_cast<const sockaddr_in*>(addr.SockAddrUdp().addr)->sin_addr.S_un.S_addr
-          | ~reinterpret_cast<const sockaddr_in*>(mask.SockAddrUdp().addr)->sin_addr.S_un.S_addr;
-        *broadcast.AddrLen() = sizeof(sockaddr_in);
+        auto ss = std::make_shared<SocketAddressStorage>();
+        ss->Addr()->sa_family = AF_INET;
+        fillPort(ss->Addr(), SockAddrUdp().addr);
+        fillBroadcast(ss->Addr(), addr.SockAddrUdp().addr, mask.SockAddrUdp().addr);
+        *ss->AddrLen() = static_cast<socklen_t>(sizeof(sockaddr_in));
 
-        return SocketAddress(broadcast.Host(), Service());
+        return SocketAddress(std::move(ss));
       }
     }
   }
-
-
-
-//  auto getIpAddrTable  = []() -> std::unique_ptr<char const[]> {
-//    // GetAdaptersAddresses may fail once on insufficient buffer size;
-//    // in this case try again with updated size
-//    ULONG storageSize = 1024;
-//    std::unique_ptr<char[]> storage(new char[storageSize]);
-//
-//    for(int i = 0; i < 2; ++i) {
-//      if(::GetIpAddrTable(
-//          reinterpret_cast<MIB_IPADDRTABLE*>(storage.get()),
-//          &storageSize,
-//          false)) {
-//        storage.reset(new char[storageSize]);
-//      } else {
-//        return storage;
-//      }
-//    }
-//    throw std::runtime_error("failed to get addresses using ::GetIpAddrTable ");
-//  };
-//
-//  auto const ipAddrTableStorage = getIpAddrTable();
-//  auto const ipAddrTable = reinterpret_cast<MIB_IPADDRTABLE const*>(ipAddrTableStorage.get());
-//
-//  for(auto entry = ipAddrTable->table; entry != ipAddrTable->table + ipAddrTable->dwNumEntries; ++entry) {
-//    auto ss = std::make_shared<SocketAddressStorage>();
-//    ss->size = sizeof(entry->dwAddr);
-//    std::memcpy(ss->Addr(), &entry->dwAddr, ss->size);
-//
-//    if(ss->Host() == host) {
-//      std::memcpy(ss->Addr(), &entry->dwBCastAddr, ss->size);
-//      return SocketAddress(ss->Host(), Service());
-//    }
-//  }
 
 #else
 
