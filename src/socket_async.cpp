@@ -96,7 +96,7 @@ std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
     SocketAddress const &dstAddress)
 {
   return m_priv->SendTo(std::move(buffer),
-                        dstAddress.Priv().SockAddrUdp());
+                        dstAddress.Priv().ForUdp());
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept

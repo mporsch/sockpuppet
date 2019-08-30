@@ -46,19 +46,19 @@ std::unique_ptr<T, CDeleter<T>> make_unique(T* ptr,
   return std::unique_ptr<T, CDeleter<T>>(ptr, fn);
 }
 
-struct SockAddr
+struct SockAddrView
 {
   sockaddr const *addr;
   socklen_t addrLen;
 
-  bool operator<(SockAddr const &other) const;
+  bool operator<(SockAddrView const &other) const;
 };
 
 struct SocketAddress::SocketAddressPriv
 {
   virtual ~SocketAddressPriv();
-  virtual SockAddr SockAddrTcp() const = 0;
-  virtual SockAddr SockAddrUdp() const = 0;
+  virtual SockAddrView ForTcp() const = 0;
+  virtual SockAddrView ForUdp() const = 0;
   virtual int Family() const = 0;
 
   std::string Host() const;
@@ -72,41 +72,41 @@ struct SocketAddress::SocketAddressPriv
   static std::vector<SocketAddress> LocalAddresses();
 };
 
-struct SocketAddressAddrinfo : public SocketAddress::SocketAddressPriv
+struct SockAddrInfo : public SocketAddress::SocketAddressPriv
 {
   using AddrInfoPtr = std::unique_ptr<addrinfo, CDeleter<addrinfo>>;
 
   AddrInfoPtr info;
 
-  SocketAddressAddrinfo(std::string const &uri);
-  SocketAddressAddrinfo(std::string const &host, std::string const &serv);
-  SocketAddressAddrinfo(uint16_t port);
+  SockAddrInfo(std::string const &uri);
+  SockAddrInfo(std::string const &host, std::string const &serv);
+  SockAddrInfo(uint16_t port);
 
   addrinfo const *Find(int type, int protocol) const;
 
-  SockAddr SockAddrTcp() const override;
-  SockAddr SockAddrUdp() const override;
+  SockAddrView ForTcp() const override;
+  SockAddrView ForUdp() const override;
   int Family() const override;
 };
 
-struct SocketAddressStorage : public SocketAddress::SocketAddressPriv
+struct SockAddrStorage : public SocketAddress::SocketAddressPriv
 {
   sockaddr_storage storage;
   socklen_t size;
 
-  SocketAddressStorage();
+  SockAddrStorage();
 
   sockaddr *Addr();
   socklen_t *AddrLen();
 
-  SockAddr SockAddrTcp() const override;
-  SockAddr SockAddrUdp() const override;
+  SockAddrView ForTcp() const override;
+  SockAddrView ForUdp() const override;
   int Family() const override;
 };
 
 std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr);
 
-std::string to_string(SockAddr const &sockAddr);
+std::string to_string(SockAddrView const &sockAddr);
 
 } // namespace sockpuppet
 

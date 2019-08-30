@@ -4,18 +4,18 @@
 namespace sockpuppet {
 
 SocketAddress::SocketAddress(std::string const &uri)
-  : m_priv(std::make_shared<SocketAddressAddrinfo>(uri))
+  : m_priv(std::make_shared<SockAddrInfo>(uri))
 {
 }
 
 SocketAddress::SocketAddress(std::string const &host,
     std::string const &service)
-  : m_priv(std::make_shared<SocketAddressAddrinfo>(host, service))
+  : m_priv(std::make_shared<SockAddrInfo>(host, service))
 {
 }
 
 SocketAddress::SocketAddress(uint16_t port)
-  : m_priv(std::make_shared<SocketAddressAddrinfo>(port))
+  : m_priv(std::make_shared<SockAddrInfo>(port))
 {
 }
 
