@@ -45,7 +45,9 @@ void Client(SocketAddress serverAddr)
 try {
   auto client = SocketUdp(serverAddr.Host());
   auto clientAddr = client.LocalAddress();
-  auto broadcastAddr = serverAddr.ToBroadcast();
+  auto broadcastAddr = SocketAddress(
+        client.BroadcastAddress().Host(),
+        serverAddr.Service());
 
   std::cout << "sending from "
     << to_string(clientAddr) << " to "

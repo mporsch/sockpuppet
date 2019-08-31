@@ -21,6 +21,8 @@ class Socket
 public:
   using Time = std::chrono::duration<uint32_t, std::micro>;
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
   SocketAddress LocalAddress() const;
 
   /// Determine the maximum size of data the socket may receive,
@@ -81,6 +83,11 @@ struct SocketUdp : public Socket
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Time timeout = Time(0U));
+
+  /// Get the broadcast address of the socket's network.
+  /// @throws  In the case of an IPv6 socket that has no concept of a broadcast address
+  ///          or if the address lookup fails.
+  SocketAddress BroadcastAddress() const;
 };
 
 /// TCP (reliable communication) socket class that is either

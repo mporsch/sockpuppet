@@ -86,6 +86,11 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
   };
 }
 
+SocketAddress SocketUdp::BroadcastAddress() const
+{
+  return LocalAddress().Priv().ToBroadcast();
+}
+
 
 SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(

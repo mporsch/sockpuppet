@@ -21,7 +21,7 @@ try {
     if(argc >= 3) {
       srcAddr = SocketAddress(argv[2]);
     }
-    bool const isV4 = !dstAddr.IsV6();
+    bool const isV4 = !srcAddr.IsV6();
 
     SocketUdp sock(srcAddr);
 
@@ -39,7 +39,8 @@ try {
         break;
       } else {
         if(isV4 && line[0] == '!') {
-          sock.SendTo(line.c_str() + 1, line.size(), dstAddr.ToBroadcast());
+          sock.SendTo(line.c_str() + 1, line.size(),
+              SocketAddress(sock.BroadcastAddress().Host(), dstAddr.Service()));
         } else {
           sock.SendTo(line.c_str(), line.size(), dstAddr);
         }
