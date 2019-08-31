@@ -21,6 +21,8 @@ try {
     if(argc >= 3) {
       srcAddr = SocketAddress(argv[2]);
     }
+    bool const isV4 = !dstAddr.IsV6();
+
     SocketUdp sock(srcAddr);
 
     std::cout << "sending from "
@@ -29,12 +31,18 @@ try {
 
     for(;;) {
       std::string line;
-      std::cout << "message to send? (empty for exit) - ";
+      std::cout << "message to send? (empty for exit"
+                   << (isV4 ? ", prefix '!' for broadcast" : "")
+                   << ") - ";
       std::getline(std::cin, line);
       if(line.empty()) {
         break;
       } else {
-        sock.SendTo(line.c_str(), line.size(), dstAddr);
+        if(isV4 && line[0] == '!') {
+          sock.SendTo(line.c_str() + 1, line.size(), dstAddr.ToBroadcast());
+        } else {
+          sock.SendTo(line.c_str(), line.size(), dstAddr);
+        }
       }
     }
   }
