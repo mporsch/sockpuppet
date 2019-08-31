@@ -86,9 +86,9 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
   };
 }
 
-SocketAddress SocketUdp::BroadcastAddress() const
+SocketAddress SocketUdp::BroadcastAddress(uint16_t port) const
 {
-  return LocalAddress().Priv().ToBroadcast();
+  return LocalAddress().Priv().ToBroadcast(port);
 }
 
 

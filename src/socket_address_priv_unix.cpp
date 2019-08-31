@@ -22,7 +22,7 @@ namespace  {
   }
 } // unnamed namespace
 
-SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
+SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
 {
   if(IsV6()) {
     throw std::invalid_argument("there are no IPv6 broadcast addresses");
@@ -45,7 +45,7 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
 
       if(sas->Host() == host) {
         std::memcpy(sas->Addr(), it->ifa_ifu.ifu_broadaddr, sas->size);
-        return SocketAddress(sas->Host(), Service());
+        return SocketAddress(sas->Host(), std::to_string(port));
       }
     }
   }

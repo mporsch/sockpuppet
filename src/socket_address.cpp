@@ -58,6 +58,11 @@ std::string SocketAddress::Service() const
   return Priv().Service();
 }
 
+uint16_t SocketAddress::Port() const
+{
+  return Priv().Port();
+}
+
 bool SocketAddress::IsV6() const
 {
   return Priv().IsV6();

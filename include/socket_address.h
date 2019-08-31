@@ -54,6 +54,10 @@ struct SocketAddress
   /// @throws  If accessing a moved-from instance.
   std::string Service() const;
 
+  /// Retrieve the port number of the address.
+  /// @throws  If accessing a moved-from instance.
+  uint16_t Port() const;
+
   /// Return whether the address is an IPv6 address (rather than an IPv4 one).
   /// @throws  If accessing a moved-from instance.
   bool IsV6() const;

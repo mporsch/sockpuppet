@@ -63,9 +63,10 @@ struct SocketAddress::SocketAddressPriv
 
   std::string Host() const;
   std::string Service() const;
+  uint16_t Port() const;
   bool IsV6() const;
 
-  SocketAddress ToBroadcast() const;
+  SocketAddress ToBroadcast(uint16_t port) const;
 
   bool operator<(SocketAddress::SocketAddressPriv const &other) const;
 

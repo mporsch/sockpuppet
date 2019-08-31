@@ -26,21 +26,21 @@ try {
     SocketUdp sock(srcAddr);
 
     std::cout << "sending from "
-      << to_string(srcAddr) << " to "
-      << to_string(dstAddr) << std::endl;
+              << to_string(srcAddr) << " to "
+              << to_string(dstAddr) << std::endl;
 
     for(;;) {
       std::string line;
       std::cout << "message to send? (empty for exit"
-                   << (isV4 ? ", prefix '!' for broadcast" : "")
-                   << ") - ";
+                << (isV4 ? ", prefix '!' for broadcast" : "")
+                << ") - ";
       std::getline(std::cin, line);
       if(line.empty()) {
         break;
       } else {
         if(isV4 && line[0] == '!') {
           sock.SendTo(line.c_str() + 1, line.size(),
-              SocketAddress(sock.BroadcastAddress().Host(), dstAddr.Service()));
+                      sock.BroadcastAddress(dstAddr.Port()));
         } else {
           sock.SendTo(line.c_str(), line.size(), dstAddr);
         }

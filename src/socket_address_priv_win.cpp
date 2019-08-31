@@ -9,7 +9,7 @@
 
 namespace sockpuppet {
 
-SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
+SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
 {
   if(IsV6()) {
     throw std::invalid_argument("there are no IPv6 broadcast addresses");
@@ -39,12 +39,11 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
   auto const adaptersStorage = getAdaptersInfo();
   auto const adapters = reinterpret_cast<IP_ADAPTER_INFO const *>(adaptersStorage.get());
 
-  auto fillPort = [](sockaddr *out, sockaddr const *in) {
-    reinterpret_cast<sockaddr_in *>(out)->sin_port =
-        reinterpret_cast<sockaddr_in const *>(in)->sin_port;
+  auto fillPort = [](sockaddr *out, uint16_t port) {
+    reinterpret_cast<sockaddr_in *>(out)->sin_port = htons(port);
   };
 
-  auto fillBroadcast = [](
+  auto fillHost = [](
       sockaddr *bcast,
       sockaddr const *ucast,
       sockaddr const *mask) {
@@ -62,8 +61,8 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
 
         auto sas = std::make_shared<SockAddrStorage>();
         sas->Addr()->sa_family = AF_INET;
-        fillPort(sas->Addr(), ForUdp().addr);
-        fillBroadcast(sas->Addr(), addr.ForUdp().addr, mask.ForUdp().addr);
+        fillPort(sas->Addr(), port);
+        fillHost(sas->Addr(), addr.ForUdp().addr, mask.ForUdp().addr);
         *sas->AddrLen() = static_cast<socklen_t>(sizeof(sockaddr_in));
 
         return SocketAddress(std::move(sas));
