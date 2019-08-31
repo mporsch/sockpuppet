@@ -28,6 +28,8 @@ add_library(sockpuppet
   src/socket_address.cpp
   include/socket_address.h
   src/socket_address_priv.cpp
+  src/socket_address_priv_unix.cpp
+  src/socket_address_priv_win.cpp
   src/socket_address_priv.h
   src/socket_async.cpp
   include/socket_async.h

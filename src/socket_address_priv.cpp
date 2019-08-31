@@ -1,13 +1,6 @@
 #include "socket_address_priv.h"
 #include "socket_guard.h" // for SocketGuard
 
-#ifdef _WIN32
-# include <iphlpapi.h>
-#else
-# include <ifaddrs.h> // for ::getifaddrs
-# include <net/if.h> // for IFF_LOOPBACK
-#endif // _WIN32
-
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
 #include <stdexcept> // for std::runtime_error
@@ -215,148 +208,10 @@ bool SocketAddress::SocketAddressPriv::IsV6() const
   return (Family() == AF_INET6);
 }
 
-SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast() const
-{
-  if(IsV6()) {
-    throw std::invalid_argument("there are no IPv6 broadcast addresses");
-  }
-
-  auto const host = Host();
-
-#ifdef _WIN32
-
-  // GetAdaptersInfo returns IPv4 addresses only
-  auto getAdaptersInfo = []() -> std::unique_ptr<char const[]> {
-    ULONG storageSize = 4096U;
-    std::unique_ptr<char[]> storage(new char[storageSize]);
-
-    for(int i = 0; i < 2; ++i) {
-      if(::GetAdaptersInfo(
-           reinterpret_cast<IP_ADAPTER_INFO *>(storage.get()),
-           &storageSize)) {
-        // may fail once on insufficient buffer size
-        // -> try again with updated size
-        storage.reset(new char[storageSize]);
-      } else {
-        return storage;
-      }
-    }
-    throw std::runtime_error("failed to get addresses using ::GetAdaptersInfo");
-  };
-
-  auto const adaptersStorage = getAdaptersInfo();
-  auto const adapters = reinterpret_cast<IP_ADAPTER_INFO const *>(adaptersStorage.get());
-
-  auto fillPort = [](sockaddr *out, sockaddr const *in) {
-    reinterpret_cast<sockaddr_in *>(out)->sin_port =
-        reinterpret_cast<sockaddr_in const *>(in)->sin_port;
-  };
-
-  auto fillBroadcast = [](
-      sockaddr *bcast,
-      sockaddr const *ucast,
-      sockaddr const *mask) {
-    // broadcast = (unicast | ~mask) for IPv4
-    reinterpret_cast<sockaddr_in *>(bcast)->sin_addr.S_un.S_addr =
-        reinterpret_cast<sockaddr_in const *>(ucast)->sin_addr.S_un.S_addr
-        | ~reinterpret_cast<sockaddr_in const *>(mask)->sin_addr.S_un.S_addr;
-  };
-
-  for(auto adapter = adapters; adapter != nullptr; adapter = adapter->Next) {
-    for(auto ipAddress = &adapter->IpAddressList; ipAddress != nullptr; ipAddress = ipAddress->Next) {
-      if(ipAddress->IpAddress.String == host) {
-        const SockAddrInfo addr(ipAddress->IpAddress.String);
-        const SockAddrInfo mask(ipAddress->IpMask.String);
-
-        auto sas = std::make_shared<SockAddrStorage>();
-        sas->Addr()->sa_family = AF_INET;
-        fillPort(sas->Addr(), ForUdp().addr);
-        fillBroadcast(sas->Addr(), addr.ForUdp().addr, mask.ForUdp().addr);
-        *sas->AddrLen() = static_cast<socklen_t>(sizeof(sockaddr_in));
-
-        return SocketAddress(std::move(sas));
-      }
-    }
-  }
-
-#else
-
-  ifaddrs *addrsRaw;
-  if(auto const res = ::getifaddrs(&addrsRaw)) {
-    throw std::runtime_error("failed to get local interface addresses: "
-                             + std::string(std::strerror(errno)));
-  }
-  auto const addrs = make_unique(addrsRaw, ::freeifaddrs);
-
-  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
-    if((it->ifa_addr != nullptr) &&
-       (it->ifa_netmask != nullptr) &&
-       (it->ifa_addr->sa_family == AF_INET) &&
-       ((it->ifa_flags & IFF_LOOPBACK) == 0) &&
-       ((it->ifa_flags & IFF_BROADCAST) != 0)) {
-      auto sas = std::make_shared<SockAddrStorage>();
-      sas->size = static_cast<socklen_t>(sizeof(sockaddr_in));
-      std::memcpy(sas->Addr(), it->ifa_addr, sas->size);
-
-      if(sas->Host() == host) {
-        std::memcpy(sas->Addr(), it->ifa_ifu.ifu_broadaddr, sas->size);
-        return SocketAddress(sas->Host(), Service());
-      }
-    }
-  }
-
-#endif // _WIN32
-
-  throw std::runtime_error("failed to get broadcast address matching to \""
-                           + to_string(*this) + "\"");
-}
-
 bool SocketAddress::SocketAddressPriv::operator<(
     SocketAddressPriv const &other) const
 {
   return (ForUdp() < other.ForUdp());
-}
-
-std::vector<SocketAddress>
-SocketAddress::SocketAddressPriv::LocalAddresses()
-{
-  std::vector<SocketAddress> ret;
-
-#ifdef _WIN32
-  auto const info = ParseUri("..localmachine");
-
-  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
-    auto sas = std::make_shared<SockAddrStorage>();
-    sas->size = static_cast<socklen_t>(it->ai_addrlen);
-    std::memcpy(sas->Addr(), it->ai_addr, static_cast<size_t>(sas->size));
-    sas->storage.ss_family = static_cast<decltype(sas->storage.ss_family)>(it->ai_family);
-    ret.emplace_back(std::move(sas));
-  }
-
-#else
-
-  ifaddrs *addrsRaw;
-  if(auto const res = ::getifaddrs(&addrsRaw)) {
-    throw std::runtime_error("failed to get local interface addresses: "
-                             + std::string(std::strerror(errno)));
-  }
-  auto const addrs = make_unique(addrsRaw, ::freeifaddrs);
-
-  for(auto it = addrs.get(); it != nullptr; it = it->ifa_next) {
-    if((it->ifa_addr != nullptr) &&
-       (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
-       ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
-      auto sas = std::make_shared<SockAddrStorage>();
-      sas->size = static_cast<socklen_t>(it->ifa_addr->sa_family == AF_INET ?
-                                           sizeof(sockaddr_in) :
-                                           sizeof(sockaddr_in6));
-      std::memcpy(sas->Addr(), it->ifa_addr, sas->size);
-      ret.emplace_back(std::move(sas));
-    }
-  }
-#endif // _WIN32
-
-  return ret;
 }
 
 
