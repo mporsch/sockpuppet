@@ -234,7 +234,7 @@ void Socket::SocketPriv::SetSockOpt(int id, int value,
   }
 }
 
-int Socket::SocketPriv::GetSockOptRcvBuf()
+int Socket::SocketPriv::GetSockOptRcvBuf() const
 {
   int ret;
   auto size = static_cast<socklen_t>(sizeof(ret));
@@ -247,7 +247,7 @@ int Socket::SocketPriv::GetSockOptRcvBuf()
   return ret;
 }
 
-std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName()
+std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 
@@ -259,7 +259,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName()
   return sas;
 }
 
-std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName()
+std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 

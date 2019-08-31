@@ -61,9 +61,9 @@ struct Socket::SocketPriv
   void SetSockOpt(int id,
                   int value,
                   char const *name);
-  int GetSockOptRcvBuf();
-  std::shared_ptr<SockAddrStorage> GetSockName();
-  std::shared_ptr<SockAddrStorage> GetPeerName();
+  int GetSockOptRcvBuf() const;
+  std::shared_ptr<SockAddrStorage> GetSockName() const;
+  std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
   /// @return  0: timed out, <0: fd closed, >0: readable/writable
   int SelectRead(Time timeout);
