@@ -4,7 +4,6 @@
 
 #include <iphlpapi.h> // for ::GetAdaptersInfo
 
-#include <cstring> // for std::memcpy
 #include <stdexcept> // for std::runtime_error
 
 namespace sockpuppet {
@@ -83,11 +82,9 @@ SocketAddress::SocketAddressPriv::LocalAddresses()
   const SockAddrInfo sockAddr("..localmachine");
 
   for(auto it = sockAddr.info.get(); it != nullptr; it = it->ai_next) {
-    auto sas = std::make_shared<SockAddrStorage>();
-    sas->size = static_cast<socklen_t>(it->ai_addrlen);
-    std::memcpy(sas->Addr(), it->ai_addr, static_cast<size_t>(sas->size));
-    sas->storage.ss_family = static_cast<decltype(sas->storage.ss_family)>(it->ai_family);
-    ret.emplace_back(std::move(sas));
+    ret.emplace_back(std::make_shared<SockAddrStorage>(
+                       it->ai_addr,
+                       it->ai_addrlen));
   }
 
   return ret;

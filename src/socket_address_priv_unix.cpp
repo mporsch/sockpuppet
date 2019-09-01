@@ -31,7 +31,16 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
   // get a list of local machine interface addresses
   auto const ifAddrs = GetIfAddrs();
 
-  auto const host = Host();
+  auto const sockAddr = ForUdp();
+
+  auto isSameHost = [](sockaddr const *lhs, sockaddr const *rhs) -> bool {
+    return (reinterpret_cast<sockaddr_in const *>(lhs)->sin_addr.s_addr
+            == reinterpret_cast<sockaddr_in const *>(rhs)->sin_addr.s_addr);
+  };
+
+  auto setPort = [](sockaddr *out, uint16_t port) {
+    reinterpret_cast<sockaddr_in *>(out)->sin_port = htons(port);
+  };
 
   for(auto it = ifAddrs.get(); it != nullptr; it = it->ifa_next) {
     if((it->ifa_addr != nullptr) &&
@@ -39,13 +48,13 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
        (it->ifa_addr->sa_family == AF_INET) &&
        ((it->ifa_flags & IFF_LOOPBACK) == 0) &&
        ((it->ifa_flags & IFF_BROADCAST) != 0)) {
-      auto sas = std::make_shared<SockAddrStorage>();
-      sas->size = static_cast<socklen_t>(sizeof(sockaddr_in));
-      std::memcpy(sas->Addr(), it->ifa_addr, sas->size);
+      if(isSameHost(it->ifa_addr, sockAddr.addr)) {
+        auto sas = std::make_shared<SockAddrStorage>(
+                     it->ifa_ifu.ifu_broadaddr,
+                     sockAddr.addrLen);
+        setPort(sas->Addr(), port);
 
-      if(sas->Host() == host) {
-        std::memcpy(sas->Addr(), it->ifa_ifu.ifu_broadaddr, sas->size);
-        return SocketAddress(sas->Host(), std::to_string(port));
+        return SocketAddress(std::move(sas));
       }
     }
   }
@@ -66,12 +75,11 @@ SocketAddress::SocketAddressPriv::LocalAddresses()
     if((it->ifa_addr != nullptr) &&
        (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
        ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
-      auto sas = std::make_shared<SockAddrStorage>();
-      sas->size = static_cast<socklen_t>(it->ifa_addr->sa_family == AF_INET ?
-                                           sizeof(sockaddr_in) :
-                                           sizeof(sockaddr_in6));
-      std::memcpy(sas->Addr(), it->ifa_addr, sas->size);
-      ret.emplace_back(std::move(sas));
+      ret.emplace_back(std::make_shared<SockAddrStorage>(
+                         it->ifa_addr,
+                         it->ifa_addr->sa_family == AF_INET ?
+                           sizeof(sockaddr_in) :
+                           sizeof(sockaddr_in6)));
     }
   }
 

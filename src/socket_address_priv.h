@@ -96,6 +96,7 @@ struct SockAddrStorage : public SocketAddress::SocketAddressPriv
   socklen_t size;
 
   SockAddrStorage();
+  SockAddrStorage(sockaddr const *addr, size_t addrLen);
 
   sockaddr *Addr();
   socklen_t *AddrLen();

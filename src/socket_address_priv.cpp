@@ -291,6 +291,13 @@ SockAddrStorage::SockAddrStorage()
 {
 }
 
+SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
+  : storage{}
+  , size(static_cast<socklen_t>(addrLen))
+{
+  std::memcpy(&storage, addr, size);
+}
+
 sockaddr *SockAddrStorage::Addr()
 {
   return reinterpret_cast<sockaddr *>(&storage);
