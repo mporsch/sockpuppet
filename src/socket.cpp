@@ -10,6 +10,20 @@
 
 namespace sockpuppet {
 
+SocketAddress Socket::LocalAddress() const
+{
+  return SocketAddress(m_priv->GetSockName());
+}
+
+size_t Socket::ReceiveBufferSize() const
+{
+  auto const size = m_priv->GetSockOptRcvBuf();
+  if(size < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(size);
+}
+
 Socket::Socket(std::unique_ptr<SocketPriv> &&other)
   : m_priv(std::move(other))
 {
@@ -26,20 +40,6 @@ Socket &Socket::operator=(Socket &&other) noexcept
 {
   m_priv = std::move(other.m_priv);
   return *this;
-}
-
-SocketAddress Socket::LocalAddress() const
-{
-  return SocketAddress(m_priv->GetSockName());
-}
-
-size_t Socket::ReceiveBufferSize() const
-{
-  auto const size = m_priv->GetSockOptRcvBuf();
-  if(size < 0) {
-    throw std::logic_error("invalid receive buffer size");
-  }
-  return static_cast<size_t>(size);
 }
 
 
@@ -105,6 +105,11 @@ SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   m_priv->Connect(connectAddress.Priv().ForTcp());
 }
 
+SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
+  : Socket(std::move(other))
+{
+}
+
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
   : Socket(std::move(other))
 {
@@ -128,9 +133,9 @@ size_t SocketTcpClient::Receive(char *data, size_t size, Time timeout)
   return m_priv->Receive(data, size, timeout);
 }
 
-SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
-  : Socket(std::move(other))
+SocketAddress SocketTcpClient::PeerAddress() const
 {
+  return SocketAddress(m_priv->GetPeerName());
 }
 
 

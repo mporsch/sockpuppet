@@ -25,6 +25,15 @@ public:
   using SocketBufferPool = ResourcePool<SocketBuffer>;
   using SocketBufferPtr = SocketBufferPool::ResourcePtr;
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress LocalAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  size_t ReceiveBufferSize() const;
+
   struct SocketBufferedPriv;
 
 protected:
@@ -119,6 +128,10 @@ struct SocketTcpBuffered : public SocketBuffered
   /// @return  May return empty buffer only if timeout is specified.
   /// @throws  If receipt fails or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Time timeout = Time(0U));
+
+  /// Get the remote peer address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress PeerAddress() const;
 };
 
 } // namespace sockpuppet

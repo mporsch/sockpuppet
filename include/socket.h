@@ -124,6 +124,10 @@ struct SocketTcpClient : public Socket
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
+
+  /// Get the remote peer address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress PeerAddress() const;
 };
 
 /// TCP (reliable communication) socket class that is
