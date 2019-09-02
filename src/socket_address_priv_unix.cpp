@@ -14,7 +14,7 @@ namespace  {
   std::unique_ptr<ifaddrs, CDeleter<ifaddrs>> GetIfAddrs()
   {
     ifaddrs *addrsRaw;
-    if(auto const res = ::getifaddrs(&addrsRaw)) {
+    if(::getifaddrs(&addrsRaw)) {
       throw std::runtime_error("failed to get local interface addresses: "
                                + std::string(std::strerror(errno)));
     }
@@ -24,10 +24,6 @@ namespace  {
 
 SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
 {
-  if(IsV6()) {
-    throw std::invalid_argument("there are no IPv6 broadcast addresses");
-  }
-
   // get a list of local machine interface addresses
   auto const ifAddrs = GetIfAddrs();
 

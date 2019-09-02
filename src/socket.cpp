@@ -88,7 +88,13 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
 
 SocketAddress SocketUdp::BroadcastAddress(uint16_t port) const
 {
-  return LocalAddress().Priv().ToBroadcast(port);
+  auto const localAddress = LocalAddress();
+
+  if(localAddress.IsV6()) {
+    throw std::invalid_argument("there are no IPv6 broadcast addresses");
+  }
+
+  return localAddress.Priv().ToBroadcast(port);
 }
 
 

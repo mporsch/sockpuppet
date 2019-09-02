@@ -10,10 +10,6 @@ namespace sockpuppet {
 
 SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
 {
-  if(IsV6()) {
-    throw std::invalid_argument("there are no IPv6 broadcast addresses");
-  }
-
   auto const host = Host();
 
   // GetAdaptersInfo returns IPv4 addresses only
@@ -32,7 +28,7 @@ SocketAddress SocketAddress::SocketAddressPriv::ToBroadcast(uint16_t port) const
         return storage;
       }
     }
-    throw std::runtime_error("failed to get addresses using ::GetAdaptersInfo");
+    throw std::runtime_error("failed to get local interface addresses");
   };
 
   auto const adaptersStorage = getAdaptersInfo();
