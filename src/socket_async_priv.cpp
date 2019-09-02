@@ -1,6 +1,7 @@
 #include "socket_async_priv.h"
 
 #include <cstring> // for std::strerror
+#include <limits> // for std::numeric_limits
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
@@ -42,17 +43,17 @@ SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard() = default;
 
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
-  : pipeToAddr(std::make_shared<SocketAddressAddrinfo>(0))
-  , pipeFrom(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
-  , pipeTo(pipeToAddr->SockAddrUdp().family, SOCK_DGRAM, IPPROTO_UDP)
+  : pipeToAddr(std::make_shared<SockAddrInfo>(0))
+  , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
+  , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , shouldStop(false)
 {
   // bind to system-assigned port number and update address accordingly
-  pipeTo.Bind(pipeToAddr->SockAddrUdp());
+  pipeTo.Bind(pipeToAddr->ForUdp());
   pipeToAddr = pipeTo.GetSockName();
 
-  SocketAddressAddrinfo pipeFromAddr(0);
-  pipeFrom.Bind(pipeFromAddr.SockAddrUdp());
+  SockAddrInfo pipeFromAddr(0);
+  pipeFrom.Bind(pipeFromAddr.ForUdp());
 }
 
 SocketDriver::SocketDriverPriv::~SocketDriverPriv()
@@ -144,7 +145,7 @@ void SocketDriver::SocketDriverPriv::Unregister(
 void SocketDriver::SocketDriverPriv::Bump()
 {
   static char const one = '1';
-  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->SockAddrUdp());
+  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->ForUdp());
 }
 
 void SocketDriver::SocketDriverPriv::Unbump()
@@ -156,7 +157,7 @@ void SocketDriver::SocketDriverPriv::Unbump()
 std::tuple<SOCKET, fd_set, fd_set>
 SocketDriver::SocketDriverPriv::PrepareFds()
 {
-  SOCKET fdMax = -1;
+  auto fdMax = std::numeric_limits<SOCKET>::min();
   fd_set rfds;
   fd_set wfds;
   FD_ZERO(&rfds);
@@ -223,7 +224,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBufferPtr &&buffer)
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-    SocketBufferPtr &&buffer, SockAddr const &dstAddr)
+    SocketBufferPtr &&buffer, SockAddrView const &dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }

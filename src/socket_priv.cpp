@@ -12,7 +12,14 @@
 namespace sockpuppet {
 
 namespace {
-  fd_set ToFdSet(SOCKET fd)
+  static auto const fdInvalid =
+    #ifdef _WIN32
+      INVALID_SOCKET;
+    #else
+      SOCKET(-1);
+    #endif // _WIN32
+
+  fd_set ToFdSet(SOCKET const &fd)
   {
     fd_set fds;
     FD_ZERO(&fds);
@@ -22,12 +29,12 @@ namespace {
 
   void SetInvalid(SOCKET &fd)
   {
-    fd = -1;
+    fd = fdInvalid;
   }
 
   bool IsValid(SOCKET const &fd)
   {
-    return (fd >= 0);
+    return (fd != fdInvalid);
   }
 } // unnamed namespace
 
@@ -83,7 +90,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 
   auto const received = ::recv(fd, data, size, 0);
   if(received > 0) {
-    return received;
+    return static_cast<size_t>(received);
   } else {
     throw std::runtime_error("connection closed");
   }
@@ -107,12 +114,12 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
     }
   }
 
-  auto ss = std::make_shared<SocketAddressStorage>();
+  auto sas = std::make_shared<SockAddrStorage>();
   auto const received = ::recvfrom(fd, data, size, 0,
-                                   ss->Addr(), ss->AddrLen());
+                                   sas->Addr(), sas->AddrLen());
   return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
     received
-  , std::move(ss)
+  , std::move(sas)
   };
 }
 
@@ -139,7 +146,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
 }
 
 void Socket::SocketPriv::SendTo(char const *data, size_t size,
-    SockAddr const &dstAddr)
+    SockAddrView const &dstAddr)
 {
   if(size != ::sendto(fd, data, size, 0,
                       dstAddr.addr, dstAddr.addrLen)) {
@@ -150,7 +157,7 @@ void Socket::SocketPriv::SendTo(char const *data, size_t size,
   }
 }
 
-void Socket::SocketPriv::Connect(SockAddr const &connectAddr)
+void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
     throw std::runtime_error("failed to connect to "
@@ -160,7 +167,7 @@ void Socket::SocketPriv::Connect(SockAddr const &connectAddr)
   }
 }
 
-void Socket::SocketPriv::Bind(SockAddr const &sockAddr)
+void Socket::SocketPriv::Bind(SockAddrView const &sockAddr)
 {
   if(::bind(fd, sockAddr.addr, sockAddr.addrLen)) {
     throw std::runtime_error("failed to bind socket on address "
@@ -193,15 +200,15 @@ Socket::SocketPriv::Accept(Time timeout)
     }
   }
 
-  auto ss = std::make_shared<SocketAddressStorage>();
+  auto sas = std::make_shared<SockAddrStorage>();
 
   auto client = std::make_unique<SocketPriv>(
-    ::accept(fd, ss->Addr(), ss->AddrLen()));
+    ::accept(fd, sas->Addr(), sas->AddrLen()));
 
   return std::tuple<std::unique_ptr<Socket::SocketPriv>,
                     std::shared_ptr<SocketAddress::SocketAddressPriv>>{
     std::move(client)
-  , std::move(ss)
+  , std::move(sas)
   };
 }
 
@@ -227,7 +234,7 @@ void Socket::SocketPriv::SetSockOpt(int id, int value,
   }
 }
 
-int Socket::SocketPriv::GetSockOptRcvBuf()
+int Socket::SocketPriv::GetSockOptRcvBuf() const
 {
   int ret;
   auto size = static_cast<socklen_t>(sizeof(ret));
@@ -240,28 +247,28 @@ int Socket::SocketPriv::GetSockOptRcvBuf()
   return ret;
 }
 
-std::shared_ptr<SocketAddressStorage> Socket::SocketPriv::GetSockName()
+std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
 {
-  auto ss = std::make_shared<SocketAddressStorage>();
+  auto sas = std::make_shared<SockAddrStorage>();
 
-  if (::getsockname(fd, ss->Addr(), ss->AddrLen())) {
+  if (::getsockname(fd, sas->Addr(), sas->AddrLen())) {
     throw std::runtime_error("failed to get socket address: "
                              + std::string(std::strerror(errno)));
   }
 
-  return ss;
+  return sas;
 }
 
-std::shared_ptr<SocketAddressStorage> Socket::SocketPriv::GetPeerName()
+std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
 {
-  auto ss = std::make_shared<SocketAddressStorage>();
+  auto sas = std::make_shared<SockAddrStorage>();
 
-  if (::getpeername(fd, ss->Addr(), ss->AddrLen())) {
+  if (::getpeername(fd, sas->Addr(), sas->AddrLen())) {
     throw std::runtime_error("failed to get peer address: "
                              + std::string(std::strerror(errno)));
   }
 
-  return ss;
+  return sas;
 }
 
 int Socket::SocketPriv::SelectRead(Time timeout)

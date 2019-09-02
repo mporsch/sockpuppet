@@ -58,8 +58,8 @@ add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test)
 add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test)
 add_test(NAME sockpuppet_udp_async_test COMMAND sockpuppet_udp_async_test)
 add_test(NAME sockpuppet_tcp_async_test COMMAND sockpuppet_tcp_async_test)
-add_custom_target(run_tests
-  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --verbose
+
+add_custom_target(build_tests
   DEPENDS sockpuppet_address_test
           sockpuppet_udp_test
           sockpuppet_tcp_test
@@ -67,6 +67,11 @@ add_custom_target(run_tests
           sockpuppet_tcp_buffered_test
           sockpuppet_udp_async_test
           sockpuppet_tcp_async_test
+)
+
+add_custom_target(run_tests
+  COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> --verbose
+  DEPENDS build_tests
 )
 
 install(TARGETS sockpuppet_address_test DESTINATION bin)

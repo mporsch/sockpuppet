@@ -21,10 +21,14 @@ class Socket
 public:
   using Time = std::chrono::duration<uint32_t, std::micro>;
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress LocalAddress() const;
+
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
   /// This might be much more than the ~1500 bytes expected.
-  size_t GetReceiveBufferSize();
+  size_t ReceiveBufferSize() const;
 
   struct SocketPriv;
 
@@ -114,6 +118,10 @@ struct SocketTcpClient : public Socket
   size_t Receive(char *data,
                  size_t size,
                  Time timeout = Time(0U));
+
+  /// Get the remote peer address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress PeerAddress() const;
 };
 
 /// TCP (reliable communication) socket class that is

@@ -17,10 +17,10 @@ namespace {
 
   bool IsNumeric(std::string const &host)
   {
-    return (std::count(std::begin(host), std::end(host), ':') > 1U);
+    return (std::count(std::begin(host), std::end(host), ':') > 1);
   }
 
-  SocketAddressAddrinfo::AddrInfoPtr ParseUri(std::string const &uri)
+  SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
   {
     if(uri.empty()) {
       throw std::invalid_argument("empty uri");
@@ -91,17 +91,46 @@ namespace {
       hints.ai_flags = AI_PASSIVE |
           (isNumericHost ? AI_NUMERICHOST : 0) |
           (isNumericServ ? AI_NUMERICSERV : 0);
-      if(auto const result = getaddrinfo(host.c_str(), serv.c_str(),
-                                         &hints, &info)) {
+      if(auto const result = ::getaddrinfo(
+           host.c_str(), serv.c_str(),
+           &hints, &info)) {
         throw std::runtime_error("failed to parse address \""
                                  + uri + "\": "
-                                 + gai_strerror(result));
+                                 + ::gai_strerror(result));
       }
     }
-    return SocketAddressAddrinfo::AddrInfoPtr(info);
+    return make_unique(info, ::freeaddrinfo);
   }
 
-  SocketAddressAddrinfo::AddrInfoPtr ParsePort(std::string const &port)
+  SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
+      std::string const &serv)
+  {
+    if(host.empty()) {
+      throw std::invalid_argument("empty host");
+    } else if(serv.empty()) {
+      throw std::invalid_argument("empty service");
+    }
+
+    addrinfo *info;
+    {
+      SocketGuard guard;
+
+      addrinfo hints{};
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_flags = AI_PASSIVE;
+      if(auto const result = ::getaddrinfo(
+           host.c_str(), serv.c_str(),
+           &hints, &info)) {
+        throw std::runtime_error("failed to parse host/port \""
+                                 + host + "\", \""
+                                 + serv + "\": "
+                                 + ::gai_strerror(result));
+      }
+    }
+    return make_unique(info, ::freeaddrinfo);
+  }
+
+  SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
   {
     SocketGuard guard;
 
@@ -109,63 +138,109 @@ namespace {
     hints.ai_family = AF_INET; // force IPv4 here
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
     addrinfo *info;
-    if(auto const result = getaddrinfo("localhost", port.c_str(),
-                                       &hints, &info)) {
+    if(auto const result = ::getaddrinfo(
+         "localhost", port.c_str(),
+         &hints, &info)) {
       throw std::runtime_error("failed to parse port "
                                + port + ": "
-                               + gai_strerror(result));
+                               + ::gai_strerror(result));
     }
-    return SocketAddressAddrinfo::AddrInfoPtr(info);
+    return make_unique(info, ::freeaddrinfo);
   }
 } // unnamed namespace
 
-bool operator<(SockAddr const &lhs,
-               SockAddr const &rhs)
+bool SockAddrView::operator<(SockAddrView const &other) const
 {
-  if(lhs.family < rhs.family) {
+  if(addrLen < other.addrLen) {
     return true;
-  } else if(lhs.family > rhs.family) {
+  } else if(addrLen > other.addrLen) {
     return false;
   } else {
-    if(lhs.addrLen < rhs.addrLen) {
-      return true;
-    } else if(lhs.addrLen > rhs.addrLen) {
-      return false;
-    } else {
-      auto const cmp = std::memcmp(lhs.addr, rhs.addr,
-                                   static_cast<size_t>(lhs.addrLen));
-      return (cmp < 0);
-    }
+    auto const cmp = std::memcmp(addr, other.addr,
+      static_cast<size_t>(addrLen));
+    return (cmp < 0);
   }
 }
 
 
 SocketAddress::SocketAddressPriv::~SocketAddressPriv() = default;
 
-bool operator<(SocketAddress::SocketAddressPriv const &lhs,
-               SocketAddress::SocketAddressPriv const &rhs)
+std::string SocketAddress::SocketAddressPriv::Host() const
 {
-  return (lhs.SockAddrUdp() < rhs.SockAddrUdp());
+  SocketGuard guard;
+
+  auto const sockAddr = ForUdp();
+
+  char host[NI_MAXHOST];
+  if(auto const result = ::getnameinfo(
+      sockAddr.addr, sockAddr.addrLen,
+      host, sizeof(host),
+      nullptr, 0,
+      NI_NUMERICHOST)) {
+    throw std::runtime_error(std::string("failed to print host: ")
+                             + ::gai_strerror(result));
+  }
+
+  return std::string(host);
+}
+
+std::string SocketAddress::SocketAddressPriv::Service() const
+{
+  SocketGuard guard;
+
+  auto const sockAddr = ForUdp();
+
+  char service[NI_MAXSERV];
+  if(auto const result = ::getnameinfo(
+      sockAddr.addr, sockAddr.addrLen,
+      nullptr, 0,
+      service, sizeof(service),
+      NI_NUMERICSERV)) {
+    throw std::runtime_error(std::string("failed to print service: ")
+                             + ::gai_strerror(result));
+  }
+
+  return std::string(service);
+}
+
+uint16_t SocketAddress::SocketAddressPriv::Port() const
+{
+  auto const sockAddr = ForUdp();
+
+  return ntohs(IsV6() ?
+      reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
+      reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port);
+}
+
+bool SocketAddress::SocketAddressPriv::IsV6() const
+{
+  return (Family() == AF_INET6);
+}
+
+bool SocketAddress::SocketAddressPriv::operator<(
+    SocketAddressPriv const &other) const
+{
+  return (ForUdp() < other.ForUdp());
 }
 
 
-void SocketAddressAddrinfo::AddrInfoDeleter::operator()(addrinfo *ptr)
-{
-  freeaddrinfo(ptr);
-}
-
-
-SocketAddressAddrinfo::SocketAddressAddrinfo(std::string const &uri)
+SockAddrInfo::SockAddrInfo(std::string const &uri)
   : info(ParseUri(uri))
 {
 }
 
-SocketAddressAddrinfo::SocketAddressAddrinfo(uint16_t port)
+SockAddrInfo::SockAddrInfo(const std::string &host,
+    const std::string &serv)
+  : info(ParseHostServ(host, serv))
+{
+}
+
+SockAddrInfo::SockAddrInfo(uint16_t port)
   : info(ParsePort(std::to_string(port)))
 {
 }
 
-addrinfo const *SocketAddressAddrinfo::Find(int type, int protocol) const
+addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 {
   // windows does not explicitly set socktype/protocol, unix does
   for(auto it = info.get(); it != nullptr; it = it->ai_next) {
@@ -177,33 +252,31 @@ addrinfo const *SocketAddressAddrinfo::Find(int type, int protocol) const
   return nullptr;
 }
 
-SockAddr SocketAddressAddrinfo::SockAddrTcp() const
+SockAddrView SockAddrInfo::ForTcp() const
 {
   if(auto const it = Find(SOCK_STREAM, IPPROTO_TCP)) {
-    return SockAddr{
+    return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
-    , it->ai_family
     };
   } else {
     throw std::logic_error("address is not valid for TCP");
   }
 }
 
-SockAddr SocketAddressAddrinfo::SockAddrUdp() const
+SockAddrView SockAddrInfo::ForUdp() const
 {
   if(auto const it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
-    return SockAddr{
+    return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
-    , it->ai_family
     };
   } else {
     throw std::logic_error("address is not valid for UDP");
   }
 }
 
-int SocketAddressAddrinfo::Family() const
+int SockAddrInfo::Family() const
 {
   // return the family of the first resolved addrinfo
   // in case the provided address was ambiguous,
@@ -212,57 +285,69 @@ int SocketAddressAddrinfo::Family() const
 }
 
 
-SocketAddressStorage::SocketAddressStorage()
+SockAddrStorage::SockAddrStorage()
   : storage{}
   , size(sizeof(storage))
 {
 }
 
-sockaddr *SocketAddressStorage::Addr()
+SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
+  : storage{}
+  , size(static_cast<socklen_t>(addrLen))
+{
+  std::memcpy(&storage, addr, size);
+}
+
+sockaddr *SockAddrStorage::Addr()
 {
   return reinterpret_cast<sockaddr *>(&storage);
 }
 
-socklen_t *SocketAddressStorage::AddrLen()
+socklen_t *SockAddrStorage::AddrLen()
 {
   return &size;
 }
 
-SockAddr SocketAddressStorage::SockAddrTcp() const
+SockAddrView SockAddrStorage::ForTcp() const
 {
-  return SockAddr{
+  return SockAddrView{
     reinterpret_cast<sockaddr const *>(&storage)
   , size
-  , storage.ss_family
   };
 }
 
-SockAddr SocketAddressStorage::SockAddrUdp() const
+SockAddrView SockAddrStorage::ForUdp() const
 {
-  return SockAddrTcp();
+  return ForTcp();
 }
 
-int SocketAddressStorage::Family() const
+int SockAddrStorage::Family() const
 {
   return storage.ss_family;
 }
 
-std::string to_string(SockAddr const &sockAddr)
+
+std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr)
+{
+  return to_string(sockAddr.ForUdp());
+}
+
+std::string to_string(SockAddrView const &sockAddr)
 {
   SocketGuard guard;
 
   char host[NI_MAXHOST];
   char service[NI_MAXSERV];
-  if(auto const result = getnameinfo(
+  if(auto const result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       host, sizeof(host),
       service, sizeof(service),
       NI_NUMERICHOST | NI_NUMERICSERV)) {
     throw std::runtime_error(std::string("failed to print address: ")
-                             + gai_strerror(result));
+                             + ::gai_strerror(result));
   }
 
-  return (sockAddr.family == AF_INET ?
+  return (sockAddr.addr->sa_family == AF_INET ?
     std::string(host) + ":" + service :
     std::string("[") + host + "]" + ":" + service);
 }

@@ -3,6 +3,20 @@
 
 namespace sockpuppet {
 
+SocketAddress SocketBuffered::LocalAddress() const
+{
+  return SocketAddress(m_priv->GetSockName());
+}
+
+size_t SocketBuffered::ReceiveBufferSize() const
+{
+  auto const size = m_priv->GetSockOptRcvBuf();
+  if(size < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(size);
+}
+
 SocketBuffered::SocketBuffered(Socket &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : m_priv(std::make_unique<SocketBufferedPriv>(
@@ -46,7 +60,7 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 void SocketUdpBuffered::SendTo(char const *data, size_t size,
     SocketAddress const &dstAddress)
 {
-  m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
+  m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
 }
 
 SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Time timeout)
@@ -89,6 +103,11 @@ void SocketTcpBuffered::Send(char const *data, size_t size,
 SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Time timeout)
 {
   return m_priv->Receive(timeout);
+}
+
+SocketAddress SocketTcpBuffered::PeerAddress() const
+{
+  return SocketAddress(m_priv->GetPeerName());
 }
 
 } // namespace sockpuppet

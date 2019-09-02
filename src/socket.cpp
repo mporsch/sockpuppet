@@ -10,6 +10,20 @@
 
 namespace sockpuppet {
 
+SocketAddress Socket::LocalAddress() const
+{
+  return SocketAddress(m_priv->GetSockName());
+}
+
+size_t Socket::ReceiveBufferSize() const
+{
+  auto const size = m_priv->GetSockOptRcvBuf();
+  if(size < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(size);
+}
+
 Socket::Socket(std::unique_ptr<SocketPriv> &&other)
   : m_priv(std::move(other))
 {
@@ -28,21 +42,12 @@ Socket &Socket::operator=(Socket &&other) noexcept
   return *this;
 }
 
-size_t Socket::GetReceiveBufferSize()
-{
-  auto const size = m_priv->GetSockOptRcvBuf();
-  if(size < 0) {
-    throw std::logic_error("invalid receive buffer size");
-  }
-  return static_cast<size_t>(size);
-}
-
 
 SocketUdp::SocketUdp(SocketAddress const &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      bindAddress.Priv()->Family(), SOCK_DGRAM, IPPROTO_UDP))
+      bindAddress.Priv().Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
-  m_priv->Bind(bindAddress.Priv()->SockAddrUdp());
+  m_priv->Bind(bindAddress.Priv().ForUdp());
   m_priv->SetSockOptBroadcast();
 }
 
@@ -63,7 +68,7 @@ SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept
 void SocketUdp::SendTo(char const *data, size_t size,
     SocketAddress const &dstAddress)
 {
-  m_priv->SendTo(data, size, dstAddress.Priv()->SockAddrUdp());
+  m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
 }
 
 size_t SocketUdp::Receive(char *data, size_t size, Time timeout)
@@ -84,9 +89,14 @@ std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
 
 SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      connectAddress.Priv()->Family(), SOCK_STREAM, IPPROTO_TCP))
+      connectAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
-  m_priv->Connect(connectAddress.Priv()->SockAddrTcp());
+  m_priv->Connect(connectAddress.Priv().ForTcp());
+}
+
+SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
+  : Socket(std::move(other))
+{
 }
 
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
@@ -112,18 +122,18 @@ size_t SocketTcpClient::Receive(char *data, size_t size, Time timeout)
   return m_priv->Receive(data, size, timeout);
 }
 
-SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
-  : Socket(std::move(other))
+SocketAddress SocketTcpClient::PeerAddress() const
 {
+  return SocketAddress(m_priv->GetPeerName());
 }
 
 
 SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
-      bindAddress.Priv()->Family(), SOCK_STREAM, IPPROTO_TCP))
+      bindAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   m_priv->SetSockOptReuseAddr();
-  m_priv->Bind(bindAddress.Priv()->SockAddrTcp());
+  m_priv->Bind(bindAddress.Priv().ForTcp());
 }
 
 SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept

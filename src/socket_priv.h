@@ -2,7 +2,7 @@
 #define SOCKET_PRIV_H
 
 #include "socket.h" // for Socket
-#include "socket_address_priv.h" // for SockAddr
+#include "socket_address_priv.h" // for SockAddrView
 #include "socket_guard.h" // for SocketGuard
 
 #ifdef _WIN32
@@ -44,11 +44,11 @@ struct Socket::SocketPriv
 
   void SendTo(char const *data,
               size_t size,
-              SockAddr const &dstAddr);
+              SockAddrView const &dstAddr);
 
-  void Bind(SockAddr const &sockAddr);
+  void Bind(SockAddrView const &sockAddr);
 
-  void Connect(SockAddr const &connectAddr);
+  void Connect(SockAddrView const &connectAddr);
 
   void Listen();
 
@@ -61,9 +61,9 @@ struct Socket::SocketPriv
   void SetSockOpt(int id,
                   int value,
                   char const *name);
-  int GetSockOptRcvBuf();
-  std::shared_ptr<SocketAddressStorage> GetSockName();
-  std::shared_ptr<SocketAddressStorage> GetPeerName();
+  int GetSockOptRcvBuf() const;
+  std::shared_ptr<SockAddrStorage> GetSockName() const;
+  std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
   /// @return  0: timed out, <0: fd closed, >0: readable/writable
   int SelectRead(Time timeout);

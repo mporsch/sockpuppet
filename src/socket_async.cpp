@@ -38,6 +38,20 @@ void SocketDriver::Stop()
 }
 
 
+SocketAddress SocketAsync::LocalAddress() const
+{
+  return SocketAddress(m_priv->GetSockName());
+}
+
+size_t SocketAsync::ReceiveBufferSize() const
+{
+  auto const size = m_priv->GetSockOptRcvBuf();
+  if(size < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(size);
+}
+
 SocketAsync::SocketAsync(Socket &&sock,
     SocketDriver &driver, Handlers handlers)
   : m_priv(std::make_unique<SocketAsyncPriv>(
@@ -96,7 +110,7 @@ std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
     SocketAddress const &dstAddress)
 {
   return m_priv->SendTo(std::move(buffer),
-                        dstAddress.Priv()->SockAddrUdp());
+                        dstAddress.Priv().ForUdp());
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept
@@ -142,6 +156,11 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
 std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
 {
   return m_priv->Send(std::move(buffer));
+}
+
+SocketAddress SocketTcpAsyncClient::PeerAddress() const
+{
+  return SocketAddress(m_priv->GetPeerName());
 }
 
 

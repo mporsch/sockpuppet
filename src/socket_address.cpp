@@ -4,12 +4,18 @@
 namespace sockpuppet {
 
 SocketAddress::SocketAddress(std::string const &uri)
-  : m_priv(std::make_shared<SocketAddressAddrinfo>(uri))
+  : m_priv(std::make_shared<SockAddrInfo>(uri))
+{
+}
+
+SocketAddress::SocketAddress(std::string const &host,
+    std::string const &service)
+  : m_priv(std::make_shared<SockAddrInfo>(host, service))
 {
 }
 
 SocketAddress::SocketAddress(uint16_t port)
-  : m_priv(std::make_shared<SocketAddressAddrinfo>(port))
+  : m_priv(std::make_shared<SockAddrInfo>(port))
 {
 }
 
@@ -42,22 +48,48 @@ SocketAddress &SocketAddress::operator=(SocketAddress &&other) noexcept
   return *this;
 }
 
-SocketAddress::SocketAddressPriv const *SocketAddress::Priv() const
+std::string SocketAddress::Host() const
 {
-  return m_priv.get();
+  return Priv().Host();
 }
 
-
-bool operator<(SocketAddress const &lhs, SocketAddress const &rhs)
+std::string SocketAddress::Service() const
 {
-  return (*lhs.Priv() < *rhs.Priv());
+  return Priv().Service();
 }
+
+uint16_t SocketAddress::Port() const
+{
+  return Priv().Port();
+}
+
+bool SocketAddress::IsV6() const
+{
+  return Priv().IsV6();
+}
+
+std::vector<SocketAddress> SocketAddress::LocalAddresses()
+{
+  return SocketAddressPriv::LocalAddresses();
+}
+
+SocketAddress::SocketAddressPriv const &SocketAddress::Priv() const
+{
+  if(!m_priv) {
+    throw std::logic_error("invalid address");
+  }
+  return *m_priv.get();
+}
+
+bool SocketAddress::operator<(SocketAddress const &other) const
+{
+  return (Priv() < other.Priv());
+}
+
 
 std::string to_string(SocketAddress const &addr)
 {
-  return (addr.Priv() ?
-    to_string(addr.Priv()->SockAddrUdp()) :
-    "invalid");
+  return to_string(addr.Priv());
 }
 
 } // namespace sockpuppet

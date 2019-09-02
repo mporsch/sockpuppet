@@ -68,6 +68,15 @@ public:
     void(SocketAddress)
   >;
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress LocalAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  size_t ReceiveBufferSize() const;
+
   struct SocketAsyncPriv;
 
 protected:
@@ -158,6 +167,10 @@ struct SocketTcpAsyncClient : public SocketAsync
   /// Enqueue data to reliably send to connected peer.
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> Send(SocketBufferPtr &&buffer);
+
+  /// Get the remote peer address of the socket.
+  /// @throws  If the address lookup fails.
+  SocketAddress PeerAddress() const;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
