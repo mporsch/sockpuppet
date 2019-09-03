@@ -83,6 +83,12 @@ struct SocketUdp : public Socket
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Time timeout = Time(0U));
+
+  /// Get the broadcast address of the socket's network.
+  /// @param  port  Port number.
+  /// @throws  In the case of an IPv6 socket that has no concept of a broadcast address
+  ///          or if the address lookup fails.
+  SocketAddress BroadcastAddress(uint16_t port = 0U) const;
 };
 
 /// TCP (reliable communication) socket class that is either

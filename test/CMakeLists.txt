@@ -50,6 +50,13 @@ else()
   target_link_libraries(sockpuppet_tcp_async_test sockpuppet)
 endif()
 
+add_executable(sockpuppet_broadcast_test sockpuppet_broadcast_test.cpp)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  target_link_libraries(sockpuppet_broadcast_test sockpuppet pthread)
+else()
+  target_link_libraries(sockpuppet_broadcast_test sockpuppet)
+endif()
+
 enable_testing()
 add_test(NAME sockpuppet_address_test COMMAND sockpuppet_address_test)
 add_test(NAME sockpuppet_udp_test COMMAND sockpuppet_udp_test)
@@ -58,6 +65,10 @@ add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test)
 add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test)
 add_test(NAME sockpuppet_udp_async_test COMMAND sockpuppet_udp_async_test)
 add_test(NAME sockpuppet_tcp_async_test COMMAND sockpuppet_tcp_async_test)
+if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  # broadcast loopback is not active by default in Linux which causes this test to fail
+  add_test(NAME sockpuppet_broadcast_test COMMAND sockpuppet_broadcast_test)
+endif()
 
 add_custom_target(build_tests
   DEPENDS sockpuppet_address_test
@@ -67,6 +78,7 @@ add_custom_target(build_tests
           sockpuppet_tcp_buffered_test
           sockpuppet_udp_async_test
           sockpuppet_tcp_async_test
+          sockpuppet_broadcast_test
 )
 
 add_custom_target(run_tests
@@ -81,3 +93,4 @@ install(TARGETS sockpuppet_udp_buffered_test DESTINATION bin)
 install(TARGETS sockpuppet_tcp_buffered_test DESTINATION bin)
 install(TARGETS sockpuppet_udp_async_test DESTINATION bin)
 install(TARGETS sockpuppet_tcp_async_test DESTINATION bin)
+install(TARGETS sockpuppet_broadcast_test DESTINATION bin)
