@@ -108,6 +108,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   bool DriverDoFdTask(pollfd const &pfd);
   void DriverDoFdTaskReadable();
   void DriverDoFdTaskWritable();
+  void DriverDoFdTaskError();
 };
 
 } // namespace sockpuppet

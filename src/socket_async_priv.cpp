@@ -100,6 +100,8 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
   if(polls.back().revents & POLLIN) {
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
+  } else if(polls.back().revents != 0) {
+    throw std::logic_error("unexpected signalling socket poll result");
   } else {
     polls.pop_back();
     DoOneFdTask(polls);
@@ -203,6 +205,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
   driver->Register(*this);
 
   if(handlers.disconnect) {
+    // cache remote address as it will be unavailable after disconnect
     peerAddr = this->GetPeerName();
   }
 }
@@ -269,11 +272,14 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(pollfd const &pfd)
 {
   assert(pfd.fd == this->fd);
 
-  if(pfd.revents & (POLLIN | POLLHUP)) {
+  if(pfd.revents & POLLIN) {
     DriverDoFdTaskReadable();
     return true;
   } else if(pfd.revents & POLLOUT) {
     DriverDoFdTaskWritable();
+    return true;
+  } else if(pfd.revents & (POLLHUP | POLLERR)) {
+    DriverDoFdTaskError();
     return true;
   }
   return false;
@@ -298,9 +304,7 @@ try {
     throw std::logic_error("no read handler");
   }
 } catch(std::runtime_error const &) {
-  if(handlers.disconnect) {
-    handlers.disconnect(SocketAddress(peerAddr));
-  }
+  DriverDoFdTaskError();
 }
 
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
@@ -338,6 +342,13 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
     }
   } else {
     throw std::logic_error("send buffer emptied unexpectedly");
+  }
+}
+
+void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
+{
+  if(handlers.disconnect) {
+    handlers.disconnect(SocketAddress(peerAddr));
   }
 }
 
