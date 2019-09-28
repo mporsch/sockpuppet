@@ -19,14 +19,27 @@ namespace {
       SOCKET(-1);
     #endif // _WIN32
 
-  void SetInvalid(SOCKET &fd)
+  void CloseSocket(SOCKET fd)
   {
-    fd = fdInvalid;
+#ifdef _WIN32
+    (void)closesocket(fd);
+#else
+    (void)::close(fd);
+#endif // _WIN32
   }
 
-  bool IsValid(SOCKET const &fd)
+  int Poll(pollfd pfd, Socket::Time timeout)
   {
-    return (fd != fdInvalid);
+    using namespace std::chrono;
+
+    auto const msec = static_cast<int>(
+          duration_cast<milliseconds>(timeout).count());
+
+#ifdef _WIN32
+    return ::WSAPoll(&pfd, 1U, msec);
+#else
+    return ::poll(&pfd, 1U, msec);
+#endif // _WIN32
   }
 } // unnamed namespace
 
@@ -34,7 +47,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
   : socketGuard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
 {
-  if(!IsValid(fd)) {
+  if(fd == fdInvalid) {
     throw std::runtime_error("failed to create socket: "
                              + std::string(std::strerror(errno)));
   }
@@ -43,7 +56,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
 Socket::SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
 {
-  if(!IsValid(fd)) {
+  if(fd == fdInvalid) {
     throw std::runtime_error("failed to create socket: "
                              + std::string(std::strerror(errno)));
   }
@@ -52,17 +65,13 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
 Socket::SocketPriv::SocketPriv(SocketPriv &&other) noexcept
   : fd(other.fd)
 {
-  SetInvalid(other.fd);
+  other.fd = fdInvalid;
 }
 
 Socket::SocketPriv::~SocketPriv()
 {
-  if(IsValid(fd)) {
-#ifdef _WIN32
-    (void)closesocket(fd);
-#else
-    (void)::close(fd);
-#endif // _WIN32
+  if(fd != fdInvalid) {
+    CloseSocket(fd);
   }
 }
 
@@ -263,30 +272,14 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   return sas;
 }
 
-int Socket::SocketPriv::PollRead(Time timeout)
+int Socket::SocketPriv::PollRead(Time timeout) const
 {
-  pollfd pfd = {fd, POLLIN, 0};
-  return Poll(pfd, timeout);
+  return Poll(pollfd{fd, POLLIN, 0}, timeout);
 }
 
-int Socket::SocketPriv::PollWrite(Time timeout)
+int Socket::SocketPriv::PollWrite(Time timeout) const
 {
-  pollfd pfd = {fd, POLLOUT, 0};
-  return Poll(pfd, timeout);
-}
-
-int Socket::SocketPriv::Poll(pollfd &pfd, Time timeout)
-{
-  using namespace std::chrono;
-
-  auto const msec = static_cast<int>(
-        duration_cast<milliseconds>(timeout).count());
-
-#ifdef _WIN32
-  return ::WSAPoll(&pfd, 1U, msec);
-#else
-  return ::poll(&pfd, 1U, msec);
-#endif // _WIN32
+  return Poll(pollfd{fd, POLLOUT, 0}, timeout);
 }
 
 } // namespace sockpuppet

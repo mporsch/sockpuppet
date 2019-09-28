@@ -66,9 +66,8 @@ struct Socket::SocketPriv
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
   /// @return  0: timed out, <0: error, >0: readable/writable/closed
-  int PollRead(Time timeout);
-  int PollWrite(Time timeout);
-  int Poll(pollfd &pfd, Time timeout);
+  int PollRead(Time timeout) const;
+  int PollWrite(Time timeout) const;
 };
 
 } // namespace sockpuppet

@@ -9,7 +9,7 @@
 namespace sockpuppet {
 
 namespace {
-  int poll(std::vector<pollfd> &polls, int timeoutMs)
+  int Poll(std::vector<pollfd> &polls, int timeoutMs)
   {
 #ifdef _WIN32
     return ::WSAPoll(polls.data(),
@@ -84,9 +84,9 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
 {
   StepGuard guard(*this);
 
-  auto polls = PrepareFds();
+  auto pfds = PrepareFds();
 
-  if(auto const result = poll(polls, timeoutMs)) {
+  if(auto const result = Poll(pfds, timeoutMs)) {
     if(result < 0) {
       throw std::runtime_error("poll failed: "
                                + std::string(std::strerror(errno)));
@@ -97,14 +97,14 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
   }
 
   // one or more sockets is readable/writable
-  if(polls.back().revents & POLLIN) {
+  if(pfds.back().revents & POLLIN) {
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
-  } else if(polls.back().revents != 0) {
+  } else if(pfds.back().revents != 0) {
     throw std::logic_error("unexpected signalling socket poll result");
   } else {
-    polls.pop_back();
-    DoOneFdTask(polls);
+    pfds.pop_back();
+    DoOneFdTask(pfds);
   }
 }
 
