@@ -29,7 +29,7 @@ struct SocketDriver::SocketDriverPriv
   struct StepGuard
   {
     std::unique_lock<std::recursive_mutex> stepLock;
-    std::unique_lock<std::recursive_mutex> pauseLock;
+    std::unique_lock<std::mutex> pauseLock;
 
     StepGuard(SocketDriverPriv &priv);
     StepGuard(StepGuard const &) = delete;
@@ -40,7 +40,6 @@ struct SocketDriver::SocketDriverPriv
   struct PauseGuard
   {
     std::unique_lock<std::recursive_mutex> stepLock;
-    std::unique_lock<std::recursive_mutex> pauseLock;
 
     PauseGuard(SocketDriverPriv &priv);
     PauseGuard(PauseGuard const &) = delete;
@@ -48,13 +47,16 @@ struct SocketDriver::SocketDriverPriv
     ~PauseGuard();
   };
 
+  /// internal signalling pipe for cancelling Step()
   std::shared_ptr<SocketAddress::SocketAddressPriv> pipeToAddr;
   Socket::SocketPriv pipeFrom;
   Socket::SocketPriv pipeTo;
+
   std::recursive_mutex stepMtx;
-  std::recursive_mutex pauseMtx;
+  std::mutex pauseMtx;
   std::vector<SocketRef> sockets; // guarded by stepMtx
-  std::atomic<bool> shouldStop;
+
+  std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
   SocketDriverPriv();
   ~SocketDriverPriv();

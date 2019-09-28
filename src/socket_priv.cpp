@@ -22,7 +22,7 @@ namespace {
   void CloseSocket(SOCKET fd)
   {
 #ifdef _WIN32
-    (void)closesocket(fd);
+    (void)::closesocket(fd);
 #else
     (void)::close(fd);
 #endif // _WIN32

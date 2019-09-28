@@ -27,21 +27,29 @@ SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
   : stepLock(priv.stepMtx)
   , pauseLock(priv.pauseMtx, std::defer_lock)
 {
+  // block until acquiring step mutex, keep locked during life time
+  // do not acquire pause mutex yet
 }
 
 SocketDriver::SocketDriverPriv::StepGuard::~StepGuard()
 {
+  // release step mutex
   stepLock.unlock();
+
+  // briefly acquire pause mutex
+  // to allow exchanging step mutex with PauseGuard
   pauseLock.lock();
 }
 
 
 SocketDriver::SocketDriverPriv::PauseGuard::PauseGuard(SocketDriverPriv &priv)
   : stepLock(priv.stepMtx, std::defer_lock)
-  , pauseLock(priv.pauseMtx, std::defer_lock)
 {
+  // try to acquire step mutex
   if(!stepLock.try_lock()) {
-    pauseLock.lock();
+    // on failure, do a handshake with StepGuard for step mutex
+    // using pause mutex and signalling pipe
+    std::lock_guard<std::mutex> pauseLock(priv.pauseMtx);
     priv.Bump();
     stepLock.lock();
   }
@@ -84,6 +92,7 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
 {
   StepGuard guard(*this);
 
+  // the last file descriptor is the internal signalling pipe
   auto pfds = PrepareFds();
 
   if(auto const result = Poll(pfds, timeoutMs)) {
@@ -98,10 +107,10 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
 
   // one or more sockets is readable/writable
   if(pfds.back().revents & POLLIN) {
-    // a readable signalling socket triggers re-evaluating the sockets
+    // a readable signalling pipe triggers re-evaluating the sockets
     Unbump();
   } else if(pfds.back().revents != 0) {
-    throw std::logic_error("unexpected signalling socket poll result");
+    throw std::logic_error("unexpected signalling pipe poll result");
   } else {
     pfds.pop_back();
     DoOneFdTask(pfds);
@@ -165,11 +174,11 @@ std::vector<pollfd> SocketDriver::SocketDriverPriv::PrepareFds()
         std::begin(sockets),
         std::end(sockets),
         std::back_inserter(ret),
-        [](decltype(sockets)::value_type sock) -> pollfd {
+        [](SocketRef sock) -> pollfd {
     return sock.get().DriverPrepareFd();
   });
 
-  // set the signalling socket file descriptor
+  // set the signalling pipe file descriptor
   ret.emplace_back(pollfd{pipeTo.fd, POLLIN, 0});
 
   return ret;
