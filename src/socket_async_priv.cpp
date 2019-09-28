@@ -1,17 +1,25 @@
 #include "socket_async_priv.h"
 
+#include <algorithm> // for std::transform
+#include <cassert> // for assert
 #include <cstring> // for std::strerror
-#include <limits> // for std::numeric_limits
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
 namespace sockpuppet {
 
 namespace {
-  void FillFdSet(SOCKET &fdMax, fd_set &fds, SOCKET fd)
+  int poll(std::vector<pollfd> &polls, int timeoutMs)
   {
-    fdMax = std::max(fdMax, fd);
-    FD_SET(fd, &fds);
+#ifdef _WIN32
+    return ::WSAPoll(polls.data(),
+                     static_cast<ULONG>(polls.size()),
+                     timeoutMs);
+#else
+    return ::poll(polls.data(),
+                  static_cast<nfds_t>(polls.size()),
+                  timeoutMs);
+#endif
   }
 } // unnamed namespace
 
@@ -63,34 +71,24 @@ SocketDriver::SocketDriverPriv::~SocketDriverPriv()
 
 void SocketDriver::SocketDriverPriv::Step(SocketBuffered::Time timeout)
 {
+  using namespace std::chrono;
+
   if(timeout.count() > 0U) {
-    auto tv = Socket::SocketPriv::ToTimeval(timeout);
-    Step(&tv);
+    Step(static_cast<int>(duration_cast<milliseconds>(timeout).count()));
   } else {
-    Step(nullptr);
+    Step();
   }
 }
 
-void SocketDriver::SocketDriverPriv::Step(timeval *tv)
+void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
 {
   StepGuard guard(*this);
 
-  auto t = PrepareFds();
-  auto &&fdMax = std::get<0>(t);
-  auto &&rfds = std::get<1>(t);
-  auto &&wfds = std::get<2>(t);
+  auto polls = PrepareFds();
 
-  // unix expects the first ::select parameter to be the
-  // highest-numbered file descriptor in any of the three sets, plus 1
-  // windows ignores the parameter
-
-  if(auto const result = ::select(static_cast<int>(fdMax + 1),
-                                  &rfds,
-                                  &wfds,
-                                  nullptr,
-                                  tv)) {
+  if(auto const result = poll(polls, timeoutMs)) {
     if(result < 0) {
-      throw std::runtime_error("select failed: "
+      throw std::runtime_error("poll failed: "
                                + std::string(std::strerror(errno)));
     }
   } else {
@@ -99,18 +97,19 @@ void SocketDriver::SocketDriverPriv::Step(timeval *tv)
   }
 
   // one or more sockets is readable/writable
-  if(FD_ISSET(pipeTo.fd, &rfds)) {
+  if(polls.back().revents & POLLIN) {
     // a readable signalling socket triggers re-evaluating the sockets
     Unbump();
   } else {
-    DoOneFdTask(rfds, wfds);
+    polls.pop_back();
+    DoOneFdTask(polls);
   }
 }
 
 void SocketDriver::SocketDriverPriv::Run()
 {
   while(!shouldStop) {
-    Step(nullptr);
+    Step();
   }
   shouldStop = false;
 }
@@ -154,36 +153,33 @@ void SocketDriver::SocketDriverPriv::Unbump()
   (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
 }
 
-std::tuple<SOCKET, fd_set, fd_set>
-SocketDriver::SocketDriverPriv::PrepareFds()
+std::vector<pollfd> SocketDriver::SocketDriverPriv::PrepareFds()
 {
-  auto fdMax = std::numeric_limits<SOCKET>::min();
-  fd_set rfds;
-  fd_set wfds;
-  FD_ZERO(&rfds);
-  FD_ZERO(&wfds);
+  std::vector<pollfd> ret;
+  ret.reserve(sockets.size() + 1U);
 
   // have the sockets set their file descriptors
-  for(auto &&sock : sockets) {
-    sock.get().DriverPrepareFds(fdMax, rfds, wfds);
-  }
+  std::transform(
+        std::begin(sockets),
+        std::end(sockets),
+        std::back_inserter(ret),
+        [](decltype(sockets)::value_type sock) -> pollfd {
+    return sock.get().DriverPrepareFd();
+  });
 
   // set the signalling socket file descriptor
-  FillFdSet(fdMax, rfds, pipeTo.fd);
+  ret.emplace_back(pollfd{pipeTo.fd, POLLIN, 0});
 
-  return std::tuple<SOCKET, fd_set, fd_set>{
-    fdMax
-  , rfds
-  , wfds
-  };
+  return ret;
 }
 
-void SocketDriver::SocketDriverPriv::DoOneFdTask(
-    fd_set const &rfds, fd_set const &wfds)
+void SocketDriver::SocketDriverPriv::DoOneFdTask(std::vector<pollfd> const &pfds)
 {
-  // user task may unregister/destroy a socket -> handle only one
-  for(auto &&sock : sockets) {
-    if(sock.get().DriverDoFdTask(rfds, wfds)) {
+  assert(sockets.size() == pfds.size());
+
+  for(size_t i = 0U; i < sockets.size(); ++i) {
+    if(sockets[i].get().DriverDoFdTask(pfds[i])) {
+      // user task may unregister/destroy a socket -> handle only one
       break;
     }
   }
@@ -250,29 +246,33 @@ std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
   return ret;
 }
 
-void SocketAsync::SocketAsyncPriv::DriverPrepareFds(SOCKET &fdMax,
-    fd_set &rfds, fd_set &wfds)
+pollfd SocketAsync::SocketAsyncPriv::DriverPrepareFd()
 {
+  pollfd pfd = {this->fd, 0, 0};
+
   if(handlers.connect || handlers.receive || handlers.receiveFrom) {
-    FillFdSet(fdMax, rfds, this->fd);
+    pfd.events |= POLLIN;
   }
 
   {
     std::lock_guard<std::mutex> lock(sendQMtx);
 
     if(!sendQ.empty() || !sendToQ.empty()) {
-      FillFdSet(fdMax, wfds, this->fd);
+      pfd.events |= POLLOUT;
     }
   }
+
+  return pfd;
 }
 
-bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(
-    fd_set const &rfds, fd_set const &wfds)
+bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(pollfd const &pfd)
 {
-  if(FD_ISSET(this->fd, &rfds)) {
+  assert(pfd.fd == this->fd);
+
+  if(pfd.revents & (POLLIN | POLLHUP)) {
     DriverDoFdTaskReadable();
     return true;
-  } else if(FD_ISSET(this->fd, &wfds)) {
+  } else if(pfd.revents & POLLOUT) {
     DriverDoFdTaskWritable();
     return true;
   }

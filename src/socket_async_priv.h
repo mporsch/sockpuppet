@@ -6,10 +6,9 @@
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
 #ifdef _WIN32
-# include <WinSock2.h> // for fd_set
+# include <WinSock2.h> // for pollfd
 #else
-# include <sys/select.h> // for fd_set
-using SOCKET = int;
+# include <poll.h> // for pollfd
 #endif // _WIN32
 
 #include <atomic> // for std::atomic
@@ -61,7 +60,7 @@ struct SocketDriver::SocketDriverPriv
   ~SocketDriverPriv();
 
   void Step(SocketBuffered::Time timeout);
-  void Step(timeval *tv);
+  void Step(int timeoutMs = -1);
 
   void Run();
   void Stop();
@@ -72,9 +71,8 @@ struct SocketDriver::SocketDriverPriv
   void Bump();
   void Unbump();
 
-  std::tuple<SOCKET, fd_set, fd_set> PrepareFds();
-  void DoOneFdTask(fd_set const &rfds,
-                   fd_set const &wfds);
+  std::vector<pollfd> PrepareFds();
+  void DoOneFdTask(std::vector<pollfd> const &pfds);
 };
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
@@ -106,11 +104,8 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);
 
-  void DriverPrepareFds(SOCKET &fdMax,
-                        fd_set &rfds,
-                        fd_set &wfds);
-  bool DriverDoFdTask(fd_set const &rfds,
-                      fd_set const &wfds);
+  pollfd DriverPrepareFd();
+  bool DriverDoFdTask(pollfd const &pfd);
   void DriverDoFdTaskReadable();
   void DriverDoFdTaskWritable();
 };

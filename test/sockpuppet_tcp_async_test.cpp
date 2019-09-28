@@ -76,7 +76,7 @@ void DisconnectDummy(SocketAddress)
 {
 }
 
-std::unique_ptr<SocketTcpAsyncClient> leftAloneClient;
+static std::unique_ptr<SocketTcpAsyncClient> leftAloneClient;
 
 void HandleDisconnect(SocketAddress serverAddress)
 {
