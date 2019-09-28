@@ -8,7 +8,7 @@
 #ifdef _WIN32
 # include <Winsock2.h> // for SOCKET
 #else
-# include <sys/select.h> // for fd_set
+# include <poll.h> // for pollfd
 using SOCKET = int;
 #endif // _WIN32
 
@@ -65,12 +65,10 @@ struct Socket::SocketPriv
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
-  /// @return  0: timed out, <0: fd closed, >0: readable/writable
-  int SelectRead(Time timeout);
-  int SelectWrite(Time timeout);
-  int Select(fd_set *rfds, fd_set *wfds, Time timeout);
-
-  static timeval ToTimeval(Time time);
+  /// @return  0: timed out, <0: error, >0: readable/writable/closed
+  int PollRead(Time timeout);
+  int PollWrite(Time timeout);
+  int Poll(pollfd &pfd, Time timeout);
 };
 
 } // namespace sockpuppet

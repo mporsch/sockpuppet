@@ -19,14 +19,6 @@ namespace {
       SOCKET(-1);
     #endif // _WIN32
 
-  fd_set ToFdSet(SOCKET const &fd)
-  {
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(fd, &fds);
-    return fds;
-  }
-
   void SetInvalid(SOCKET &fd)
   {
     fd = fdInvalid;
@@ -77,7 +69,7 @@ Socket::SocketPriv::~SocketPriv()
 size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 {
   if(timeout.count() > 0U) {
-    if(auto const result = SelectRead(timeout)) {
+    if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to receive: "
                                  + std::string(std::strerror(errno)));
@@ -100,7 +92,7 @@ std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
 {
   if(timeout.count() > 0U) {
-    if(auto const result = SelectRead(timeout)) {
+    if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to receive from: "
                                  + std::string(std::strerror(errno)));
@@ -131,7 +123,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
   };
 
   if(timeout.count() > 0U) {
-    if(auto const result = SelectWrite(timeout)) {
+    if(auto const result = PollWrite(timeout)) {
       if(result < 0) {
         throw error();
       }
@@ -190,7 +182,7 @@ std::tuple<std::unique_ptr<Socket::SocketPriv>,
 Socket::SocketPriv::Accept(Time timeout)
 {
   if(timeout.count() > 0U) {
-    if(auto const result = SelectRead(timeout)) {
+    if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to accept: "
                                  + std::string(std::strerror(errno)));
@@ -271,38 +263,30 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   return sas;
 }
 
-int Socket::SocketPriv::SelectRead(Time timeout)
+int Socket::SocketPriv::PollRead(Time timeout)
 {
-  auto rfds = ToFdSet(fd);
-  return Select(&rfds, nullptr, timeout);
+  pollfd pfd = {fd, POLLIN, 0};
+  return Poll(pfd, timeout);
 }
 
-int Socket::SocketPriv::SelectWrite(Time timeout)
+int Socket::SocketPriv::PollWrite(Time timeout)
 {
-  auto wfds = ToFdSet(fd);
-  return Select(nullptr, &wfds, timeout);
+  pollfd pfd = {fd, POLLOUT, 0};
+  return Poll(pfd, timeout);
 }
 
-int Socket::SocketPriv::Select(fd_set *rfds, fd_set *wfds, Time timeout)
-{
-  // unix expects the first ::select parameter to be the
-  // highest-numbered file descriptor in any of the three sets, plus 1
-  // windows ignores the parameter
-
-  auto tv = ToTimeval(timeout);
-  return ::select(static_cast<int>(fd + 1), rfds, wfds, nullptr, &tv);
-}
-
-timeval Socket::SocketPriv::ToTimeval(Time time)
+int Socket::SocketPriv::Poll(pollfd &pfd, Time timeout)
 {
   using namespace std::chrono;
 
-  auto const usec = duration_cast<microseconds>(time).count();
+  auto const msec = static_cast<int>(
+        duration_cast<milliseconds>(timeout).count());
 
-  return {
-    static_cast<decltype(timeval::tv_sec)>(usec / 1000000U)
-  , static_cast<decltype(timeval::tv_usec)>(usec % 1000000U)
-  };
+#ifdef _WIN32
+  return ::WSAPoll(&pfd, 1U, msec);
+#else
+  return ::poll(&pfd, 1U, msec);
+#endif // _WIN32
 }
 
 } // namespace sockpuppet

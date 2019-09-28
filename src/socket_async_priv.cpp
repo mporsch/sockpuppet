@@ -19,7 +19,7 @@ namespace {
     return ::poll(polls.data(),
                   static_cast<nfds_t>(polls.size()),
                   timeoutMs);
-#endif
+#endif // _WIN32
   }
 } // unnamed namespace
 
