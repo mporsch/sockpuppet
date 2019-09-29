@@ -1,21 +1,23 @@
 #include "socket_async.h" // for SocketUdpAsync
 #include "resource_pool.h" // for ResourcePool
 
-#include <atomic> // for std::atomic
 #include <iostream> // for std::cout
 #include <thread> // for std::this_thread
 
 using namespace sockpuppet;
 
-static std::atomic<bool> success(false);
+static auto promisedReceipt = std::make_unique<std::promise<void>>();
 
 void HandleReceiveFrom(
-  std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress> t)
+    std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress> t)
 {
   std::cout << "server received from "
-    << to_string(std::get<1>(t)) << std::endl;
+            << to_string(std::get<1>(t)) << std::endl;
 
-  success = true;
+  if(promisedReceipt) {
+    promisedReceipt->set_value();
+    promisedReceipt.reset();
+  }
 }
 
 void ReceiveDummy(SocketBuffered::SocketBufferPtr)
@@ -24,22 +26,42 @@ void ReceiveDummy(SocketBuffered::SocketBufferPtr)
 
 int main(int, char **)
 {
+  using namespace std::chrono;
+
+  const int sendCount = 5;
+
+  bool success = true;
+
   SocketDriver driver;
-
-  SocketAddress serverAddress("localhost:8554");
-  SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
-
-  ResourcePool<std::vector<char>> sendPool;
-  SocketAddress clientAddress("localhost");
-  SocketUdpAsync client({clientAddress}, driver, ReceiveDummy);
-
   auto thread = std::thread(&SocketDriver::Run, &driver);
 
-  for(int i = 0; i < 5; ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  {
+    SocketAddress serverAddress("localhost:8554");
+    SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
 
-    auto buffer = sendPool.Get(100U);
-    client.SendTo(std::move(buffer), serverAddress);
+    auto futureReceipt = promisedReceipt->get_future();
+
+    {
+      ResourcePool<std::vector<char>> sendPool;
+
+      SocketAddress clientAddress("localhost");
+      SocketUdpAsync client({clientAddress}, driver, ReceiveDummy);
+
+      std::vector<std::future<void>> futuresSend;
+      futuresSend.reserve(sendCount);
+      for(int i = 0; i < sendCount; ++i) {
+        auto buffer = sendPool.Get(100U);
+        futuresSend.emplace_back(
+              client.SendTo(std::move(buffer), serverAddress));
+      }
+
+      auto deadline = steady_clock::now() + seconds(1);
+      for(auto &&future : futuresSend) {
+        success &= (future.wait_until(deadline) == std::future_status::ready);
+      }
+    }
+
+    success &= (futureReceipt.wait_for(seconds(1)) == std::future_status::ready);
   }
 
   if(thread.joinable()) {
