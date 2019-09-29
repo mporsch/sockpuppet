@@ -72,6 +72,12 @@ struct SocketAddress
   /// @throws  If accessing a moved-from instance.
   bool operator<(SocketAddress const &other) const;
 
+  /// @throws  If accessing a moved-from instance.
+  bool operator==(SocketAddress const &other) const;
+
+  /// @throws  If accessing a moved-from instance.
+  bool operator!=(SocketAddress const &other) const;
+
 private:
   std::shared_ptr<SocketAddressPriv> m_priv;
 };

@@ -86,6 +86,16 @@ bool SocketAddress::operator<(SocketAddress const &other) const
   return (Priv() < other.Priv());
 }
 
+bool SocketAddress::operator==(SocketAddress const &other) const
+{
+  return (Priv() == other.Priv());
+}
+
+bool SocketAddress::operator!=(SocketAddress const &other) const
+{
+  return (Priv() != other.Priv());
+}
+
 
 std::string to_string(SocketAddress const &addr)
 {

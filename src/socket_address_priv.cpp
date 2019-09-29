@@ -162,6 +162,18 @@ bool SockAddrView::operator<(SockAddrView const &other) const
   }
 }
 
+bool SockAddrView::operator==(SockAddrView const &other) const
+{
+  return ((addrLen == other.addrLen) &&
+          (0 == std::memcmp(addr, other.addr,
+                            static_cast<size_t>(addrLen))));
+}
+
+bool SockAddrView::operator!=(SockAddrView const &other) const
+{
+  return !(*this == other);
+}
+
 
 SocketAddress::SocketAddressPriv::~SocketAddressPriv() = default;
 
@@ -221,6 +233,18 @@ bool SocketAddress::SocketAddressPriv::operator<(
     SocketAddressPriv const &other) const
 {
   return (ForUdp() < other.ForUdp());
+}
+
+bool SocketAddress::SocketAddressPriv::operator==(
+    SocketAddressPriv const &other) const
+{
+  return (ForUdp() == other.ForUdp());
+}
+
+bool SocketAddress::SocketAddressPriv::operator!=(
+    SocketAddressPriv const &other) const
+{
+  return (ForUdp() != other.ForUdp());
 }
 
 

@@ -52,6 +52,8 @@ struct SockAddrView
   socklen_t addrLen;
 
   bool operator<(SockAddrView const &other) const;
+  bool operator==(SockAddrView const &other) const;
+  bool operator!=(SockAddrView const &other) const;
 };
 
 struct SocketAddress::SocketAddressPriv
@@ -67,6 +69,8 @@ struct SocketAddress::SocketAddressPriv
   bool IsV6() const;
 
   bool operator<(SocketAddress::SocketAddressPriv const &other) const;
+  bool operator==(SocketAddress::SocketAddressPriv const &other) const;
+  bool operator!=(SocketAddress::SocketAddressPriv const &other) const;
 
   static std::vector<SocketAddress> LocalAddresses();
 };
