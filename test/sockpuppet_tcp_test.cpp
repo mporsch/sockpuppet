@@ -10,8 +10,10 @@
 # define CERR std::cerr
 #endif // HAVE_HELPER
 
+#include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
+#include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 #include <thread> // for std::thread
 
@@ -19,15 +21,20 @@ using namespace sockpuppet;
 
 static int const clientCount = 3;
 
-bool success = true;
+static std::atomic<bool> success(true);
 
 void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 try {
   auto &&handler = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
 
+  char buffer[256];
+  if(handler.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) {
+    throw std::runtime_error("unexpected receive");
+  }
+
   COUT << "server sending to "
-    << to_string(clientAddr) << std::endl;
+       << to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
   handler.Send(hello, sizeof(hello));
@@ -43,7 +50,7 @@ try {
   SocketTcpServer server(serverAddr);
 
   COUT << "server listening at "
-    << to_string(serverAddr) << std::endl;
+       << to_string(serverAddr) << std::endl;
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
@@ -67,8 +74,8 @@ try {
   SocketTcpClient client(serverAddr);
 
   COUT << "client " << std::this_thread::get_id()
-    << " connected to " << to_string(serverAddr)
-    << std::endl;
+       << " connected to " << to_string(serverAddr)
+       << std::endl;
 
   char buffer[256];
   auto const received = client.Receive(buffer, sizeof(buffer),
@@ -76,7 +83,7 @@ try {
   if(received > 0U &&
      std::string(buffer, received).find("hello") != std::string::npos) {
     COUT << "client received from "
-      << to_string(serverAddr) << std::endl;
+         << to_string(serverAddr) << std::endl;
 
     try {
       // the server closes the connection after the "hello" message

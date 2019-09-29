@@ -4,6 +4,7 @@
 #include <atomic> // for std::atomic
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
+#include <stdexcept> // for std::runtime_error
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
@@ -79,6 +80,10 @@ try {
 void Client(SocketAddress serverAddress)
 try {
   SocketTcpBuffered client(serverAddress);
+
+  if(client.Receive(std::chrono::seconds(0))->size() != 0U) {
+    throw std::runtime_error("unexpected receive");
+  }
 
   std::cout << "client sending reference data to server "
             << to_string(serverAddress) << std::endl;

@@ -3,6 +3,7 @@
 #include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
+#include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 #include <thread> // for std::thread
 
@@ -44,9 +45,15 @@ try {
   SocketAddress clientAddr("localhost");
   SocketUdp client(clientAddr);
 
+  char buffer[256];
+  if((client.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) ||
+     (std::get<0>(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0))) != 0U)) {
+    throw std::runtime_error("unexpected receive");
+  }
+
   std::cout << "sending from "
-    << to_string(clientAddr) << " to "
-    << to_string(serverAddr) << std::endl;
+            << to_string(clientAddr) << " to "
+            << to_string(serverAddr) << std::endl;
 
   for(int i = 0; i < 3; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
