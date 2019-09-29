@@ -63,13 +63,13 @@ void SocketUdpBuffered::SendTo(char const *data, size_t size,
   m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
 }
 
-SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Time timeout)
+SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Duration timeout)
 {
   return m_priv->Receive(timeout);
 }
 
 std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
-SocketUdpBuffered::ReceiveFrom(Time timeout)
+SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
   return m_priv->ReceiveFrom(timeout);
 }
@@ -95,12 +95,12 @@ SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexc
 }
 
 void SocketTcpBuffered::Send(char const *data, size_t size,
-    Time timeout)
+    Duration timeout)
 {
   m_priv->Send(data, size, timeout);
 }
 
-SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Time timeout)
+SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Duration timeout)
 {
   return m_priv->Receive(timeout);
 }

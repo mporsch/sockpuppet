@@ -23,8 +23,8 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
 
   SocketBufferPtr GetBuffer();
 
-  SocketBufferPtr Receive(Time timeout);
-  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout);
+  SocketBufferPtr Receive(Duration timeout);
+  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Duration timeout);
 };
 
 } // namespace sockpuppet

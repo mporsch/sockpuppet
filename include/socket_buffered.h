@@ -20,7 +20,7 @@ class SocketBuffered
   friend class SocketAsync;
 
 public:
-  using Time = Socket::Time;
+  using Duration = Socket::Duration;
   using SocketBuffer = std::vector<char>;
   using SocketBufferPool = ResourcePool<SocketBuffer>;
   using SocketBufferPtr = SocketBufferPool::ResourcePtr;
@@ -82,16 +82,18 @@ struct SocketUdpBuffered : public SocketBuffered
               SocketAddress const &dstAddress);
 
   /// Unreliably receive data on bound address.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return empty buffer only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return empty buffer only if non-negative timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  SocketBufferPtr Receive(Time timeout = Time(0));
+  SocketBufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address and report the source.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return empty buffer and invalid address only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return empty buffer and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Time timeout = Time(0));
+  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that adds an internal
@@ -117,17 +119,19 @@ struct SocketTcpBuffered : public SocketBuffered
   SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 
   /// Reliably send data to connected peer.
-  /// @param  timeout  Timeout to use; 0 causes blocking send.
-  /// @throws  If sending fails.
+  /// @param  timeout  Timeout to use; non-null causes blocking send,
+  ///                  a negative value allows unlimited blocking.
+  /// @throws  If sending fails or times out.
   void Send(char const *data,
             size_t size,
-            Time timeout = Time(0U));
+            Duration timeout = Duration(-1));
 
   /// Reliably receive data from connected peer.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return empty buffer only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return empty buffer only if non-negative timeout is specified.
   /// @throws  If receipt fails or number of receive buffers is exceeded.
-  SocketBufferPtr Receive(Time timeout = Time(0U));
+  SocketBufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.

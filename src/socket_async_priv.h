@@ -61,8 +61,7 @@ struct SocketDriver::SocketDriverPriv
   SocketDriverPriv();
   ~SocketDriverPriv();
 
-  void Step(SocketBuffered::Time timeout);
-  void Step(int timeoutMs = -1);
+  void Step(Duration timeout);
 
   void Run();
   void Stop();

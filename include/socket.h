@@ -19,7 +19,7 @@ class Socket
   friend class SocketAsync;
 
 public:
-  using Time = std::chrono::duration<uint32_t, std::micro>;
+  using Duration = std::chrono::milliseconds;
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
@@ -69,20 +69,22 @@ struct SocketUdp : public Socket
               SocketAddress const &dstAddress);
 
   /// Unreliably receive data on bound address.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return 0 only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return 0 only if non-negative timeout is specified.
   /// @throws  If receipt fails locally.
   size_t Receive(char *data,
                  size_t size,
-                 Time timeout = Time(0U));
+                 Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address and report the source.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return 0 and invalid address only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return 0 and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally.
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
-                                                Time timeout = Time(0U));
+                                                Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that is either
@@ -105,19 +107,21 @@ struct SocketTcpClient : public Socket
   SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
   /// Reliably send data to connected peer.
-  /// @param  timeout  Timeout to use; 0 causes blocking send.
-  /// @throws  If sending fails.
+  /// @param  timeout  Timeout to use; non-null causes blocking send,
+  ///                  a negative value allows unlimited blocking.
+  /// @throws  If sending fails or times out.
   void Send(char const *data,
             size_t size,
-            Time timeout = Time(0U));
+            Duration timeout = Duration(-1));
 
   /// Reliably receive data from connected peer.
-  /// @param  timeout  Timeout to use; 0 causes blocking receipt.
-  /// @return  May return 0 only if timeout is specified.
+  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  May return 0 only if non-negative timeout is specified.
   /// @throws  If receipt fails.
   size_t Receive(char *data,
                  size_t size,
-                 Time timeout = Time(0U));
+                 Duration timeout = Duration(-1));
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
@@ -141,9 +145,10 @@ struct SocketTcpServer : public Socket
   SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
 
   /// Listen and accept incoming TCP connections and report the source.
-  /// @param  timeout  Timeout to use; 0 causes blocking listen.
+  /// @param  timeout  Timeout to use; non-null causes blocking listen,
+  ///                  a negative value allows unlimited blocking.
   /// @throws  If listen or accept fails or timeout occurs.
-  std::tuple<SocketTcpClient, SocketAddress> Listen(Time timeout = Time(0U));
+  std::tuple<SocketTcpClient, SocketAddress> Listen(Duration timeout = Duration(-1));
 };
 
 } // namespace sockpuppet

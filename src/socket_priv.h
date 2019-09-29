@@ -33,14 +33,14 @@ struct Socket::SocketPriv
 
   size_t Receive(char *data,
                  size_t size,
-                 Time timeout);
+                 Duration timeout);
 
   std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
-  ReceiveFrom(char *data, size_t size, Time timeout);
+  ReceiveFrom(char *data, size_t size, Duration timeout);
 
   void Send(char const *data,
             size_t size,
-            Time timeout);
+            Duration timeout);
 
   void SendTo(char const *data,
               size_t size,
@@ -54,7 +54,7 @@ struct Socket::SocketPriv
 
   std::tuple<std::unique_ptr<SocketPriv>,
              std::shared_ptr<SocketAddress::SocketAddressPriv>>
-  Accept(Time timeout);
+  Accept(Duration timeout);
 
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
@@ -66,8 +66,8 @@ struct Socket::SocketPriv
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
   /// @return  0: timed out, <0: error, >0: readable/writable/closed
-  int PollRead(Time timeout) const;
-  int PollWrite(Time timeout) const;
+  int PollRead(Duration timeout) const;
+  int PollWrite(Duration timeout) const;
 };
 
 } // namespace sockpuppet

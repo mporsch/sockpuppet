@@ -9,8 +9,14 @@
 namespace sockpuppet {
 
 namespace {
-  int Poll(std::vector<pollfd> &polls, int timeoutMs)
+  auto const noTimeout = Socket::Duration(-1);
+
+  int Poll(std::vector<pollfd> &polls, SocketDriver::Duration timeout)
   {
+    using namespace std::chrono;
+
+    auto const timeoutMs = static_cast<int>(duration_cast<milliseconds>(timeout).count());
+
 #ifdef _WIN32
     return ::WSAPoll(polls.data(),
                      static_cast<ULONG>(polls.size()),
@@ -77,25 +83,14 @@ SocketDriver::SocketDriverPriv::~SocketDriverPriv()
   Stop();
 }
 
-void SocketDriver::SocketDriverPriv::Step(SocketBuffered::Time timeout)
-{
-  using namespace std::chrono;
-
-  if(timeout.count() > 0U) {
-    Step(static_cast<int>(duration_cast<milliseconds>(timeout).count()));
-  } else {
-    Step();
-  }
-}
-
-void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
+void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 {
   StepGuard guard(*this);
 
   // the last file descriptor is the internal signalling pipe
   auto pfds = PrepareFds();
 
-  if(auto const result = Poll(pfds, timeoutMs)) {
+  if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
       throw std::runtime_error("poll failed: "
                                + std::string(std::strerror(errno)));
@@ -120,7 +115,7 @@ void SocketDriver::SocketDriverPriv::Step(int timeoutMs)
 void SocketDriver::SocketDriverPriv::Run()
 {
   while(!shouldStop) {
-    Step();
+    Step(noTimeout);
   }
   shouldStop = false;
 }
@@ -161,7 +156,7 @@ void SocketDriver::SocketDriverPriv::Bump()
 void SocketDriver::SocketDriverPriv::Unbump()
 {
   char dump[256U];
-  (void)pipeTo.Receive(dump, sizeof(dump), Socket::Time(0));
+  (void)pipeTo.Receive(dump, sizeof(dump), noTimeout);
 }
 
 std::vector<pollfd> SocketDriver::SocketDriverPriv::PrepareFds()
@@ -297,7 +292,7 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(pollfd const &pfd)
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
-    auto t = this->Accept(Time(0));
+    auto t = this->Accept(noTimeout);
     this->Listen();
 
     handlers.connect(
@@ -306,9 +301,9 @@ try {
       , SocketAddress(std::move(std::get<1>(t)))
       });
   } else if(handlers.receive) {
-    handlers.receive(this->Receive(Time(0)));
+    handlers.receive(this->Receive(noTimeout));
   } else if(handlers.receiveFrom) {
-    handlers.receiveFrom(this->ReceiveFrom(Time(0)));
+    handlers.receiveFrom(this->ReceiveFrom(noTimeout));
   } else {
     throw std::logic_error("no read handler");
   }
@@ -329,7 +324,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
     auto &&buffer = std::get<1>(e);
 
     try {
-      SocketPriv::Send(buffer->data(), buffer->size(), Time(0));
+      SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
       promise.set_value();
     } catch(std::exception const &e) {
       promise.set_exception(std::make_exception_ptr(e));

@@ -18,6 +18,8 @@ class SocketDriver
   friend class SocketAsync;
 
 public:
+  using Duration = SocketBuffered::Duration;
+
   /// Create a socket driver that can be passed to sockets to attach to.
   SocketDriver();
 
@@ -29,9 +31,10 @@ public:
   SocketDriver &operator=(SocketDriver &&other) noexcept;
 
   /// Run one iteration on the attached sockets.
-  /// @param  timeout  Timeout to use; 0 allows blocking if
-  ///                  all attached sockets are idle.
-  void Step(SocketBuffered::Time timeout = SocketBuffered::Time(0));
+  /// @param  timeout  Timeout to use; non-null allows blocking if
+  ///                  all attached sockets are idle,
+  ///                  a negative value allows unlimited blocking.
+  void Step(Duration timeout = Duration(-1));
 
   /// Continuously run the attached sockets.
   /// @note  Blocking call. Returns only after Stop() from another thread.
@@ -52,7 +55,6 @@ private:
 class SocketAsync
 {
 public:
-  using Time = SocketBuffered::Time;
   using SocketBuffer = SocketBuffered::SocketBuffer;
   using SocketBufferPtr = SocketBuffered::SocketBufferPtr;
   using ReceiveHandler = std::function<

@@ -22,7 +22,7 @@ SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept
   return *this;
 }
 
-void SocketDriver::Step(SocketBuffered::Time timeout)
+void SocketDriver::Step(Duration timeout)
 {
   m_priv->Step(timeout);
 }

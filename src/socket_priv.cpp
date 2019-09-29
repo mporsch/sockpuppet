@@ -28,7 +28,7 @@ namespace {
 #endif // _WIN32
   }
 
-  int Poll(pollfd pfd, Socket::Time timeout)
+  int Poll(pollfd pfd, Socket::Duration timeout)
   {
     using namespace std::chrono;
 
@@ -75,9 +75,9 @@ Socket::SocketPriv::~SocketPriv()
   }
 }
 
-size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
+size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() > 0U) {
+  if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to receive: "
@@ -98,9 +98,9 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Time timeout)
 }
 
 std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
-Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
+Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() > 0U) {
+  if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to receive from: "
@@ -124,14 +124,14 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Time timeout)
   };
 }
 
-void Socket::SocketPriv::Send(char const *data, size_t size, Time timeout)
+void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
   auto error = []() -> std::runtime_error {
     return std::runtime_error("failed to send: "
                               + std::string(std::strerror(errno)));
   };
 
-  if(timeout.count() > 0U) {
+  if(timeout.count() >= 0) {
     if(auto const result = PollWrite(timeout)) {
       if(result < 0) {
         throw error();
@@ -188,9 +188,9 @@ void Socket::SocketPriv::Listen()
 
 std::tuple<std::unique_ptr<Socket::SocketPriv>,
            std::shared_ptr<SocketAddress::SocketAddressPriv>>
-Socket::SocketPriv::Accept(Time timeout)
+Socket::SocketPriv::Accept(Duration timeout)
 {
-  if(timeout.count() > 0U) {
+  if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
         throw std::runtime_error("failed to accept: "
@@ -272,12 +272,12 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   return sas;
 }
 
-int Socket::SocketPriv::PollRead(Time timeout) const
+int Socket::SocketPriv::PollRead(Duration timeout) const
 {
   return Poll(pollfd{fd, POLLIN, 0}, timeout);
 }
 
-int Socket::SocketPriv::PollWrite(Time timeout) const
+int Socket::SocketPriv::PollWrite(Duration timeout) const
 {
   return Poll(pollfd{fd, POLLOUT, 0}, timeout);
 }

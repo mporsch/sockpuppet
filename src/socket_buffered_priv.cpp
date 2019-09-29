@@ -31,7 +31,7 @@ SocketBuffered::SocketBufferPtr SocketBuffered::SocketBufferedPriv::GetBuffer()
 }
 
 SocketBuffered::SocketBufferPtr
-SocketBuffered::SocketBufferedPriv::Receive(Time timeout)
+SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
 {
   auto buffer = GetBuffer();
 
@@ -43,7 +43,7 @@ SocketBuffered::SocketBufferedPriv::Receive(Time timeout)
 }
 
 std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
-SocketBuffered::SocketBufferedPriv::ReceiveFrom(Time timeout)
+SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();
 
