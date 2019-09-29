@@ -10,12 +10,25 @@
 
 using namespace sockpuppet;
 
+namespace {
+
+size_t const clientCount = 3U;
+size_t const clientSendCount = 5U;
+size_t const clientSendSize = 1000U;
+
+std::promise<void> promisedClientsConnect;
+std::promise<void> promisedClientsDisconnect;
+std::promise<void> promisedLoneClientConnect;
+
+std::unique_ptr<SocketTcpAsyncClient> loneClient;
+std::promise<void> promisedServerDisconnect;
+
 struct Server
 {
-  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
   SocketTcpAsyncServer server;
   SocketDriver &driver;
   size_t bytesReceived;
+  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 
   Server(SocketAddress bindAddress,
@@ -28,10 +41,21 @@ struct Server
   {
   }
 
+  size_t clientCount()
+  {
+    std::lock_guard<std::mutex> lock(mtx);
+    return serverHandlers.size();
+  }
+
+  size_t bytesReceivedCount()
+  {
+    std::lock_guard<std::mutex> lock(mtx);
+    return bytesReceived;
+  }
+
   void HandleReceive(SocketBuffered::SocketBufferPtr ptr)
   {
     std::lock_guard<std::mutex> lock(mtx);
-
     bytesReceived += ptr->size();
   }
 
@@ -42,15 +66,22 @@ struct Server
     auto &&clientAddress = std::get<1>(t);
 
     std::cout << "server accepted connection from "
-      << to_string(clientAddress) << std::endl;
+              << to_string(clientAddress) << std::endl;
 
     (void)serverHandlers.emplace(
-      std::make_pair(
-        clientAddress,
-        SocketTcpAsyncClient({std::move(std::get<0>(t))},
-                             driver,
-                             std::bind(&Server::HandleReceive, this, std::placeholders::_1),
-                             std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
+          std::make_pair(
+            clientAddress,
+            SocketTcpAsyncClient({std::move(std::get<0>(t))},
+                                 driver,
+                                 std::bind(&Server::HandleReceive, this, std::placeholders::_1),
+                                 std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
+
+    if(serverHandlers.size() == ::clientCount) {
+      promisedClientsConnect.set_value();
+    } else if ((bytesReceived > 0U) &&
+               (serverHandlers.size() == 1U)) {
+      promisedLoneClientConnect.set_value();
+    }
   }
 
   void HandleDisconnect(SocketAddress clientAddress)
@@ -58,12 +89,16 @@ struct Server
     std::lock_guard<std::mutex> lock(mtx);
 
     std::cout << "client "
-      << to_string(clientAddress)
-      << " closed connection to server" << std::endl;
+              << to_string(clientAddress)
+              << " closed connection to server" << std::endl;
 
     auto const it = serverHandlers.find(clientAddress);
     if(it != std::end(serverHandlers)) {
       serverHandlers.erase(it);
+    }
+
+    if(serverHandlers.empty()) {
+      promisedClientsDisconnect.set_value();
     }
   }
 };
@@ -76,84 +111,94 @@ void DisconnectDummy(SocketAddress)
 {
 }
 
-static std::unique_ptr<SocketTcpAsyncClient> leftAloneClient;
-
 void HandleDisconnect(SocketAddress serverAddress)
 {
-  leftAloneClient.reset();
+  loneClient.reset();
 
   std::cout << "server "
-    << to_string(serverAddress)
-    << " closed connection" << std::endl;
+            << to_string(serverAddress)
+            << " closed connection" << std::endl;
+
+  promisedServerDisconnect.set_value();
 }
 
-static size_t const clientCount = 3U;
-static size_t const clientSendCount = 5U;
-static size_t const clientSendSize = 1000U;
+} // unnamed namespace
 
 int main(int, char **)
 {
+  using namespace std::chrono;
+
+  bool success = true;
+
+  // futures to check / wait for asynchronous events
+  auto futureClientsConnect = promisedClientsConnect.get_future();
+  auto futureClientsDisconnect = promisedClientsDisconnect.get_future();
+  auto futureLoneClientConnect = promisedLoneClientConnect.get_future();
+  auto futureServerDisconnect = promisedServerDisconnect.get_future();
+
   SocketDriver driver;
+  auto thread = std::thread(&SocketDriver::Run, &driver);
 
   SocketAddress serverAddress("localhost:8554");
   auto server = std::make_unique<Server>(serverAddress, driver);
 
-  auto thread = std::thread(&SocketDriver::Run, &driver);
-
-  // wait for server to come up
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  bool success = true;
-
   {
     ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
     std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
+
+    std::vector<std::future<void>> futures;
+    futures.reserve(clientCount * clientSendCount);
     for(auto &&client : clients)
     {
       client.reset(
-        new SocketTcpAsyncClient(
-          {serverAddress},
-          driver,
-          ReceiveDummy,
-          DisconnectDummy));
+            new SocketTcpAsyncClient({serverAddress},
+                                     driver,
+                                     ReceiveDummy,
+                                     DisconnectDummy));
 
-      for(size_t i = 0; i < clientSendCount; ++i) {
+      for(size_t i = 0U; i < clientSendCount; ++i) {
         auto buffer = clientSendPool.Get(clientSendSize);
-        client->Send(std::move(buffer)).wait();
+        futures.push_back(
+              client->Send(std::move(buffer)));
       }
     }
 
-    // wait for everything to be transmitted
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    // wait for all clients to be connected
+    success &= (futureClientsConnect.wait_for(seconds(1)) == std::future_status::ready);
 
-    success &= (server->serverHandlers.size() == clientCount);
+    // wait for everything to be transmitted
+    auto deadline = steady_clock::now() + seconds(1);
+    for(auto &&future : futures) {
+      success &= (future.wait_until(deadline) == std::future_status::ready);
+    }
+
+    // all clients should still be connected before leaving the scope
+    success &= (server->clientCount() == clientCount);
   }
 
   // wait for all clients to disconnect
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  success &= (futureClientsDisconnect.wait_for(seconds(1)) == std::future_status::ready);
 
-  success &= server->serverHandlers.empty();
-  success &= (server->bytesReceived ==
+  // all data should be received
+  success &= (server->bytesReceivedCount() ==
               clientCount
               * clientSendCount
               * clientSendSize);
 
   // try the disconnect the other way around
-  leftAloneClient.reset(
-    new SocketTcpAsyncClient(
-      {serverAddress},
-      driver,
-      ReceiveDummy,
-      HandleDisconnect));
+  loneClient.reset(
+        new SocketTcpAsyncClient({serverAddress},
+                                 driver,
+                                 ReceiveDummy,
+                                 HandleDisconnect));
 
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  // wait for client to connect
+  success &= (futureLoneClientConnect.wait_for(seconds(1)) == std::future_status::ready);
 
   server.reset();
 
   // wait for server handler to disconnect
-  std::this_thread::sleep_for(std::chrono::seconds(1));
-
-  success &= !leftAloneClient;
+  success &= (futureServerDisconnect.wait_for(seconds(1)) == std::future_status::ready);
 
   if(thread.joinable()) {
     driver.Stop();
