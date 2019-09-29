@@ -1,10 +1,8 @@
 #include "socket_async.h" // for SocketTcpAsync
 #include "resource_pool.h" // for ResourcePool
 
-#include <functional> // for std::bind
 #include <iostream> // for std::cout
 #include <map> // for std::map
-#include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <thread> // for std::thread
 
@@ -41,13 +39,13 @@ struct Server
   {
   }
 
-  size_t clientCount()
+  size_t ClientCount()
   {
     std::lock_guard<std::mutex> lock(mtx);
     return serverHandlers.size();
   }
 
-  size_t bytesReceivedCount()
+  size_t BytesReceived()
   {
     std::lock_guard<std::mutex> lock(mtx);
     return bytesReceived;
@@ -61,12 +59,12 @@ struct Server
 
   void HandleConnect(std::tuple<SocketTcpClient, SocketAddress> t)
   {
-    std::lock_guard<std::mutex> lock(mtx);
-
     auto &&clientAddress = std::get<1>(t);
 
     std::cout << "server accepted connection from "
               << to_string(clientAddress) << std::endl;
+
+    std::lock_guard<std::mutex> lock(mtx);
 
     (void)serverHandlers.emplace(
           std::make_pair(
@@ -76,7 +74,7 @@ struct Server
                                  std::bind(&Server::HandleReceive, this, std::placeholders::_1),
                                  std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
 
-    if(serverHandlers.size() == ::clientCount) {
+    if(serverHandlers.size() == clientCount) {
       promisedClientsConnect.set_value();
     } else if ((bytesReceived > 0U) &&
                (serverHandlers.size() == 1U)) {
@@ -86,16 +84,13 @@ struct Server
 
   void HandleDisconnect(SocketAddress clientAddress)
   {
-    std::lock_guard<std::mutex> lock(mtx);
-
     std::cout << "client "
               << to_string(clientAddress)
               << " closed connection to server" << std::endl;
 
-    auto const it = serverHandlers.find(clientAddress);
-    if(it != std::end(serverHandlers)) {
-      serverHandlers.erase(it);
-    }
+    std::lock_guard<std::mutex> lock(mtx);
+
+    serverHandlers.erase(clientAddress);
 
     if(serverHandlers.empty()) {
       promisedClientsDisconnect.set_value();
@@ -173,14 +168,14 @@ int main(int, char **)
     }
 
     // all clients should still be connected before leaving the scope
-    success &= (server->clientCount() == clientCount);
+    success &= (server->ClientCount() == clientCount);
   }
 
   // wait for all clients to disconnect
   success &= (futureClientsDisconnect.wait_for(seconds(1)) == std::future_status::ready);
 
   // all data should be received
-  success &= (server->bytesReceivedCount() ==
+  success &= (server->BytesReceived() ==
               clientCount
               * clientSendCount
               * clientSendSize);
