@@ -55,6 +55,7 @@ struct SocketDriver::SocketDriverPriv
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
   std::vector<SocketRef> sockets; // guarded by stepMtx
+  std::vector<pollfd> pfds; // front element belongs to internal signalling pipe; guarded by stepMtx
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
@@ -67,13 +68,13 @@ struct SocketDriver::SocketDriverPriv
   void Stop();
 
   void Register(SocketAsync::SocketAsyncPriv &sock);
-  void Unregister(SocketAsync::SocketAsyncPriv &sock);
+  void Unregister(SOCKET fd);
+  void WantSend(SOCKET fd);
 
   void Bump();
   void Unbump();
 
-  std::vector<pollfd> PrepareFds();
-  void DoOneFdTask(std::vector<pollfd> const &pfds);
+  void DoOneFdTask();
 };
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
@@ -105,10 +106,11 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);
 
-  pollfd DriverPrepareFd();
-  bool DriverDoFdTask(pollfd const &pfd);
   void DriverDoFdTaskReadable();
-  void DriverDoFdTaskWritable();
+
+  /// @return  true if there is more data to send, false otherwise
+  bool DriverDoFdTaskWritable();
+
   void DriverDoFdTaskError();
 };
 

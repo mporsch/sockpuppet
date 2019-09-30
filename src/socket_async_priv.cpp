@@ -1,9 +1,8 @@
 #include "socket_async_priv.h"
 
-#include <algorithm> // for std::transform
+#include <algorithm> // for std::find_if
 #include <cassert> // for assert
 #include <cstring> // for std::strerror
-#include <iterator> // for std::back_inserter
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
@@ -28,6 +27,21 @@ namespace {
                   timeoutMs);
 #endif // _WIN32
   }
+
+  struct CompareFd
+  {
+    SOCKET fd;
+
+    bool operator()(const SocketAsync::SocketAsyncPriv& async) const
+    {
+      return (async.fd == fd);
+    }
+
+    bool operator()(pollfd const &pfd) const
+    {
+      return (pfd.fd == fd);
+    }
+  };
 } // unnamed namespace
 
 SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
@@ -69,6 +83,7 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   : pipeToAddr(std::make_shared<SockAddrInfo>(0))
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
+  , pfds(1U, pollfd{pipeTo.fd, POLLIN, 0})
   , shouldStop(false)
 {
   // bind to system-assigned port number and update address accordingly
@@ -88,9 +103,6 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 {
   StepGuard guard(*this);
 
-  // the last file descriptor is the internal signalling pipe
-  auto pfds = PrepareFds();
-
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
       throw std::runtime_error("poll failed: "
@@ -102,14 +114,13 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
   }
 
   // one or more sockets is readable/writable
-  if(pfds.back().revents & POLLIN) {
+  if(pfds.front().revents & POLLIN) {
     // a readable signalling pipe triggers re-evaluating the sockets
     Unbump();
-  } else if(pfds.back().revents != 0) {
+  } else if(pfds.front().revents != 0) {
     throw std::logic_error("unexpected signalling pipe poll result");
   } else {
-    pfds.pop_back();
-    DoOneFdTask(pfds);
+    DoOneFdTask();
   }
 }
 
@@ -131,21 +142,40 @@ void SocketDriver::SocketDriverPriv::Register(
     SocketAsync::SocketAsyncPriv &sock)
 {
   PauseGuard guard(*this);
+
   sockets.emplace_back(sock);
+  pfds.emplace_back(pollfd{sock.fd, POLLIN, 0});
 }
 
-void SocketDriver::SocketDriverPriv::Unregister(
-    SocketAsync::SocketAsyncPriv &sock)
+void SocketDriver::SocketDriverPriv::Unregister(SOCKET fd)
 {
   PauseGuard guard(*this);
-  sockets.erase(
-    std::remove_if(
-      std::begin(sockets),
-      std::end(sockets),
-      [&](SocketRef s) -> bool {
-        return (&s.get() == &sock);
-      }),
-    std::end(sockets));
+
+  const auto itSocket = std::find_if(
+        std::begin(sockets),
+        std::end(sockets),
+        CompareFd{fd});
+  assert(itSocket != std::end(sockets));
+  sockets.erase(itSocket);
+
+  const auto itPfd = std::find_if(
+        std::begin(pfds),
+        std::end(pfds),
+        CompareFd{fd});
+  assert(itPfd != std::end(pfds));
+  pfds.erase(itPfd);
+}
+
+void SocketDriver::SocketDriverPriv::WantSend(SOCKET fd)
+{
+  PauseGuard guard(*this);
+
+  const auto itPfd = std::find_if(
+        std::begin(pfds),
+        std::end(pfds),
+        CompareFd{fd});
+  assert(itPfd != std::end(pfds));
+  itPfd->events |= POLLOUT;
 }
 
 void SocketDriver::SocketDriverPriv::Bump()
@@ -160,36 +190,32 @@ void SocketDriver::SocketDriverPriv::Unbump()
   (void)pipeTo.Receive(dump, sizeof(dump), noTimeout);
 }
 
-std::vector<pollfd> SocketDriver::SocketDriverPriv::PrepareFds()
+void SocketDriver::SocketDriverPriv::DoOneFdTask()
 {
-  std::vector<pollfd> ret;
-  ret.reserve(sockets.size() + 1U);
+  assert(sockets.size() + 1U == pfds.size());
 
-  // have the sockets set their file descriptors
-  std::transform(
-        std::begin(sockets),
-        std::end(sockets),
-        std::back_inserter(ret),
-        [](SocketRef sock) -> pollfd {
-    return sock.get().DriverPrepareFd();
-  });
-
-  // set the signalling pipe file descriptor
-  ret.emplace_back(pollfd{pipeTo.fd, POLLIN, 0});
-
-  return ret;
-}
-
-void SocketDriver::SocketDriverPriv::DoOneFdTask(std::vector<pollfd> const &pfds)
-{
-  assert(sockets.size() == pfds.size());
-
+  // user task may unregister/destroy a socket -> handle only one
   for(size_t i = 0U; i < sockets.size(); ++i) {
-    if(sockets[i].get().DriverDoFdTask(pfds[i])) {
-      // user task may unregister/destroy a socket -> handle only one
-      break;
+    auto &&pfd = pfds[i + 1U];
+    auto &&sock = sockets[i].get();
+    assert(pfd.fd == sock.fd);
+
+    if(pfd.revents & POLLIN) {
+      sock.DriverDoFdTaskReadable();
+      return;
+    } else if(pfd.revents & POLLOUT) {
+      if (!sock.DriverDoFdTaskWritable()) {
+        pfd.events &= ~POLLOUT;
+      }
+      return;
+    } else if(pfd.revents & (POLLHUP | POLLERR)) {
+      sock.DriverDoFdTaskError();
+      return;
     }
   }
+
+  // TODO are spurious wakeups to be expected?
+  throw std::logic_error("unhandled poll event");
 }
 
 
@@ -218,7 +244,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
 SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
 {
   if(auto const ptr = driver.lock()) {
-    ptr->Unregister(*this);
+    ptr->Unregister(this->fd);
   }
 }
 
@@ -248,46 +274,10 @@ std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
   }
 
   if(auto const ptr = driver.lock()) {
-    ptr->Bump();
+    ptr->WantSend(this->fd);
   }
 
   return ret;
-}
-
-pollfd SocketAsync::SocketAsyncPriv::DriverPrepareFd()
-{
-  pollfd pfd = {this->fd, 0, 0};
-
-  if(handlers.connect || handlers.receive || handlers.receiveFrom) {
-    pfd.events |= POLLIN;
-  }
-
-  {
-    std::lock_guard<std::mutex> lock(sendQMtx);
-
-    if(!sendQ.empty() || !sendToQ.empty()) {
-      pfd.events |= POLLOUT;
-    }
-  }
-
-  return pfd;
-}
-
-bool SocketAsync::SocketAsyncPriv::DriverDoFdTask(pollfd const &pfd)
-{
-  assert(pfd.fd == this->fd);
-
-  if(pfd.revents & POLLIN) {
-    DriverDoFdTaskReadable();
-    return true;
-  } else if(pfd.revents & POLLOUT) {
-    DriverDoFdTaskWritable();
-    return true;
-  } else if(pfd.revents & (POLLHUP | POLLERR)) {
-    DriverDoFdTaskError();
-    return true;
-  }
-  return false;
 }
 
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskReadable()
@@ -312,42 +302,47 @@ try {
   DriverDoFdTaskError();
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
+bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
 {
   std::unique_lock<std::mutex> lock(sendQMtx);
 
-  if(!sendQ.empty()) {
+  // socket uses either Send() or SendTo() but not both
+  assert(sendQ.empty() || sendToQ.empty());
+
+  if(auto const sendQSize = sendQ.size()) {
     auto e = std::move(sendQ.front());
     sendQ.pop();
     lock.unlock();
 
     auto &&promise = std::get<0>(e);
-    auto &&buffer = std::get<1>(e);
-
     try {
+      auto &&buffer = std::get<1>(e);
       SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
       promise.set_value();
     } catch(std::exception const &e) {
       promise.set_exception(std::make_exception_ptr(e));
     }
-  } else if(!sendToQ.empty()) {
+
+    return (sendQSize > 1U);
+  } else if(auto const sendToQSize = sendToQ.size()) {
     auto e = std::move(sendToQ.front());
     sendToQ.pop();
     lock.unlock();
 
     auto &&promise = std::get<0>(e);
-    auto &&buffer = std::get<1>(e);
-    auto &&addr = std::get<2>(e);
-
     try {
+      auto &&buffer = std::get<1>(e);
+      auto &&addr = std::get<2>(e);
       SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
       promise.set_value();
     } catch(std::exception const &e) {
       promise.set_exception(std::make_exception_ptr(e));
     }
-  } else {
-    throw std::logic_error("send buffer emptied unexpectedly");
+
+    return (sendToQSize > 1U);
   }
+
+  throw std::logic_error("send buffer emptied unexpectedly");
 }
 
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
