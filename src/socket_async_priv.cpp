@@ -3,6 +3,7 @@
 #include <algorithm> // for std::transform
 #include <cassert> // for assert
 #include <cstring> // for std::strerror
+#include <iterator> // for std::back_inserter
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 
