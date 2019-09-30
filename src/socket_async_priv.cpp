@@ -138,7 +138,7 @@ void SocketDriver::SocketDriverPriv::Stop()
   Bump();
 }
 
-void SocketDriver::SocketDriverPriv::Register(
+void SocketDriver::SocketDriverPriv::AsyncRegister(
     SocketAsync::SocketAsyncPriv &sock)
 {
   PauseGuard guard(*this);
@@ -147,7 +147,7 @@ void SocketDriver::SocketDriverPriv::Register(
   pfds.emplace_back(pollfd{sock.fd, POLLIN, 0});
 }
 
-void SocketDriver::SocketDriverPriv::Unregister(SOCKET fd)
+void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
 {
   PauseGuard guard(*this);
 
@@ -166,7 +166,7 @@ void SocketDriver::SocketDriverPriv::Unregister(SOCKET fd)
   pfds.erase(itPfd);
 }
 
-void SocketDriver::SocketDriverPriv::WantSend(SOCKET fd)
+void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
 {
   PauseGuard guard(*this);
 
@@ -233,7 +233,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
   , driver(driver)
   , handlers(handlers)
 {
-  driver->Register(*this);
+  driver->AsyncRegister(*this);
 
   if(handlers.disconnect) {
     // cache remote address as it will be unavailable after disconnect
@@ -244,7 +244,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
 SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
 {
   if(auto const ptr = driver.lock()) {
-    ptr->Unregister(this->fd);
+    ptr->AsyncUnregister(this->fd);
   }
 }
 
@@ -274,7 +274,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
   }
 
   if(auto const ptr = driver.lock()) {
-    ptr->WantSend(this->fd);
+    ptr->AsyncWantSend(this->fd);
   }
 
   return ret;

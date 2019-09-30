@@ -67,9 +67,10 @@ struct SocketDriver::SocketDriverPriv
   void Run();
   void Stop();
 
-  void Register(SocketAsync::SocketAsyncPriv &sock);
-  void Unregister(SOCKET fd);
-  void WantSend(SOCKET fd);
+  // interface for SocketAsyncPriv
+  void AsyncRegister(SocketAsync::SocketAsyncPriv &sock);
+  void AsyncUnregister(SOCKET fd);
+  void AsyncWantSend(SOCKET fd);
 
   void Bump();
   void Unbump();
@@ -106,6 +107,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);
 
+  // interface for SocketDriverPriv
   void DriverDoFdTaskReadable();
 
   /// @return  true if there is more data to send, false otherwise
