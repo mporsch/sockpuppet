@@ -50,6 +50,13 @@ else()
   target_link_libraries(sockpuppet_tcp_async_test sockpuppet)
 endif()
 
+add_executable(sockpuppet_tcp_async_performance_test sockpuppet_tcp_async_performance_test.cpp sockpuppet_test_common.h)
+if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  target_link_libraries(sockpuppet_tcp_async_performance_test sockpuppet pthread)
+else()
+  target_link_libraries(sockpuppet_tcp_async_performance_test sockpuppet)
+endif()
+
 enable_testing()
 add_test(NAME sockpuppet_address_test COMMAND sockpuppet_address_test)
 add_test(NAME sockpuppet_udp_test COMMAND sockpuppet_udp_test)
@@ -58,6 +65,7 @@ add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test)
 add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test)
 add_test(NAME sockpuppet_udp_async_test COMMAND sockpuppet_udp_async_test)
 add_test(NAME sockpuppet_tcp_async_test COMMAND sockpuppet_tcp_async_test)
+add_test(NAME sockpuppet_tcp_async_performance_test COMMAND sockpuppet_tcp_async_performance_test)
 
 add_custom_target(build_tests
   DEPENDS sockpuppet_address_test
@@ -67,6 +75,7 @@ add_custom_target(build_tests
           sockpuppet_tcp_buffered_test
           sockpuppet_udp_async_test
           sockpuppet_tcp_async_test
+          sockpuppet_tcp_async_performance_test
 )
 
 add_custom_target(run_tests
@@ -81,3 +90,4 @@ install(TARGETS sockpuppet_udp_buffered_test DESTINATION bin)
 install(TARGETS sockpuppet_tcp_buffered_test DESTINATION bin)
 install(TARGETS sockpuppet_udp_async_test DESTINATION bin)
 install(TARGETS sockpuppet_tcp_async_test DESTINATION bin)
+install(TARGETS sockpuppet_tcp_async_performance_test DESTINATION bin)
