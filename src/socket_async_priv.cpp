@@ -80,7 +80,7 @@ SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard() = default;
 
 
 SocketDriver::SocketDriverPriv::SocketDriverPriv()
-  : pipeToAddr(std::make_shared<SockAddrInfo>(0))
+  : pipeToAddr(std::make_shared<SockAddrInfo>(0U))
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pfds(1U, pollfd{pipeTo.fd, POLLIN, 0})

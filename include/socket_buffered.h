@@ -32,6 +32,7 @@ public:
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
   /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
   struct SocketBufferedPriv;

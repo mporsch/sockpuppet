@@ -21,6 +21,7 @@ public:
   using Duration = SocketBuffered::Duration;
 
   /// Create a socket driver that can be passed to sockets to attach to.
+  /// @throws  If creating the internal event signalling fails.
   SocketDriver();
 
   SocketDriver(SocketDriver const &) = delete;
@@ -34,13 +35,16 @@ public:
   /// @param  timeout  Timeout to use; non-null allows blocking if
   ///                  all attached sockets are idle,
   ///                  a negative value allows unlimited blocking.
+  /// @throws  If the internal event handling fails.
   void Step(Duration timeout = Duration(-1));
 
   /// Continuously run the attached sockets.
+  /// @throws  If the internal event handling fails.
   /// @note  Blocking call. Returns only after Stop() from another thread.
   void Run();
 
   /// Cancel the continuously running Run() method.
+  /// @throws  If the internal event signalling fails.
   void Stop();
 
   struct SocketDriverPriv;
@@ -77,6 +81,7 @@ public:
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
   /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
   struct SocketAsyncPriv;
