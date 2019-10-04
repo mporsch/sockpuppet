@@ -116,6 +116,7 @@ struct SocketUdpAsync : public SocketAsync
   /// @param  buff  Buffered UDP socket to augment.
   /// @param  driver  Socket driver to run the socket.
   /// @param  handleReceive  (Bound) function to call on receipt.
+  /// @throws  If an invalid handler is provided.
   SocketUdpAsync(SocketUdpBuffered &&buff,
                  SocketDriver &driver,
                  ReceiveHandler handleReceive);
@@ -124,6 +125,7 @@ struct SocketUdpAsync : public SocketAsync
   /// @param  buff  Buffered UDP socket to augment.
   /// @param  driver  Socket driver to run the socket.
   /// @param  handleReceiveFrom  (Bound) function to call on receipt.
+  /// @throws  If an invalid handler is provided.
   SocketUdpAsync(SocketUdpBuffered &&buff,
                  SocketDriver &driver,
                  ReceiveFromHandler handleReceiveFrom);
@@ -154,6 +156,7 @@ struct SocketTcpAsyncClient : public SocketAsync
   ///                        connected peer.
   /// @param  handleDisconnect  (Bound) function to call when socket was
   ///                           disconnected and has become invalid.
+  /// @throws  If an invalid handler is provided.
   SocketTcpAsyncClient(SocketTcpBuffered &&buff,
                        SocketDriver &driver,
                        ReceiveHandler handleReceive,
@@ -183,6 +186,7 @@ struct SocketTcpAsyncServer : public SocketAsync
   /// @param  sock  TCP server socket to augment.
   /// @param  driver  Socket driver to run the socket.
   /// @param  handleConnect  (Bound) function to call when a TCP client connects.
+  /// @throws  If an invalid handler is provided.
   SocketTcpAsyncServer(SocketTcpServer &&sock,
                        SocketDriver &driver,
                        ConnectHandler handleConnect);

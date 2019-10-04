@@ -71,7 +71,7 @@ struct SocketUdp : public Socket
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return 0 only if non-negative timeout is specified.
+  /// @return  Receipt size. May return 0 only if non-negative timeout is specified.
   /// @throws  If receipt fails locally.
   size_t Receive(char *data,
                  size_t size,
@@ -80,7 +80,8 @@ struct SocketUdp : public Socket
   /// Unreliably receive data on bound address and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return 0 and invalid address only if non-negative timeout is specified.
+  /// @return  Receipt size and source address.
+  ///          May return 0 and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally.
   std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
                                                 size_t size,
@@ -117,7 +118,7 @@ struct SocketTcpClient : public Socket
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return 0 only if non-negative timeout is specified.
+  /// @return  Receipt size. May return 0 only if non-negative timeout is specified.
   /// @throws  If receipt fails.
   size_t Receive(char *data,
                  size_t size,
@@ -147,6 +148,7 @@ struct SocketTcpServer : public Socket
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,
   ///                  a negative value allows unlimited blocking.
+  /// @return  Connected client and its address.
   /// @throws  If listen or accept fails or timeout occurs.
   std::tuple<SocketTcpClient, SocketAddress> Listen(Duration timeout = Duration(-1));
 };

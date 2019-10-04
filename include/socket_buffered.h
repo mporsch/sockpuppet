@@ -56,7 +56,9 @@ protected:
 struct SocketUdpBuffered : public SocketBuffered
 {
   /// Create a UDP socket with additional internal buffer pool.
+  /// @param  sock  UDP socket to augment.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  ///                     Do not keep hold of more than this number of receive buffers!
   /// @param  rxBufSize  Size of each receive buffer.
   ///                    (0 -> use OS-determined maximum receive size.
   ///                     Careful! This might be outrageously more than
@@ -84,14 +86,16 @@ struct SocketUdpBuffered : public SocketBuffered
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return empty buffer only if non-negative timeout is specified.
+  /// @return  Received data buffer borrowed from socket.
+  ///          May return empty buffer only if non-negative timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return empty buffer and invalid address only if non-negative timeout is specified.
+  /// @return  Received data buffer borrowed from socket and source address.
+  ///          May return empty buffer and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Duration timeout = Duration(-1));
 };
@@ -101,7 +105,9 @@ struct SocketUdpBuffered : public SocketBuffered
 struct SocketTcpBuffered : public SocketBuffered
 {
   /// Create a TCP socket with additional internal buffer pool.
+  /// @param  sock  TCP client socket to augment.
   /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  ///                     Do not keep hold of more than this number of receive buffers!
   /// @param  rxBufSize  Size of each receive buffer.
   ///                    (0 -> use OS-determined maximum receive size.
   ///                     Careful! This might be outrageously more than
@@ -129,7 +135,8 @@ struct SocketTcpBuffered : public SocketBuffered
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  May return empty buffer only if non-negative timeout is specified.
+  /// @return  Received data buffer borrowed from socket.
+  ///          May return empty buffer only if non-negative timeout is specified.
   /// @throws  If receipt fails or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Duration timeout = Duration(-1));
 

@@ -300,7 +300,7 @@ try {
   } else if(handlers.receiveFrom) {
     handlers.receiveFrom(this->ReceiveFrom(noTimeout));
   } else {
-    throw std::logic_error("no read handler");
+    assert(false);
   }
 } catch(std::runtime_error const &) {
   DriverDoFdTaskError();
@@ -325,8 +325,10 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
     DriverDoSendTo(sendToQ.front());
     sendToQ.pop();
     return (sendToQSize == 1U);
+  } else {
+    assert(false);
+    return true;
   }
-  throw std::logic_error("send buffer emptied unexpectedly");
 }
 
 void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &e)
@@ -358,6 +360,8 @@ void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
 {
   if(handlers.disconnect) {
     handlers.disconnect(SocketAddress(peerAddr));
+  } else {
+    // silently discard UDP receive errors
   }
 }
 
