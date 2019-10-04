@@ -3,6 +3,7 @@
 #include <algorithm> // for std::generate
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
+#include <thread> // for std::this_thread
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -45,10 +46,26 @@ struct TestData
   }
 
   template<typename SendFn>
+  void DoSendUdp(SendFn sendFn) const
+  {
+    // send in fixed packet sizes
+    size_t pos = 0;
+    static size_t const packetSize = 1400U;
+    for(; pos + packetSize < referenceData.size(); pos += packetSize) {
+      sendFn(referenceData.data() + pos, packetSize);
+
+      // delay packets to avoid loss / out-of-order / queue overflow
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    // send the remaining data not filling a whole packet
+    sendFn(referenceData.data() + pos,
+           referenceData.size() - pos);
+  }
+
+  template<typename SendFn>
   void DoSendTcp(SendFn sendFn) const
   {
-    std::cout << "sending reference data" << std::endl;
-
     // send in randomly sized packets
     std::default_random_engine generator;
     std::uniform_int_distribution<size_t> distribution(100U, 10000U);
@@ -67,10 +84,33 @@ struct TestData
            referenceData.size() - pos);
   }
 
-  inline void SendTcp(SocketTcpAsyncClient &client) const
+  inline void Send(SocketUdpBuffered &buff, SocketAddress const &dstAddr) const
   {
+    std::cout << "sending reference data to "
+              << to_string(dstAddr) << std::endl;
+
     auto send = [&](char const *data, size_t size) {
-      client.Send(ToBufferPtr(data, size));
+      buff.SendTo(data, size, dstAddr);
+    };
+    DoSendUdp(send);
+  }
+
+  inline void Send(SocketTcpBuffered &buff) const
+  {
+    std::cout << "sending reference data" << std::endl;
+
+    auto send = [&](char const *data, size_t size) {
+      buff.Send(data, size);
+    };
+    DoSendTcp(send);
+  }
+
+  inline void Send(SocketTcpAsyncClient &sock) const
+  {
+    std::cout << "sending reference data" << std::endl;
+
+    auto send = [&](char const *data, size_t size) {
+      sock.Send(ToBufferPtr(data, size));
     };
     DoSendTcp(send);
   }

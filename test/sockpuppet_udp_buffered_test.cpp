@@ -1,33 +1,14 @@
+#include "sockpuppet_test_common.h" // for TestData
 #include "socket_buffered.h" // for SocketUdpBuffered
 
-#include <algorithm> // for std::generate
 #include <atomic> // for std::atomic
 #include <iostream> // for std::cout
-#include <random> // for std::default_random_engine
 #include <stdexcept> // for std::runtime_error
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
 
-static const auto referenceData = []() -> std::vector<char> {
-    std::cout << "generating random reference data" << std::endl;
-
-    std::vector<char> bytes(1000000U);
-
-    std::default_random_engine generator;
-    std::uniform_int_distribution<int> distribution(
-      std::numeric_limits<char>::min(),
-      std::numeric_limits<char>::max());
-
-    std::generate(
-      std::begin(bytes),
-      std::end(bytes),
-      [&]() -> char {
-        return static_cast<char>(distribution(generator));
-      });
-
-    return bytes;
-    }();
+static TestData const testData(1000000U);
 static std::atomic<bool> success(true);
 
 void Server(SocketAddress serverAddress)
@@ -41,7 +22,7 @@ try {
     auto t = server.ReceiveFrom();
     storage.emplace_back(std::move(std::get<0>(t)));
 
-    std::cout << "server receiving from "
+    std::cout << "receiving from "
               << to_string(std::get<1>(t)) << std::endl;
   }
 
@@ -53,22 +34,8 @@ try {
   } while(storage.back()->size() > 0U);
   storage.pop_back();
 
-  std::cout << "server verifying received "
-               "against reference data" << std::endl;
-
-  size_t pos = 0;
-  for(auto &&packet : storage) {
-    if(std::equal(
-         std::begin(*packet),
-         std::end(*packet),
-         referenceData.data() + pos,
-         referenceData.data() + pos + packet->size())) {
-      pos += packet->size();
-    } else {
-      success = false;
-      std::cout << "error at byte " << pos << std::endl;
-      break;
-    }
+  if(!testData.Verify(storage)) {
+    success = false;
   }
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
@@ -85,27 +52,7 @@ try {
     throw std::runtime_error("unexpected receive");
   }
 
-  std::cout << "client sending reference data to server "
-            << to_string(serverAddress) << std::endl;
-
-  // send in fixed packet sizes
-  size_t pos = 0;
-  static size_t const packetSize = 1400U;
-  for(; pos + packetSize < referenceData.size(); pos += packetSize) {
-    client.SendTo(
-          referenceData.data() + pos,
-          packetSize,
-          serverAddress);
-
-    // delay packets to avoid loss / out-of-order / queue overflow
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
-
-  // send the remaining data not filling a whole packet
-  client.SendTo(
-        referenceData.data() + pos,
-        referenceData.size() - pos,
-        serverAddress);
+  testData.Send(client, serverAddress);
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;

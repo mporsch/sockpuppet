@@ -159,7 +159,7 @@ struct Clients
 
 void ClientSend(SocketTcpAsyncClient &client)
 {
-  testData.SendTcp(client);
+  testData.Send(client);
 }
 
 } // unnamed namespace
