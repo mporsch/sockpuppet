@@ -219,7 +219,7 @@ uint16_t SocketAddress::SocketAddressPriv::Port() const
 {
   auto const sockAddr = ForUdp();
 
-  return ntohs(IsV6() ?
+  return ::ntohs(IsV6() ?
       reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
       reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port);
 }

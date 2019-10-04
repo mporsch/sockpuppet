@@ -107,11 +107,13 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);
 
-  // interface for SocketDriverPriv
+  // in thread context of SocketDriverPriv
   void DriverDoFdTaskReadable();
 
-  /// @return  true if there is more data to send, false otherwise
+  /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
+  void DriverDoSend(SendQ::value_type &e);
+  void DriverDoSendTo(SendToQ::value_type &e);
 
   void DriverDoFdTaskError();
 };

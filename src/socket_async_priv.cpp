@@ -101,7 +101,7 @@ SocketDriver::SocketDriverPriv::~SocketDriverPriv()
 
 void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 {
-  StepGuard guard(*this);
+  StepGuard lock(*this);
 
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
@@ -141,7 +141,7 @@ void SocketDriver::SocketDriverPriv::Stop()
 void SocketDriver::SocketDriverPriv::AsyncRegister(
     SocketAsync::SocketAsyncPriv &sock)
 {
-  PauseGuard guard(*this);
+  PauseGuard lock(*this);
 
   sockets.emplace_back(sock);
   pfds.emplace_back(pollfd{sock.fd, POLLIN, 0});
@@ -149,7 +149,7 @@ void SocketDriver::SocketDriverPriv::AsyncRegister(
 
 void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
 {
-  PauseGuard guard(*this);
+  PauseGuard lock(*this);
 
   const auto itSocket = std::find_if(
         std::begin(sockets),
@@ -168,7 +168,7 @@ void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
 
 void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
 {
-  PauseGuard guard(*this);
+  PauseGuard lock(*this);
 
   const auto itPfd = std::find_if(
         std::begin(pfds),
@@ -204,7 +204,7 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
       sock.DriverDoFdTaskReadable();
       return;
     } else if(pfd.revents & POLLOUT) {
-      if (!sock.DriverDoFdTaskWritable()) {
+      if (sock.DriverDoFdTaskWritable()) {
         pfd.events &= ~POLLOUT;
       }
       return;
@@ -266,15 +266,19 @@ std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
   std::promise<void> promise;
   auto ret = promise.get_future();
 
+  bool wasEmpty;
   {
     std::lock_guard<std::mutex> lock(sendQMtx);
 
+    wasEmpty = q.empty();
     q.emplace(std::move(promise),
               std::forward<Args>(args)...);
   }
 
-  if(auto const ptr = driver.lock()) {
-    ptr->AsyncWantSend(this->fd);
+  if(wasEmpty) {
+    if(auto const ptr = driver.lock()) {
+      ptr->AsyncWantSend(this->fd);
+    }
   }
 
   return ret;
@@ -304,45 +308,50 @@ try {
 
 bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
 {
-  std::unique_lock<std::mutex> lock(sendQMtx);
+  // hold the lock during send/sendto
+  // as we already checked that the socket will not block and
+  // otherwise we would need to re-lock afterwards to verify that
+  // the previously empty queue has not been refilled asynchronously
+  std::lock_guard<std::mutex> lock(sendQMtx);
 
-  // socket uses either Send() or SendTo() but not both
+  // socket uses either send or sendto but not both
   assert(sendQ.empty() || sendToQ.empty());
 
   if(auto const sendQSize = sendQ.size()) {
-    auto e = std::move(sendQ.front());
+    DriverDoSend(sendQ.front());
     sendQ.pop();
-    lock.unlock();
-
-    auto &&promise = std::get<0>(e);
-    try {
-      auto &&buffer = std::get<1>(e);
-      SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
-      promise.set_value();
-    } catch(std::exception const &e) {
-      promise.set_exception(std::make_exception_ptr(e));
-    }
-
-    return (sendQSize > 1U);
+    return (sendQSize == 1U);
   } else if(auto const sendToQSize = sendToQ.size()) {
-    auto e = std::move(sendToQ.front());
+    DriverDoSendTo(sendToQ.front());
     sendToQ.pop();
-    lock.unlock();
-
-    auto &&promise = std::get<0>(e);
-    try {
-      auto &&buffer = std::get<1>(e);
-      auto &&addr = std::get<2>(e);
-      SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
-      promise.set_value();
-    } catch(std::exception const &e) {
-      promise.set_exception(std::make_exception_ptr(e));
-    }
-
-    return (sendToQSize > 1U);
+    return (sendToQSize == 1U);
   }
-
   throw std::logic_error("send buffer emptied unexpectedly");
+}
+
+void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &e)
+{
+  auto &&promise = std::get<0>(e);
+  try {
+    auto &&buffer = std::get<1>(e);
+    SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
+    promise.set_value();
+  } catch(std::exception const &e) {
+    promise.set_exception(std::make_exception_ptr(e));
+  }
+}
+
+void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQ::value_type &e)
+{
+  auto &&promise = std::get<0>(e);
+  try {
+    auto &&buffer = std::get<1>(e);
+    auto &&addr = std::get<2>(e);
+    SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
+    promise.set_value();
+  } catch(std::exception const &e) {
+    promise.set_exception(std::make_exception_ptr(e));
+  }
 }
 
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
