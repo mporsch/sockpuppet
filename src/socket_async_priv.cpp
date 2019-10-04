@@ -90,7 +90,7 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   pipeTo.Bind(pipeToAddr->ForUdp());
   pipeToAddr = pipeTo.GetSockName();
 
-  SockAddrInfo pipeFromAddr(0);
+  SockAddrInfo pipeFromAddr(0U);
   pipeFrom.Bind(pipeFromAddr.ForUdp());
 }
 
@@ -254,7 +254,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBufferPtr &&buffer)
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-    SocketBufferPtr &&buffer, SockAddrView const &dstAddr)
+    SocketBufferPtr &&buffer, SocketAddress const &dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }
@@ -331,11 +331,11 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &e)
+void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &t)
 {
-  auto &&promise = std::get<0>(e);
+  auto &&promise = std::get<0>(t);
   try {
-    auto &&buffer = std::get<1>(e);
+    auto &&buffer = std::get<1>(t);
     SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
     promise.set_value();
   } catch(std::exception const &e) {
@@ -343,13 +343,14 @@ void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &e)
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQ::value_type &e)
+void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQ::value_type &t)
 {
-  auto &&promise = std::get<0>(e);
+  auto &&promise = std::get<0>(t);
   try {
-    auto &&buffer = std::get<1>(e);
-    auto &&addr = std::get<2>(e);
-    SocketPriv::SendTo(buffer->data(), buffer->size(), addr);
+    auto &&buffer = std::get<1>(t);
+    auto &&addr = std::get<2>(t);
+    SocketPriv::SendTo(buffer->data(), buffer->size(),
+                       addr.Priv().ForUdp());
     promise.set_value();
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));

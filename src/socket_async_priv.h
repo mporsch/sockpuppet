@@ -82,7 +82,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 {
   using SendQElement = std::tuple<std::promise<void>, SocketBufferPtr>;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, SockAddrView>;
+  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, SocketAddress>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -102,7 +102,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
   std::future<void> Send(SocketBufferPtr &&buffer);
   std::future<void> SendTo(SocketBufferPtr &&buffer,
-                           SockAddrView const &dstAddr);
+                           SocketAddress const &dstAddr);
   template<typename QueueElement, typename... Args>
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);
@@ -112,8 +112,8 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
-  void DriverDoSend(SendQ::value_type &e);
-  void DriverDoSendTo(SendToQ::value_type &e);
+  void DriverDoSend(SendQ::value_type &t);
+  void DriverDoSendTo(SendToQ::value_type &t);
 
   void DriverDoFdTaskError();
 };
