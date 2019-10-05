@@ -235,17 +235,23 @@ void Socket::SocketPriv::SetSockOpt(int id, int value,
   }
 }
 
-int Socket::SocketPriv::GetSockOptRcvBuf() const
+size_t Socket::SocketPriv::GetSockOptRcvBuf() const
 {
-  int ret;
-  auto size = static_cast<socklen_t>(sizeof(ret));
-  if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
-                   reinterpret_cast<char *>(&ret), &size) ||
-      size != sizeof(ret)) {
-    throw std::runtime_error("failed to get socket receive buffer size: "
-                             + std::string(std::strerror(errno)));
+  int value;
+  {
+    auto size = static_cast<socklen_t>(sizeof(value));
+    if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+                     reinterpret_cast<char *>(&value), &size) ||
+        size != sizeof(value)) {
+      throw std::runtime_error("failed to get socket receive buffer size: "
+                               + std::string(std::strerror(errno)));
+    }
   }
-  return ret;
+
+  if(value < 0) {
+    throw std::logic_error("invalid receive buffer size");
+  }
+  return static_cast<size_t>(value);
 }
 
 std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const

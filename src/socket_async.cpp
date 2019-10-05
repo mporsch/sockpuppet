@@ -2,6 +2,8 @@
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 #include "socket_async_priv.h" // for SocketAsyncPriv
 
+#include <stdexcept> // for std::logic_error
+
 namespace sockpuppet {
 
 namespace {
@@ -56,11 +58,7 @@ SocketAddress SocketAsync::LocalAddress() const
 
 size_t SocketAsync::ReceiveBufferSize() const
 {
-  auto const size = m_priv->GetSockOptRcvBuf();
-  if(size < 0) {
-    throw std::logic_error("invalid receive buffer size");
-  }
-  return static_cast<size_t>(size);
+  return m_priv->GetSockOptRcvBuf();
 }
 
 SocketAsync::SocketAsync(Socket &&sock,

@@ -17,11 +17,7 @@ SocketAddress Socket::LocalAddress() const
 
 size_t Socket::ReceiveBufferSize() const
 {
-  auto const size = m_priv->GetSockOptRcvBuf();
-  if(size < 0) {
-    throw std::logic_error("invalid receive buffer size");
-  }
-  return static_cast<size_t>(size);
+  return m_priv->GetSockOptRcvBuf();
 }
 
 Socket::Socket(std::unique_ptr<SocketPriv> &&other)

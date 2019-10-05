@@ -61,7 +61,7 @@ struct Socket::SocketPriv
   void SetSockOpt(int id,
                   int value,
                   char const *name);
-  int GetSockOptRcvBuf() const;
+  size_t GetSockOptRcvBuf() const;
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
