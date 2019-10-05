@@ -45,7 +45,6 @@ protected:
   SocketBuffered(SocketBuffered const &other) = delete;
   SocketBuffered(SocketBuffered &&other) noexcept;
   virtual ~SocketBuffered();
-
   SocketBuffered &operator=(SocketBuffered const &other) = delete;
   SocketBuffered &operator=(SocketBuffered &&other) noexcept;
 
@@ -73,7 +72,6 @@ struct SocketUdpBuffered : public SocketBuffered
   SocketUdpBuffered(SocketUdpBuffered const &other) = delete;
   SocketUdpBuffered(SocketUdpBuffered &&other) noexcept;
   ~SocketUdpBuffered() override;
-
   SocketUdpBuffered &operator=(SocketUdpBuffered const &other) = delete;
   SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
 
@@ -122,7 +120,6 @@ struct SocketTcpBuffered : public SocketBuffered
   SocketTcpBuffered(SocketTcpBuffered const &other) = delete;
   SocketTcpBuffered(SocketTcpBuffered &&other) noexcept;
   ~SocketTcpBuffered() override;
-
   SocketTcpBuffered &operator=(SocketTcpBuffered const &other) = delete;
   SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 

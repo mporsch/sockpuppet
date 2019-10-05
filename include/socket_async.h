@@ -27,7 +27,6 @@ public:
   SocketDriver(SocketDriver const &) = delete;
   SocketDriver(SocketDriver &&other) noexcept;
   ~SocketDriver();
-
   SocketDriver &operator=(SocketDriver const &) = delete;
   SocketDriver &operator=(SocketDriver &&other) noexcept;
 
@@ -47,7 +46,9 @@ public:
   /// @throws  If the internal event signalling fails.
   void Stop();
 
+  /// Pimpl to hide away the OS-specifics.
   struct SocketDriverPriv;
+
 private:
   std::shared_ptr<SocketDriverPriv> m_priv;
 };
@@ -106,7 +107,6 @@ protected:
   SocketAsync(SocketAsync const &other) = delete;
   SocketAsync(SocketAsync &&other) noexcept;
   virtual ~SocketAsync();
-
   SocketAsync &operator=(SocketAsync const &other) = delete;
   SocketAsync &operator=(SocketAsync &&other) noexcept;
 
@@ -139,7 +139,6 @@ struct SocketUdpAsync : public SocketAsync
   SocketUdpAsync(SocketUdpAsync const &other) = delete;
   SocketUdpAsync(SocketUdpAsync &&other) noexcept;
   ~SocketUdpAsync() override;
-
   SocketUdpAsync &operator=(SocketUdpAsync const &other) = delete;
   SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
 
@@ -173,7 +172,6 @@ struct SocketTcpAsyncClient : public SocketAsync
   SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
   SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
   ~SocketTcpAsyncClient() override;
-
   SocketTcpAsyncClient &operator=(SocketTcpAsyncClient const &other) = delete;
   SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
 
@@ -200,6 +198,12 @@ struct SocketTcpAsyncServer : public SocketAsync
   SocketTcpAsyncServer(SocketTcpServer &&sock,
                        SocketDriver &driver,
                        ConnectHandler handleConnect);
+
+  SocketTcpAsyncServer(SocketTcpAsyncServer const &other) = delete;
+  SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept;
+  ~SocketTcpAsyncServer() override;
+  SocketTcpAsyncServer &operator=(SocketTcpAsyncServer const &other) = delete;
+  SocketTcpAsyncServer &operator=(SocketTcpAsyncServer &&other) noexcept;
 };
 
 } // namespace sockpuppet

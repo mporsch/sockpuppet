@@ -59,6 +59,7 @@ struct SockAddrView
 struct SocketAddress::SocketAddressPriv
 {
   virtual ~SocketAddressPriv();
+
   virtual SockAddrView ForTcp() const = 0;
   virtual SockAddrView ForUdp() const = 0;
   virtual int Family() const = 0;

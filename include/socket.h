@@ -58,7 +58,6 @@ struct SocketUdp : public Socket
   SocketUdp(SocketUdp const &other) = delete;
   SocketUdp(SocketUdp &&other) noexcept;
   ~SocketUdp() override;
-
   SocketUdp &operator=(SocketUdp const &other) = delete;
   SocketUdp &operator=(SocketUdp &&other) noexcept;
 
@@ -105,7 +104,6 @@ struct SocketTcpClient : public Socket
   SocketTcpClient(SocketTcpClient const &other) = delete;
   SocketTcpClient(SocketTcpClient &&other) noexcept;
   ~SocketTcpClient() override;
-
   SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
   SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
@@ -143,7 +141,6 @@ struct SocketTcpServer : public Socket
   SocketTcpServer(SocketTcpServer const &other) = delete;
   SocketTcpServer(SocketTcpServer &&other) noexcept;
   ~SocketTcpServer() override;
-
   SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
   SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
 

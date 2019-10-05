@@ -42,7 +42,6 @@ struct SocketAddress
   SocketAddress(SocketAddress const &other);
   SocketAddress(SocketAddress &&other) noexcept;
   ~SocketAddress();
-
   SocketAddress &operator=(SocketAddress const &other);
   SocketAddress &operator=(SocketAddress &&other) noexcept;
 

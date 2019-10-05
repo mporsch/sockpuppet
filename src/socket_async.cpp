@@ -187,4 +187,17 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
   m_priv->Listen();
 }
 
+SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept
+  : SocketAsync(std::move(other))
+{
+}
+
+SocketTcpAsyncServer::~SocketTcpAsyncServer() = default;
+
+SocketTcpAsyncServer &SocketTcpAsyncServer::operator=(SocketTcpAsyncServer &&other) noexcept
+{
+  SocketAsync::operator=(std::move(other));
+  return *this;
+}
+
 } // namespace sockpuppet
