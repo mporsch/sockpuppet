@@ -5,13 +5,13 @@
 namespace sockpuppet {
 
 namespace {
-  template<typename Handler>
-  typename std::remove_reference<Handler>::type &&checkedMove(Handler &&handler)
+  template<typename Fn>
+  std::function<Fn> &checked(std::function<Fn> &handler)
   {
     if (!handler) {
       throw std::logic_error("invalid handler");
     }
-    return std::move(handler);
+    return handler;
   }
 } // unnamed namespace
 
@@ -66,14 +66,14 @@ size_t SocketAsync::ReceiveBufferSize() const
 SocketAsync::SocketAsync(Socket &&sock,
     SocketDriver &driver, Handlers handlers)
   : m_priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*sock.m_priv), driver.m_priv, handlers))
+      std::move(*sock.m_priv), driver.m_priv, std::move(handlers)))
 {
 }
 
 SocketAsync::SocketAsync(SocketBuffered &&buff,
     SocketDriver &driver, Handlers handlers)
   : m_priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*buff.m_priv), driver.m_priv, handlers))
+      std::move(*buff.m_priv), driver.m_priv, std::move(handlers)))
 {
 }
 
@@ -96,7 +96,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
   : SocketAsync(std::move(buff),
                 driver,
                 Handlers{
-                  checkedMove(handleReceive)
+                  std::move(checked(handleReceive))
                 , nullptr
                 , nullptr
                 , nullptr
@@ -110,7 +110,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
                 driver,
                 Handlers{
                   nullptr
-                , checkedMove(handleReceiveFrom)
+                , std::move(checked(handleReceiveFrom))
                 , nullptr
                 , nullptr
                 })
@@ -143,10 +143,10 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
   : SocketAsync(std::move(buff),
                 driver,
                 SocketAsync::Handlers{
-                  checkedMove(handleReceive)
+                  std::move(checked(handleReceive))
                 , nullptr
                 , nullptr
-                , checkedMove(handleDisconnect)})
+                , std::move(checked(handleDisconnect))})
 {
 }
 
@@ -181,7 +181,7 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
                 SocketAsync::Handlers{
                   nullptr
                 , nullptr
-                , checkedMove(handleConnect)
+                , std::move(checked(handleConnect))
                 , nullptr})
 {
   m_priv->Listen();

@@ -31,6 +31,7 @@ public:
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
+  /// Pimpl to hide away the OS-specifics.
   struct SocketPriv;
 
 protected:

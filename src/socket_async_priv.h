@@ -35,6 +35,8 @@ struct SocketDriver::SocketDriverPriv
     StepGuard(StepGuard const &) = delete;
     StepGuard(StepGuard &&) = delete;
     ~StepGuard();
+    StepGuard &operator=(StepGuard const &) = delete;
+    StepGuard &operator=(StepGuard &&) = delete;
   };
 
   struct PauseGuard
@@ -45,6 +47,8 @@ struct SocketDriver::SocketDriverPriv
     PauseGuard(PauseGuard const &) = delete;
     PauseGuard(PauseGuard &&) = delete;
     ~PauseGuard();
+    PauseGuard &operator=(PauseGuard const &) = delete;
+    PauseGuard &operator=(PauseGuard &&) = delete;
   };
 
   /// internal signalling pipe for cancelling Step()
@@ -60,7 +64,11 @@ struct SocketDriver::SocketDriverPriv
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
   SocketDriverPriv();
+  SocketDriverPriv(SocketDriverPriv const &) = delete;
+  SocketDriverPriv(SocketDriverPriv &&) = delete;
   ~SocketDriverPriv();
+  SocketDriverPriv &operator=(SocketDriverPriv const &) = delete;
+  SocketDriverPriv &operator=(SocketDriverPriv &&) = delete;
 
   void Step(Duration timeout);
 
@@ -98,7 +106,11 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   SocketAsyncPriv(SocketBufferedPriv &&buff,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
                   Handlers handlers);
+  SocketAsyncPriv(SocketAsyncPriv const &) = delete;
+  SocketAsyncPriv(SocketAsyncPriv &&) = delete;
   ~SocketAsyncPriv() override;
+  SocketAsyncPriv &operator=(SocketAsyncPriv const &) = delete;
+  SocketAsyncPriv &operator=(SocketAsyncPriv &&) = delete;
 
   std::future<void> Send(SocketBufferPtr &&buffer);
   std::future<void> SendTo(SocketBufferPtr &&buffer,
@@ -112,8 +124,8 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
-  void DriverDoSend(SendQ::value_type &t);
-  void DriverDoSendTo(SendToQ::value_type &t);
+  void DriverDoSend(SendQElement &t);
+  void DriverDoSendTo(SendToQElement &t);
 
   void DriverDoFdTaskError();
 };

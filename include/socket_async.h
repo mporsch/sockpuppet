@@ -59,13 +59,13 @@ private:
 class SocketAsync
 {
 public:
-  using SocketBuffer = SocketBuffered::SocketBuffer;
+  using SocketBufferPool = SocketBuffered::SocketBufferPool;
   using SocketBufferPtr = SocketBuffered::SocketBufferPtr;
   using ReceiveHandler = std::function<
-    void(SocketBuffered::SocketBufferPtr)
+    void(SocketBufferPtr)
   >;
   using ReceiveFromHandler = std::function<
-    void(std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>)
+    void(std::tuple<SocketBufferPtr, SocketAddress>)
   >;
   using ConnectHandler = std::function<
     void(std::tuple<SocketTcpClient, SocketAddress>)
@@ -84,6 +84,7 @@ public:
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
+  /// Pimpl to hide away the OS-specifics.
   struct SocketAsyncPriv;
 
 protected:
@@ -143,6 +144,8 @@ struct SocketUdpAsync : public SocketAsync
   SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
 
   /// Enqueue data to unreliably send to address.
+  /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
+  ///                 Create using your own SocketBufferPool.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @return  Future object to fulfill when data was actually sent.
@@ -175,6 +178,8 @@ struct SocketTcpAsyncClient : public SocketAsync
   SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
 
   /// Enqueue data to reliably send to connected peer.
+  /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
+  ///                 Create using your own SocketBufferPool.
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> Send(SocketBufferPtr &&buffer);
 

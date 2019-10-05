@@ -138,7 +138,7 @@ int main(int, char **)
   auto server = std::make_unique<Server>(serverAddress, driver);
 
   {
-    ResourcePool<SocketBuffered::SocketBuffer> clientSendPool;
+    SocketAsync::SocketBufferPool clientSendPool;
     std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
 
     std::vector<std::future<void>> futures;

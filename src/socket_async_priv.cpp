@@ -231,11 +231,11 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
     std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketBufferedPriv(std::move(buff))
   , driver(driver)
-  , handlers(handlers)
+  , handlers(std::move(handlers))
 {
   driver->AsyncRegister(*this);
 
-  if(handlers.disconnect) {
+  if(this->handlers.disconnect) {
     // cache remote address as it will be unavailable after disconnect
     peerAddr = this->GetPeerName();
   }
@@ -331,7 +331,7 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &t)
+void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
@@ -343,7 +343,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQ::value_type &t)
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQ::value_type &t)
+void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {

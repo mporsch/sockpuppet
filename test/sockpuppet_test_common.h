@@ -38,10 +38,10 @@ struct TestData
 
   static SocketAsync::SocketBufferPtr ToBufferPtr(char const *data, size_t size)
   {
-    static SocketBuffered::SocketBufferPool pool;
+    static SocketAsync::SocketBufferPool pool;
 
     auto ptr = pool.Get();
-    *ptr = SocketBuffered::SocketBuffer(data, data + size);
+    ptr->assign(data, data + size);
     return ptr;
   }
 
