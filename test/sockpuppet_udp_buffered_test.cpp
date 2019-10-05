@@ -8,12 +8,15 @@
 
 using namespace sockpuppet;
 
-static TestData const testData(1000000U);
+static TestData const testData(100000U);
 static std::atomic<bool> success(true);
 
 void Server(SocketAddress serverAddress)
 try {
   SocketUdpBuffered server(serverAddress, 0U, 1500U);
+
+  std::cout << "waiting for receipt at " << to_string(serverAddress)
+            << std::endl;
 
   std::vector<SocketUdpBuffered::SocketBufferPtr> storage;
 
@@ -23,7 +26,8 @@ try {
     storage.emplace_back(std::move(std::get<0>(t)));
 
     std::cout << "receiving from "
-              << to_string(std::get<1>(t)) << std::endl;
+              << to_string(std::get<1>(t))
+              << std::endl;
   }
 
   // receive until timeout

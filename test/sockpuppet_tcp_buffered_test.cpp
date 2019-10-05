@@ -18,9 +18,6 @@ void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 
   std::vector<SocketUdpBuffered::SocketBufferPtr> storage;
 
-  std::cout << "server receiving from client "
-            << to_string(std::get<1>(t)) << std::endl;
-
   // receive until disconnect
   try {
     for(;;) {
@@ -38,6 +35,9 @@ void Server(SocketAddress serverAddress)
 try {
   SocketTcpServer server(serverAddress);
 
+  std::cout << "server listening at " << to_string(serverAddress)
+            << std::endl;
+
   ServerHandler(server.Listen());
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
@@ -52,8 +52,9 @@ try {
     throw std::runtime_error("unexpected receive");
   }
 
-  std::cout << "client connected to server "
-            << to_string(serverAddress) << std::endl;
+  std::cout << "client " << to_string(client.LocalAddress())
+            << " connected to server " << to_string(serverAddress)
+            << std::endl;
 
   testData.Send(client);
 

@@ -33,8 +33,8 @@ try {
     throw std::runtime_error("unexpected receive");
   }
 
-  COUT << "server sending to "
-       << to_string(clientAddr) << std::endl;
+  COUT << "server sending to client " << to_string(clientAddr)
+       << std::endl;
 
   static char const hello[] = "hello";
   handler.Send(hello, sizeof(hello));
@@ -72,9 +72,10 @@ try {
 void Client(SocketAddress serverAddr)
 try {
   SocketTcpClient client(serverAddr);
+  auto const clientAddr = client.LocalAddress();
 
-  COUT << "client " << std::this_thread::get_id()
-       << " connected to " << to_string(serverAddr)
+  COUT << "client " << to_string(clientAddr)
+       << " connected to server " << to_string(serverAddr)
        << std::endl;
 
   char buffer[256];
@@ -82,8 +83,8 @@ try {
                                        std::chrono::seconds(1));
   if(received > 0U &&
      std::string(buffer, received).find("hello") != std::string::npos) {
-    COUT << "client received from "
-         << to_string(serverAddr) << std::endl;
+    COUT << "client " << to_string(clientAddr)
+         << " received from server" << std::endl;
 
     try {
       // the server closes the connection after the "hello" message

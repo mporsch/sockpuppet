@@ -15,7 +15,8 @@ void Server(SocketAddress serverAddr)
 try {
   SocketUdp server(serverAddr);
 
-  std::cout << "receiving at " << to_string(serverAddr) << std::endl;
+  std::cout << "waiting for receipt at " << to_string(serverAddr)
+            << std::endl;
 
   char buffer[256];
   auto received = server.Receive(buffer, sizeof(buffer),
@@ -42,8 +43,8 @@ try {
 
 void Client(SocketAddress serverAddr)
 try {
-  SocketAddress clientAddr("localhost");
-  SocketUdp client(clientAddr);
+  SocketUdp client(SocketAddress("localhost"));
+  auto const clientAddr = client.LocalAddress();
 
   char buffer[256];
   if((client.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) ||

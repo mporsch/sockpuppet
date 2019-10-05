@@ -11,7 +11,7 @@ static auto promisedReceipt = std::make_unique<std::promise<void>>();
 void HandleReceiveFrom(
     std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress> t)
 {
-  std::cout << "server received from "
+  std::cout << "received from "
             << to_string(std::get<1>(t)) << std::endl;
 
   if(promisedReceipt) {
@@ -39,13 +39,20 @@ int main(int, char **)
     SocketAddress serverAddress("localhost:8554");
     SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
 
+    std::cout << "waiting for receipt at " << to_string(serverAddress)
+              << std::endl;
+
     auto futureReceipt = promisedReceipt->get_future();
 
     {
       ResourcePool<std::vector<char>> sendPool;
 
-      SocketAddress clientAddress("localhost");
-      SocketUdpAsync client({clientAddress}, driver, ReceiveDummy);
+      SocketUdpAsync client({SocketAddress("localhost")},
+                            driver,
+                            ReceiveDummy);
+
+      std::cout << "sending from " << to_string(client.LocalAddress())
+                << " to " << to_string(serverAddress) << std::endl;
 
       std::vector<std::future<void>> futuresSend;
       futuresSend.reserve(sendCount);

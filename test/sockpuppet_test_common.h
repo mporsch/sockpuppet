@@ -86,8 +86,8 @@ struct TestData
 
   inline void Send(SocketUdpBuffered &buff, SocketAddress const &dstAddr) const
   {
-    std::cout << "sending reference data to "
-              << to_string(dstAddr) << std::endl;
+    std::cout << "sending reference data from " << to_string(buff.LocalAddress())
+              << " to " << to_string(dstAddr) << std::endl;
 
     auto send = [&](char const *data, size_t size) {
       buff.SendTo(data, size, dstAddr);
@@ -97,7 +97,10 @@ struct TestData
 
   inline void Send(SocketTcpBuffered &buff) const
   {
-    std::cout << "sending reference data" << std::endl;
+    std::cout << "sending reference data from "
+              << to_string(buff.LocalAddress())
+              << " to " << to_string(buff.PeerAddress())
+              << std::endl;
 
     auto send = [&](char const *data, size_t size) {
       buff.Send(data, size);
@@ -105,12 +108,15 @@ struct TestData
     DoSendTcp(send);
   }
 
-  inline void Send(SocketTcpAsyncClient &sock) const
+  inline void Send(SocketTcpAsyncClient &async) const
   {
-    std::cout << "sending reference data" << std::endl;
+    std::cout << "sending reference data from "
+              << to_string(async.LocalAddress())
+              << " to " << to_string(async.PeerAddress())
+              << std::endl;
 
     auto send = [&](char const *data, size_t size) {
-      sock.Send(ToBufferPtr(data, size));
+      async.Send(ToBufferPtr(data, size));
     };
     DoSendTcp(send);
   }

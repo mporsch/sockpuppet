@@ -61,9 +61,6 @@ struct Server
   {
     auto &&clientAddress = std::get<1>(t);
 
-    std::cout << "server accepted connection from "
-              << to_string(clientAddress) << std::endl;
-
     std::lock_guard<std::mutex> lock(mtx);
 
     (void)serverHandlers.emplace(
@@ -137,6 +134,9 @@ int main(int, char **)
   SocketAddress serverAddress("localhost:8554");
   auto server = std::make_unique<Server>(serverAddress, driver);
 
+  std::cout << "server listening at " << to_string(serverAddress)
+            << std::endl;
+
   {
     SocketAsync::SocketBufferPool clientSendPool;
     std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
@@ -150,6 +150,9 @@ int main(int, char **)
                                      driver,
                                      ReceiveDummy,
                                      DisconnectDummy));
+
+      std::cout << "client " << to_string(client->LocalAddress())
+                << " connected and sending to server" << std::endl;
 
       for(size_t i = 0U; i < clientSendCount; ++i) {
         auto buffer = clientSendPool.Get(clientSendSize);

@@ -59,9 +59,6 @@ struct Server
   {
     auto &&clientAddress = std::get<1>(t);
 
-    std::cout << "server accepted connection from "
-              << to_string(clientAddress) << std::endl;
-
     (void)clientSessions.emplace(
           std::move(clientAddress),
           std::make_unique<ClientSession>(this, std::move(std::get<0>(t))));
@@ -132,6 +129,9 @@ struct Clients
     SocketTcpClient client(serverAddr);
     auto clientAddr = client.LocalAddress();
 
+    std::cout << "client " << to_string(clientAddr)
+              << " connected to server" << std::endl;
+
     (void)clients.emplace(
           std::move(clientAddr),
           std::make_unique<Client>(this, std::move(client), driver));
@@ -173,6 +173,8 @@ try {
   SocketAddress serverAddr("localhost:8554");
   Server server(serverAddr, serverDriver);
   auto serverThread = std::thread(&SocketDriver::Run, &serverDriver);
+
+  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
   // set up clients that send to the server and receive the echo
   SocketDriver clientDriver;
