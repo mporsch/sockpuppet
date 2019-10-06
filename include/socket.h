@@ -39,7 +39,6 @@ protected:
   Socket(Socket const &other) = delete;
   Socket(Socket &&other) noexcept;
   virtual ~Socket();
-
   Socket &operator=(Socket const &other) = delete;
   Socket &operator=(Socket &&other) noexcept;
 

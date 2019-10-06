@@ -2,8 +2,8 @@
 #define SOCKET_BUFFERED_H
 
 #include "resource_pool.h" // for ResourcePool
-#include "socket_address.h" // for SocketAddress
 #include "socket.h" // for Socket
+#include "socket_address.h" // for SocketAddress
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr

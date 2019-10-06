@@ -5,8 +5,8 @@
 #include "socket_address.h" // for SocketAddress
 #include "socket_buffered.h" // for SocketBuffered
 
-#include <future> // for std::future
 #include <functional> // for std::function
+#include <future> // for std::future
 #include <memory> // for std::unique_ptr
 #include <tuple> // for std::tuple
 
