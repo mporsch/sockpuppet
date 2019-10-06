@@ -70,5 +70,5 @@ install(TARGETS sockpuppet
   RUNTIME DESTINATION bin
 )
 # install the demo project
-install(DIRECTORY demo/ DESTINATION demo)
+configure_file(demo/CMakeLists.txt.in ${CMAKE_INSTALL_PREFIX}/demo/CMakeLists.txt @ONLY)
 install(FILES examples/sockpuppet_http_server.cpp DESTINATION demo)

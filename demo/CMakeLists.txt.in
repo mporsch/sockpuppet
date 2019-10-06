@@ -6,16 +6,16 @@ if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default (instead of some system folder)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "" FORCE)
 endif()
-set(SOCKPUPPET_DIR "" CACHE PATH "Installation directory of sockpuppet")
+set(SOCKPUPPET_DIR "@CMAKE_INSTALL_PREFIX@" CACHE PATH "Installation directory of sockpuppet")
 
 include_directories(${SOCKPUPPET_DIR}/include)
-link_directories(${SOCKPUPPET_DIR}/lib)
+find_library(SOCKPUPPET_LIB sockpuppet ${SOCKPUPPET_DIR}/lib)
 
 add_executable(sockpuppet_http_server sockpuppet_http_server.cpp)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries(sockpuppet_http_server sockpuppet pthread)
+  target_link_libraries(sockpuppet_http_server ${SOCKPUPPET_LIB} pthread)
 else()
-  target_link_libraries(sockpuppet_http_server sockpuppet)
+  target_link_libraries(sockpuppet_http_server ${SOCKPUPPET_LIB} WS2_32.Lib)
 endif()
 
 install(TARGETS sockpuppet_http_server
