@@ -1,6 +1,7 @@
 #ifndef SOCKET_ASYNC_H
 #define SOCKET_ASYNC_H
 
+#include "socket.h" // for Socket
 #include "socket_address.h" // for SocketAddress
 #include "socket_buffered.h" // for SocketBuffered
 

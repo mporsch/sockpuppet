@@ -4,9 +4,11 @@
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
 #include <deque> // for std::deque
+#include <iterator> // for std::begin
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
+#include <stdexcept> // for std::runtime_error
 
 namespace sockpuppet {
 
