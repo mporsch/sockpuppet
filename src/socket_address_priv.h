@@ -62,6 +62,7 @@ struct SocketAddress::SocketAddressPriv
 
   virtual SockAddrView ForTcp() const = 0;
   virtual SockAddrView ForUdp() const = 0;
+  virtual SockAddrView ForAny() const = 0;
   virtual int Family() const = 0;
 
   std::string Host() const;
@@ -90,6 +91,7 @@ struct SockAddrInfo : public SocketAddress::SocketAddressPriv
 
   SockAddrView ForTcp() const override;
   SockAddrView ForUdp() const override;
+  SockAddrView ForAny() const override;
   int Family() const override;
 };
 
@@ -106,6 +108,7 @@ struct SockAddrStorage : public SocketAddress::SocketAddressPriv
 
   SockAddrView ForTcp() const override;
   SockAddrView ForUdp() const override;
+  SockAddrView ForAny() const override;
   int Family() const override;
 };
 

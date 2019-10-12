@@ -181,7 +181,7 @@ std::string SocketAddress::SocketAddressPriv::Host() const
 {
   SocketGuard guard;
 
-  auto const sockAddr = ForUdp();
+  auto const sockAddr = ForAny();
 
   char host[NI_MAXHOST];
   if(auto const result = ::getnameinfo(
@@ -200,7 +200,7 @@ std::string SocketAddress::SocketAddressPriv::Service() const
 {
   SocketGuard guard;
 
-  auto const sockAddr = ForUdp();
+  auto const sockAddr = ForAny();
 
   char service[NI_MAXSERV];
   if(auto const result = ::getnameinfo(
@@ -217,7 +217,7 @@ std::string SocketAddress::SocketAddressPriv::Service() const
 
 uint16_t SocketAddress::SocketAddressPriv::Port() const
 {
-  auto const sockAddr = ForUdp();
+  auto const sockAddr = ForAny();
 
   return ::ntohs(IsV6() ?
       reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
@@ -232,19 +232,19 @@ bool SocketAddress::SocketAddressPriv::IsV6() const
 bool SocketAddress::SocketAddressPriv::operator<(
     SocketAddressPriv const &other) const
 {
-  return (ForUdp() < other.ForUdp());
+  return (ForAny() < other.ForAny());
 }
 
 bool SocketAddress::SocketAddressPriv::operator==(
     SocketAddressPriv const &other) const
 {
-  return (ForUdp() == other.ForUdp());
+  return (ForAny() == other.ForAny());
 }
 
 bool SocketAddress::SocketAddressPriv::operator!=(
     SocketAddressPriv const &other) const
 {
-  return (ForUdp() != other.ForUdp());
+  return (ForAny() != other.ForAny());
 }
 
 
@@ -300,6 +300,18 @@ SockAddrView SockAddrInfo::ForUdp() const
   }
 }
 
+SockAddrView SockAddrInfo::ForAny() const
+{
+  if(info) {
+    return SockAddrView{
+      info->ai_addr
+    , static_cast<socklen_t>(info->ai_addrlen)
+    };
+  } else {
+    throw std::logic_error("address is not valid");
+  }
+}
+
 int SockAddrInfo::Family() const
 {
   // return the family of the first resolved addrinfo
@@ -334,15 +346,20 @@ socklen_t *SockAddrStorage::AddrLen()
 
 SockAddrView SockAddrStorage::ForTcp() const
 {
-  return SockAddrView{
-    reinterpret_cast<sockaddr const *>(&storage)
-  , size
-  };
+  return ForAny();
 }
 
 SockAddrView SockAddrStorage::ForUdp() const
 {
-  return ForTcp();
+  return ForAny();
+}
+
+SockAddrView SockAddrStorage::ForAny() const
+{
+  return SockAddrView{
+    reinterpret_cast<sockaddr const *>(&storage)
+  , size
+  };
 }
 
 int SockAddrStorage::Family() const
@@ -353,7 +370,7 @@ int SockAddrStorage::Family() const
 
 std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr)
 {
-  return to_string(sockAddr.ForUdp());
+  return to_string(sockAddr.ForAny());
 }
 
 std::string to_string(SockAddrView const &sockAddr)

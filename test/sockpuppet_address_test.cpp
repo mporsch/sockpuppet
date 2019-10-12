@@ -26,22 +26,22 @@ try {
 
   Test("localhost");
   Test("localhost:554");
-  Test("rtsp://localhost");
+  Test("http://localhost");
 
   Test("localhost", "554");
-  Test("localhost", "rtsp");
+  Test("localhost", "http");
 
   Test("::1");
   Test("a:b::c:1");
   Test("[::1]:554");
   Test("[a:b::c:1]:554");
-  Test("rtsp://::1");
-  Test("rtsp://a:b::c:1");
+  Test("http://::1");
+  Test("http://a:b::c:1");
 
   Test("::1", "554");
   Test("a:b::c:1", "554");
-  Test("::1", "rtsp");
-  Test("a:b::c:1", "rtsp");
+  Test("::1", "http");
+  Test("a:b::c:1", "http");
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
