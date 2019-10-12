@@ -1,9 +1,12 @@
 #include "socket.h" // for SocketTcpServer
 
+#include <algorithm> // for std::transform
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
+#include <iterator> // for std::back_inserter
 #include <string> // for std::string
 #include <thread> // for std::thread
+#include <vector> // for std::vector
 
 using namespace sockpuppet;
 
@@ -43,19 +46,47 @@ try {
   std::cerr << e.what() << std::endl;
 }
 
-int main(int, char **)
+void Server(SocketAddress serverAddr)
 try {
-  SocketAddress const serverAddr("localhost:8080");
   SocketTcpServer server(serverAddr);
 
-  std::cout << "listening for HTTP requests at "
-    << to_string(serverAddr)
-    << " <- open this address in your web browser" << std::endl;
-
-  // fire and forget handler threads for each incoming client
-  // do not do this in your application!
+  // handle one client after the other
   for(;;) {
-    std::thread(ServerHandler, server.Listen()).detach();
+    ServerHandler(server.Listen());
+  }
+} catch(std::exception const &e) {
+  std::cerr << e.what() << std::endl;
+}
+
+int main(int, char **)
+try {
+  // list the local machine interface addresses
+  auto addrs = SocketAddress::LocalAddresses();
+
+  // set the server port for each address
+  for(auto &&addr : addrs) {
+    addr = SocketAddress(addr.Host(), "8080");
+  }
+
+  std::cout << "listening for HTTP requests at:\n";
+  for(auto &&addr : addrs) {
+    std::cout << "  " << to_string(addr) << "\n";
+  }
+  std::cout << "open any of these URLs in your web browser" << std::endl;
+
+  // start a server thread for each interface address
+  std::vector<std::thread> threads;
+  std::transform(
+        std::begin(addrs), std::end(addrs),
+        std::back_inserter(threads),
+        [](SocketAddress const &addr) -> std::thread {
+    return std::thread(Server, addr);
+  });
+
+  for(auto &&t : threads) {
+    if(t.joinable()) {
+      t.join();
+    }
   }
 
   return EXIT_SUCCESS;
