@@ -58,14 +58,14 @@ else()
 endif()
 
 enable_testing()
-add_test(NAME sockpuppet_address_test COMMAND sockpuppet_address_test)
-add_test(NAME sockpuppet_udp_test COMMAND sockpuppet_udp_test)
-add_test(NAME sockpuppet_tcp_test COMMAND sockpuppet_tcp_test)
-add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test)
-add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test)
-add_test(NAME sockpuppet_udp_async_test COMMAND sockpuppet_udp_async_test)
-add_test(NAME sockpuppet_tcp_async_test COMMAND sockpuppet_tcp_async_test)
-add_test(NAME sockpuppet_tcp_async_performance_test COMMAND sockpuppet_tcp_async_performance_test)
+add_test(NAME sockpuppet_address_test COMMAND sockpuppet_address_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_udp_test COMMAND sockpuppet_udp_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_tcp_test COMMAND sockpuppet_tcp_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_udp_buffered_test COMMAND sockpuppet_udp_buffered_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_tcp_buffered_test COMMAND sockpuppet_tcp_buffered_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_udp_async_test COMMAND sockpuppet_udp_async_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_tcp_async_test COMMAND sockpuppet_tcp_async_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+add_test(NAME sockpuppet_tcp_async_performance_test COMMAND sockpuppet_tcp_async_performance_test WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_custom_target(build_tests
   DEPENDS sockpuppet_address_test
