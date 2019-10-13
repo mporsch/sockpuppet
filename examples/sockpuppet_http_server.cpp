@@ -1,10 +1,9 @@
 #include "socket_async.h" // for SocketTcpAsyncServer
 
-#include <algorithm> // for std::transform
-#include <csignal> // for signal
+#include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
-#include <iterator> // for std::back_inserter
+#include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 #include <vector> // for std::vector
 
@@ -35,7 +34,7 @@ void SignalHandler(int)
 
 void ConnectHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 try {
-  auto &&handler = std::get<0>(t);
+  auto &&clientSock = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
 
   // here we intentionally misuse the connect handler; instead of
@@ -43,17 +42,17 @@ try {
   // immediately afterwards close the connection
 
   char buffer[256];
-  while(handler.Receive(buffer, sizeof(buffer),
-                        std::chrono::milliseconds(10))) {
+  while(clientSock.Receive(buffer, sizeof(buffer),
+                           std::chrono::milliseconds(10))) {
     // simply keep receiving whatever the client sends
     // until we run into the timeout
     // assume this to be an HTTP GET
   }
 
   std::cout << "sending HTTP response to "
-    << to_string(clientAddr) << std::endl;
+            << to_string(clientAddr) << std::endl;
 
-  handler.Send(response.c_str(), response.size());
+  clientSock.Send(response.c_str(), response.size());
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {
@@ -65,7 +64,7 @@ try {
 int main(int, char **)
 try {
   // set up the handler for Ctrl-C
-  if(signal(SIGINT, SignalHandler)) {
+  if(std::signal(SIGINT, SignalHandler) == SIG_ERR) {
     throw std::logic_error("failed to set signal handler");
   }
 
@@ -77,22 +76,28 @@ try {
     addr = SocketAddress(addr.Host(), "8080");
   }
 
-  std::cout << "listening for HTTP requests at:\n";
-  for(auto &&addr : addrs) {
-    std::cout << "  " << to_string(addr) << "\n";
-  }
-  std::cout << "open any of these URLs in your web browser" << std::endl;
-
   // prepare a server for each interface address
   std::vector<SocketTcpAsyncServer> servers;
-  std::transform(
-        std::begin(addrs), std::end(addrs),
-        std::back_inserter(servers),
-        [](SocketAddress const &addr) -> SocketTcpAsyncServer {
-    return SocketTcpAsyncServer({addr},
-                                driver,
-                                ConnectHandler);
-  });
+  {
+    for(auto &&addr : addrs) try {
+      servers.emplace_back(
+            SocketTcpAsyncServer({addr},
+                                 driver,
+                                 ConnectHandler));
+    } catch(std::exception const &e) {
+      // if binding one server fails, just go on
+      std::cerr << e.what() << std::endl;
+    }
+    if(servers.empty()) {
+      throw std::runtime_error("failed to bind any server socket");
+    }
+  }
+
+  std::cout << "listening for HTTP requests at:\n";
+  for(auto &&server : servers) {
+    std::cout << "  " << to_string(server.LocalAddress()) << "\n";
+  }
+  std::cout << "open any of these URLs in your web browser" << std::endl;
 
   // start the servers (blocking call, cancelled by Ctrl-C)
   driver.Run();
