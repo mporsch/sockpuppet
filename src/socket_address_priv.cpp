@@ -302,14 +302,10 @@ SockAddrView SockAddrInfo::ForUdp() const
 
 SockAddrView SockAddrInfo::ForAny() const
 {
-  if(info) {
-    return SockAddrView{
-      info->ai_addr
-    , static_cast<socklen_t>(info->ai_addrlen)
-    };
-  } else {
-    throw std::logic_error("address is not valid");
-  }
+  return SockAddrView{
+    info->ai_addr
+  , static_cast<socklen_t>(info->ai_addrlen)
+  };
 }
 
 int SockAddrInfo::Family() const
@@ -331,7 +327,7 @@ SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
   : storage{}
   , size(static_cast<socklen_t>(addrLen))
 {
-  std::memcpy(&storage, addr, size);
+  std::memcpy(&storage, addr, addrLen);
 }
 
 sockaddr *SockAddrStorage::Addr()
