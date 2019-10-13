@@ -13,7 +13,7 @@ find_library(SOCKPUPPET_LIB sockpuppet ${SOCKPUPPET_DIR}/lib)
 
 add_executable(sockpuppet_http_server sockpuppet_http_server.cpp)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  target_link_libraries(sockpuppet_http_server ${SOCKPUPPET_LIB} pthread)
+  target_link_libraries(sockpuppet_http_server ${SOCKPUPPET_LIB})
 else()
   target_link_libraries(sockpuppet_http_server ${SOCKPUPPET_LIB} WS2_32.Lib)
 endif()

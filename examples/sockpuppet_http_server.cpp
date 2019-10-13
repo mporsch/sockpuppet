@@ -1,16 +1,18 @@
-#include "socket.h" // for SocketTcpServer
+#include "socket_async.h" // for SocketTcpAsyncServer
 
 #include <algorithm> // for std::transform
+#include <csignal> // for signal
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 #include <iterator> // for std::back_inserter
 #include <string> // for std::string
-#include <thread> // for std::thread
 #include <vector> // for std::vector
 
 using namespace sockpuppet;
 
-static std::string const response =
+namespace {
+
+std::string const response =
   std::string("HTTP/1.1 200\r\nContent-Type: text/html\r\n\r\n")
   + R"(<!DOCTYPE html>
 <html lang="en">
@@ -23,10 +25,22 @@ static std::string const response =
   </body>
 </html>)";
 
-void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
+// socket driver to run multiple servers in one thread
+SocketDriver driver;
+
+void SignalHandler(int)
+{
+  driver.Stop();
+}
+
+void ConnectHandler(std::tuple<SocketTcpClient, SocketAddress> t)
 try {
   auto &&handler = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
+
+  // here we intentionally misuse the connect handler; instead of
+  // only storing the client connection we do the whole HTTP handling and
+  // immediately afterwards close the connection
 
   char buffer[256];
   while(handler.Receive(buffer, sizeof(buffer),
@@ -46,20 +60,15 @@ try {
   std::cerr << e.what() << std::endl;
 }
 
-void Server(SocketAddress serverAddr)
-try {
-  SocketTcpServer server(serverAddr);
-
-  // handle one client after the other
-  for(;;) {
-    ServerHandler(server.Listen());
-  }
-} catch(std::exception const &e) {
-  std::cerr << e.what() << std::endl;
-}
+} // unnamed namespace
 
 int main(int, char **)
 try {
+  // set up the handler for Ctrl-C
+  if(signal(SIGINT, SignalHandler)) {
+    throw std::logic_error("failed to set signal handler");
+  }
+
   // list the local machine interface addresses
   auto addrs = SocketAddress::LocalAddresses();
 
@@ -74,20 +83,19 @@ try {
   }
   std::cout << "open any of these URLs in your web browser" << std::endl;
 
-  // start a server thread for each interface address
-  std::vector<std::thread> threads;
+  // prepare a server for each interface address
+  std::vector<SocketTcpAsyncServer> servers;
   std::transform(
         std::begin(addrs), std::end(addrs),
-        std::back_inserter(threads),
-        [](SocketAddress const &addr) -> std::thread {
-    return std::thread(Server, addr);
+        std::back_inserter(servers),
+        [](SocketAddress const &addr) -> SocketTcpAsyncServer {
+    return SocketTcpAsyncServer({addr},
+                                driver,
+                                ConnectHandler);
   });
 
-  for(auto &&t : threads) {
-    if(t.joinable()) {
-      t.join();
-    }
-  }
+  // start the servers (blocking call, cancelled by Ctrl-C)
+  driver.Run();
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
