@@ -79,14 +79,16 @@ try {
   // prepare a server for each interface address
   std::vector<SocketTcpAsyncServer> servers;
   {
-    for(auto &&addr : addrs) try {
-      servers.emplace_back(
-            SocketTcpAsyncServer({addr},
-                                 driver,
-                                 ConnectHandler));
-    } catch(std::exception const &e) {
-      // if binding one server fails, just go on
-      std::cerr << e.what() << std::endl;
+    for(auto &&addr : addrs) {
+      try {
+        servers.emplace_back(
+              SocketTcpAsyncServer({addr},
+                                   driver,
+                                   ConnectHandler));
+      } catch(std::exception const &e) {
+        // if binding one server fails, just go on
+        std::cerr << e.what() << std::endl;
+      }
     }
     if(servers.empty()) {
       throw std::runtime_error("failed to bind any server socket");
