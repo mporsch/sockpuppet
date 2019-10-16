@@ -291,14 +291,15 @@ try {
     this->Listen();
 
     handlers.connect(
-      std::tuple<SocketTcpClient, SocketAddress>{
-        SocketTcpClient(std::move(std::get<0>(t)))
-      , SocketAddress(std::move(std::get<1>(t)))
-      });
+          SocketTcpClient(std::move(std::get<0>(t))),
+          SocketAddress(std::move(std::get<1>(t))));
   } else if(handlers.receive) {
     handlers.receive(this->Receive(noTimeout));
   } else if(handlers.receiveFrom) {
-    handlers.receiveFrom(this->ReceiveFrom(noTimeout));
+    auto t = this->ReceiveFrom(noTimeout);
+    handlers.receiveFrom(
+          std::move(std::get<0>(t)),
+          std::move(std::get<1>(t)));
   } else {
     assert(false);
   }

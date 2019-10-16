@@ -32,11 +32,8 @@ void SignalHandler(int)
   driver.Stop();
 }
 
-void ConnectHandler(std::tuple<SocketTcpClient, SocketAddress> t)
+void ConnectHandler(SocketTcpClient clientSock, SocketAddress clientAddr)
 try {
-  auto &&clientSock = std::get<0>(t);
-  auto &&clientAddr = std::get<1>(t);
-
   // here we intentionally misuse the connect handler; instead of
   // only storing the client connection we do the whole HTTP handling and
   // immediately afterwards close the connection

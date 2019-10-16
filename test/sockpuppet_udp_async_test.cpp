@@ -8,11 +8,10 @@ using namespace sockpuppet;
 
 static auto promisedReceipt = std::make_unique<std::promise<void>>();
 
-void HandleReceiveFrom(
-    std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress> t)
+void HandleReceiveFrom(SocketBuffered::SocketBufferPtr, SocketAddress addr)
 {
   std::cout << "received from "
-            << to_string(std::get<1>(t)) << std::endl;
+            << to_string(addr) << std::endl;
 
   if(promisedReceipt) {
     promisedReceipt->set_value();

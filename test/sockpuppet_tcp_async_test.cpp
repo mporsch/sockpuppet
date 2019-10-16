@@ -33,7 +33,10 @@ struct Server
          SocketDriver &driver)
     : server({bindAddress},
              driver,
-             std::bind(&Server::HandleConnect, this, std::placeholders::_1))
+             std::bind(&Server::HandleConnect,
+                       this,
+                       std::placeholders::_1,
+                       std::placeholders::_2))
     , driver(driver)
     , bytesReceived(0U)
   {
@@ -57,16 +60,14 @@ struct Server
     bytesReceived += ptr->size();
   }
 
-  void HandleConnect(std::tuple<SocketTcpClient, SocketAddress> t)
+  void HandleConnect(SocketTcpClient clientSock, SocketAddress clientAddr)
   {
-    auto &&clientAddress = std::get<1>(t);
-
     std::lock_guard<std::mutex> lock(mtx);
 
     (void)serverHandlers.emplace(
           std::make_pair(
-            clientAddress,
-            SocketTcpAsyncClient({std::move(std::get<0>(t))},
+            std::move(clientAddr),
+            SocketTcpAsyncClient({std::move(clientSock)},
                                  driver,
                                  std::bind(&Server::HandleReceive, this, std::placeholders::_1),
                                  std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));

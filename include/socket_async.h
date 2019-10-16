@@ -8,7 +8,6 @@
 #include <functional> // for std::function
 #include <future> // for std::future
 #include <memory> // for std::unique_ptr
-#include <tuple> // for std::tuple
 
 namespace sockpuppet {
 
@@ -67,10 +66,10 @@ public:
     void(SocketBufferPtr)
   >;
   using ReceiveFromHandler = std::function<
-    void(std::tuple<SocketBufferPtr, SocketAddress>)
+    void(SocketBufferPtr, SocketAddress)
   >;
   using ConnectHandler = std::function<
-    void(std::tuple<SocketTcpClient, SocketAddress>)
+    void(SocketTcpClient, SocketAddress)
   >;
   using DisconnectHandler = std::function<
     void(SocketAddress)

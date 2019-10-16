@@ -48,20 +48,21 @@ struct Server
          SocketDriver &driver)
     : server({bindAddress},
              driver,
-             std::bind(&Server::HandleConnect, this, std::placeholders::_1))
+             std::bind(&Server::HandleConnect,
+                       this,
+                       std::placeholders::_1,
+                       std::placeholders::_2))
     , driver(driver)
   {
   }
   Server(Server const &) = delete;
   Server(Server &&) = delete;
 
-  void HandleConnect(std::tuple<SocketTcpClient, SocketAddress> t)
+  void HandleConnect(SocketTcpClient clientSock, SocketAddress clientAddr)
   {
-    auto &&clientAddress = std::get<1>(t);
-
     (void)clientSessions.emplace(
-          std::move(clientAddress),
-          std::make_unique<ClientSession>(this, std::move(std::get<0>(t))));
+          std::move(clientAddr),
+          std::make_unique<ClientSession>(this, std::move(clientSock)));
   }
 
   void HandleDisconnect(SocketAddress clientAddress)
