@@ -1,13 +1,12 @@
 #include "socket_priv.h"
+#include "util.h" // for LastError
 
 #ifndef _WIN32
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
-#include <cstring> // for std::strerror
-#include <stdexcept> // for std::runtime_error
-#include <string> // for std::string
+#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 
@@ -48,8 +47,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
   , fd(::socket(family, type, protocol))
 {
   if(fd == fdInvalid) {
-    throw std::runtime_error("failed to create socket: "
-                             + std::string(std::strerror(errno)));
+    throw std::system_error(LastError(), "failed to create socket");
   }
 }
 
@@ -57,8 +55,7 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
 {
   if(fd == fdInvalid) {
-    throw std::runtime_error("failed to create socket: "
-                             + std::string(std::strerror(errno)));
+    throw std::system_error(LastError(), "failed to create socket");
   }
 }
 
@@ -80,8 +77,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
   if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
-        throw std::runtime_error("failed to receive: "
-                                 + std::string(std::strerror(errno)));
+        throw std::system_error(LastError(), "failed to receive");
       }
     } else {
       // timeout exceeded
@@ -103,8 +99,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
-        throw std::runtime_error("failed to receive from: "
-                                 + std::string(std::strerror(errno)));
+        throw std::system_error(LastError(), "failed to receive");
       }
     } else {
       // timeout exceeded
@@ -127,8 +122,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
   auto error = []() -> std::runtime_error {
-    return std::runtime_error("failed to send: "
-                              + std::string(std::strerror(errno)));
+    return std::system_error(LastError(), "failed to send");
   };
 
   if(timeout.count() >= 0) {
@@ -151,38 +145,34 @@ void Socket::SocketPriv::SendTo(char const *data, size_t size,
 {
   if(size != ::sendto(fd, data, size, 0,
                       dstAddr.addr, dstAddr.addrLen)) {
-    throw std::runtime_error("failed to send to "
-                             + to_string(dstAddr)
-                             + ": "
-                             + std::string(std::strerror(errno)));
+    auto const lastError = LastError(); // cache before calling to_string
+    throw std::system_error(lastError,
+          "failed to send to " + to_string(dstAddr));
   }
 }
 
 void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
-    throw std::runtime_error("failed to connect to "
-                             + to_string(connectAddr)
-                             + ": "
-                             + std::string(std::strerror(errno)));
+    auto const lastError = LastError(); // cache before calling to_string
+    throw std::system_error(lastError,
+          "failed to connect to " + to_string(connectAddr));
   }
 }
 
 void Socket::SocketPriv::Bind(SockAddrView const &sockAddr)
 {
   if(::bind(fd, sockAddr.addr, sockAddr.addrLen)) {
-    throw std::runtime_error("failed to bind socket on address "
-                             + to_string(sockAddr)
-                             + ": "
-                             + std::strerror(errno));
+    auto const lastError = LastError(); // cache before calling to_string
+    throw std::system_error(lastError,
+          "failed to bind socket to address " + to_string(sockAddr));
   }
 }
 
 void Socket::SocketPriv::Listen()
 {
   if(::listen(fd, 1)) {
-    throw std::runtime_error("failed to listen: "
-                             + std::string(std::strerror(errno)));
+    throw std::system_error(LastError(), "failed to listen");
   }
 }
 
@@ -193,8 +183,7 @@ Socket::SocketPriv::Accept(Duration timeout)
   if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
       if(result < 0) {
-        throw std::runtime_error("failed to accept: "
-                                 + std::string(std::strerror(errno)));
+        throw std::system_error(LastError(), "failed to accept");
       }
     } else {
       throw std::runtime_error("accept timed out");
@@ -215,23 +204,19 @@ Socket::SocketPriv::Accept(Duration timeout)
 
 void Socket::SocketPriv::SetSockOptReuseAddr()
 {
-  SetSockOpt(SO_REUSEADDR, 1, "address reuse");
+  SetSockOpt(SO_REUSEADDR, 1, "failed to set socket option address reuse");
 }
 
 void Socket::SocketPriv::SetSockOptBroadcast()
 {
-  SetSockOpt(SO_BROADCAST, 1, "broadcast");
+  SetSockOpt(SO_BROADCAST, 1, "failed to set socket option broadcast");
 }
 
-void Socket::SocketPriv::SetSockOpt(int id, int value,
-    char const *name)
+void Socket::SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)
 {
   if (::setsockopt(fd, SOL_SOCKET, id,
                    reinterpret_cast<char const *>(&value), sizeof(value))) {
-    throw std::runtime_error("failed to set socket option "
-                             + std::string(name)
-                             + ": "
-                             + std::strerror(errno));
+    throw std::system_error(LastError(), errorMessage);
   }
 }
 
@@ -243,8 +228,7 @@ size_t Socket::SocketPriv::GetSockOptRcvBuf() const
     if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                      reinterpret_cast<char *>(&value), &size) ||
         size != sizeof(value)) {
-      throw std::runtime_error("failed to get socket receive buffer size: "
-                               + std::string(std::strerror(errno)));
+      throw std::system_error(LastError(), "failed to get socket receive buffer size");
     }
   }
 
@@ -259,8 +243,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
   auto sas = std::make_shared<SockAddrStorage>();
 
   if (::getsockname(fd, sas->Addr(), sas->AddrLen())) {
-    throw std::runtime_error("failed to get socket address: "
-                             + std::string(std::strerror(errno)));
+    throw std::system_error(LastError(), "failed to get socket address");
   }
 
   return sas;
@@ -271,8 +254,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   auto sas = std::make_shared<SockAddrStorage>();
 
   if (::getpeername(fd, sas->Addr(), sas->AddrLen())) {
-    throw std::runtime_error("failed to get peer address: "
-                             + std::string(std::strerror(errno)));
+    throw std::system_error(LastError(), "failed to get peer address");
   }
 
   return sas;

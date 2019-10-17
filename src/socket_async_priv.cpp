@@ -1,10 +1,9 @@
 #include "socket_async_priv.h"
+#include "util.h" // for LastError
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
-#include <cstring> // for std::strerror
-#include <stdexcept> // for std::runtime_error
-#include <string> // for std::string
+#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 
@@ -105,8 +104,7 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
-      throw std::runtime_error("poll failed: "
-                               + std::string(std::strerror(errno)));
+      throw std::system_error(LastError(), "failed to poll");
     }
   } else {
     // timeout exceeded

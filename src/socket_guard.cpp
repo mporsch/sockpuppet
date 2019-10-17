@@ -1,12 +1,12 @@
 #include "socket_guard.h"
+#include "util.h" // for LastError
 
 #ifdef _WIN32
 # include <Winsock2.h> // for WSAStartup
 #endif // _WIN32
 
 #include <mutex> // for std::mutex
-#include <stdexcept> // for std::runtime_error
-#include <string> // for std::to_string
+#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 
@@ -25,8 +25,7 @@ namespace {
       // we are the first instance -> initialize
       WSADATA wsaData;
       if(auto const result = WSAStartup(MAKEWORD(2, 2), &wsaData)) {
-        throw std::runtime_error("failed to intitialize socket subsystem: "
-                                 + std::to_string(result));
+        throw std::system_error(LastError(), "failed to intitialize socket subsystem");
       }
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup
