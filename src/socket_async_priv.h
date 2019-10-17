@@ -1,5 +1,5 @@
-#ifndef SOCKET_ASYNC_PRIV_H
-#define SOCKET_ASYNC_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_ASYNC_PRIV_H
+#define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
 #include "socket_async.h" // for SocketAsync
@@ -132,4 +132,4 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKET_ASYNC_PRIV_H
+#endif // SOCKPUPPET_SOCKET_ASYNC_PRIV_H

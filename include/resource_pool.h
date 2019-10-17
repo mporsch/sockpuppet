@@ -1,5 +1,5 @@
-#ifndef RESOURCE_POOL_H
-#define RESOURCE_POOL_H
+#ifndef SOCKPUPPET_RESOURCE_POOL_H
+#define SOCKPUPPET_RESOURCE_POOL_H
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
@@ -112,4 +112,4 @@ struct ResourceRecycler
 
 } // namespace sockpuppet
 
-#endif // RESOURCE_POOL_H
+#endif // SOCKPUPPET_RESOURCE_POOL_H

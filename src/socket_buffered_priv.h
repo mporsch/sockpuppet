@@ -1,5 +1,5 @@
-#ifndef SOCKET_BUFFERED_PRIV_H
-#define SOCKET_BUFFERED_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
+#define SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 
 #include "socket_buffered.h" // for SocketBuffered
 #include "socket_priv.h" // for Socket::SocketPriv
@@ -29,4 +29,4 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKET_BUFFERED_PRIV_H
+#endif // SOCKPUPPET_SOCKET_BUFFERED_PRIV_H

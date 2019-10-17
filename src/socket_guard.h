@@ -1,5 +1,5 @@
-#ifndef SOCKET_GUARD_H
-#define SOCKET_GUARD_H
+#ifndef SOCKPUPPET_SOCKET_GUARD_H
+#define SOCKPUPPET_SOCKET_GUARD_H
 
 namespace sockpuppet {
 
@@ -16,4 +16,4 @@ public:
 
 } // namespace sockpuppet
 
-#endif // SOCKET_GUARD_H
+#endif // SOCKPUPPET_SOCKET_GUARD_H

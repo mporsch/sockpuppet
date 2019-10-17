@@ -1,5 +1,5 @@
-#ifndef SOCKET_ADDRESS_PRIV_H
-#define SOCKET_ADDRESS_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
+#define SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
 
 #include "socket_address.h" // for SocketAddress
 
@@ -118,4 +118,4 @@ std::string to_string(SockAddrView const &sockAddr);
 
 } // namespace sockpuppet
 
-#endif // SOCKET_ADDRESS_PRIV_H
+#endif // SOCKPUPPET_SOCKET_ADDRESS_PRIV_H

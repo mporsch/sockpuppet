@@ -1,5 +1,5 @@
-#ifndef SOCKET_H
-#define SOCKET_H
+#ifndef SOCKPUPPET_SOCKET_H
+#define SOCKPUPPET_SOCKET_H
 
 #include "socket_address.h" // for SocketAddress
 
@@ -153,4 +153,4 @@ struct SocketTcpServer : public Socket
 
 } // namespace sockpuppet
 
-#endif // SOCKET_H
+#endif // SOCKPUPPET_SOCKET_H

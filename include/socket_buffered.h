@@ -1,5 +1,5 @@
-#ifndef SOCKET_BUFFERED_H
-#define SOCKET_BUFFERED_H
+#ifndef SOCKPUPPET_SOCKET_BUFFERED_H
+#define SOCKPUPPET_SOCKET_BUFFERED_H
 
 #include "resource_pool.h" // for ResourcePool
 #include "socket.h" // for Socket
@@ -146,4 +146,4 @@ struct SocketTcpBuffered : public SocketBuffered
 
 } // namespace sockpuppet
 
-#endif // SOCKET_BUFFERED_H
+#endif // SOCKPUPPET_SOCKET_BUFFERED_H

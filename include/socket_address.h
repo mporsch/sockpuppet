@@ -1,5 +1,5 @@
-#ifndef SOCKET_ADDRESS_H
-#define SOCKET_ADDRESS_H
+#ifndef SOCKPUPPET_SOCKET_ADDRESS_H
+#define SOCKPUPPET_SOCKET_ADDRESS_H
 
 #include <cstdint> // for uint16_t
 #include <memory> // for std::shared_ptr
@@ -86,4 +86,4 @@ std::string to_string(SocketAddress const &addr);
 
 } // namespace sockpuppet
 
-#endif // SOCKET_ADDRESS_H
+#endif // SOCKPUPPET_SOCKET_ADDRESS_H

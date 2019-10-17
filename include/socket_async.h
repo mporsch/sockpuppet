@@ -1,5 +1,5 @@
-#ifndef SOCKET_ASYNC_H
-#define SOCKET_ASYNC_H
+#ifndef SOCKPUPPET_SOCKET_ASYNC_H
+#define SOCKPUPPET_SOCKET_ASYNC_H
 
 #include "socket.h" // for Socket
 #include "socket_address.h" // for SocketAddress
@@ -208,4 +208,4 @@ struct SocketTcpAsyncServer : public SocketAsync
 
 } // namespace sockpuppet
 
-#endif // SOCKET_ASYNC_H
+#endif // SOCKPUPPET_SOCKET_ASYNC_H

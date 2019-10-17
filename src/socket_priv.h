@@ -1,5 +1,5 @@
-#ifndef SOCKET_PRIV_H
-#define SOCKET_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_PRIV_H
+#define SOCKPUPPET_SOCKET_PRIV_H
 
 #include "socket.h" // for Socket
 #include "socket_address_priv.h" // for SockAddrView
@@ -72,4 +72,4 @@ struct Socket::SocketPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKET_PRIV_H
+#endif // SOCKPUPPET_SOCKET_PRIV_H
