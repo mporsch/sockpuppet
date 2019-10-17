@@ -103,7 +103,7 @@ struct Clients
       receivedData.emplace_back(std::move(buffer));
 
       if(receivedSize == testDataSize) {
-        if(++parent->clientsDone) {
+        if(++parent->clientsDone == clientCount) {
           promiseClientsDone.set_value();
         }
       }
