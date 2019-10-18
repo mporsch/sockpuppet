@@ -1,12 +1,12 @@
 #ifndef _WIN32
 
 #include "socket_address_priv.h"
+#include "util.h" // for LastError
 
 #include <ifaddrs.h> // for ::getifaddrs
 #include <net/if.h> // for IFF_LOOPBACK
 
-#include <cstring> // for std::strerror
-#include <stdexcept> // for std::runtime_error
+#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 
@@ -15,8 +15,8 @@ namespace  {
   {
     ifaddrs *addrsRaw;
     if(::getifaddrs(&addrsRaw)) {
-      throw std::runtime_error("failed to get local interface addresses: "
-                               + std::string(std::strerror(errno)));
+      throw std::system_error(LastError(),
+            "failed to get local interface addresses");
     }
     return make_unique(addrsRaw, ::freeifaddrs);
   }
