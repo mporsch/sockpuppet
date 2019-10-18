@@ -42,8 +42,7 @@ add_library(sockpuppet
   src/socket_buffered.cpp
   src/socket_buffered_priv.cpp
   src/socket_buffered_priv.h
-  src/socket_guard_unix.cpp
-  src/socket_guard_win.cpp
+  src/socket_guard.cpp
   src/socket_guard.h
   src/socket_priv.cpp
   src/socket_priv.h
