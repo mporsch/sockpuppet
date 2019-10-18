@@ -1,4 +1,4 @@
-#include "socket.h" // for SocketTcpClient
+#include "sockpuppet/socket.h" // for SocketTcpClient
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout

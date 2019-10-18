@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_H
 #define SOCKPUPPET_SOCKET_H
 
-#include "socket_address.h" // for SocketAddress
+#include "sockpuppet/socket_address.h" // for SocketAddress
 
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t

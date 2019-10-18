@@ -1,9 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_H
 #define SOCKPUPPET_SOCKET_ASYNC_H
 
-#include "socket.h" // for Socket
-#include "socket_address.h" // for SocketAddress
-#include "socket_buffered.h" // for SocketBuffered
+#include "sockpuppet/socket.h" // for Socket
+#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/socket_buffered.h" // for SocketBuffered
 
 #include <functional> // for std::function
 #include <future> // for std::future

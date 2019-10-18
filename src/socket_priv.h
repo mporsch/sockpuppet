@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_PRIV_H
 #define SOCKPUPPET_SOCKET_PRIV_H
 
-#include "socket.h" // for Socket
+#include "sockpuppet/socket.h" // for Socket
 #include "socket_address_priv.h" // for SockAddrView
 #include "socket_guard.h" // for SocketGuard
 

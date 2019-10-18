@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
 #define SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
 
-#include "socket_address.h" // for SocketAddress
+#include "sockpuppet/socket_address.h" // for SocketAddress
 
 #ifdef _WIN32
 # pragma push_macro("NOMINMAX")

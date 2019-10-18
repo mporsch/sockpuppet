@@ -1,4 +1,4 @@
-#include "socket_address.h" // for SocketAddress
+#include "sockpuppet/socket_address.h" // for SocketAddress
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iomanip> // for std::setw

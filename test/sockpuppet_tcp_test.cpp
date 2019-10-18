@@ -1,4 +1,4 @@
-#include "socket.h" // for SocketTcpClient
+#include "sockpuppet/socket.h" // for SocketTcpClient
 
 #ifdef HAVE_HELPER
 # include "print_unmangled.h" // for PrintUnmangled

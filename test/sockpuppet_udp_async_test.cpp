@@ -1,5 +1,5 @@
-#include "socket_async.h" // for SocketUdpAsync
-#include "resource_pool.h" // for ResourcePool
+#include "sockpuppet/socket_async.h" // for SocketUdpAsync
+#include "sockpuppet/resource_pool.h" // for ResourcePool
 
 #include <iostream> // for std::cout
 #include <thread> // for std::this_thread

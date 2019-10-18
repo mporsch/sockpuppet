@@ -1,9 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_BUFFERED_H
 #define SOCKPUPPET_SOCKET_BUFFERED_H
 
-#include "resource_pool.h" // for ResourcePool
-#include "socket.h" // for Socket
-#include "socket_address.h" // for SocketAddress
+#include "sockpuppet/resource_pool.h" // for ResourcePool
+#include "sockpuppet/socket.h" // for Socket
+#include "sockpuppet/socket_address.h" // for SocketAddress
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr

@@ -1,5 +1,5 @@
 #include "sockpuppet_test_common.h" // for TestData
-#include "socket_buffered.h" // for SocketUdpBuffered
+#include "sockpuppet/socket_buffered.h" // for SocketUdpBuffered
 
 #include <atomic> // for std::atomic
 #include <iostream> // for std::cout

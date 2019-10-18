@@ -2,7 +2,7 @@
 #define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
 #include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
-#include "socket_async.h" // for SocketAsync
+#include "sockpuppet/socket_async.h" // for SocketAsync
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
 #ifdef _WIN32

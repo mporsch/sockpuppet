@@ -1,6 +1,6 @@
 #include "sockpuppet_test_common.h"
 
-#include "socket_async.h" // for SocketTcpAsync
+#include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <iostream> // for std::cout
 #include <map> // for std::map

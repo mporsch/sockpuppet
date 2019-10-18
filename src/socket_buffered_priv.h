@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 #define SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 
-#include "socket_buffered.h" // for SocketBuffered
+#include "sockpuppet/socket_buffered.h" // for SocketBuffered
 #include "socket_priv.h" // for Socket::SocketPriv
 
 #include <cstddef> // for size_t

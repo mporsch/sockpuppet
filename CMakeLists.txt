@@ -21,11 +21,11 @@ if(MINGW)
 endif(MINGW)
 
 set(SOCKPUPPET_PUBLIC_HEADERS
-  include/resource_pool.h
-  include/socket.h
-  include/socket_address.h
-  include/socket_async.h
-  include/socket_buffered.h
+  include/sockpuppet/resource_pool.h
+  include/sockpuppet/socket.h
+  include/sockpuppet/socket_address.h
+  include/sockpuppet/socket_async.h
+  include/sockpuppet/socket_buffered.h
 )
 
 # this is influenced by the BUILD_SHARED_LIBS setting
@@ -72,7 +72,7 @@ install(TARGETS sockpuppet
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-  PUBLIC_HEADER DESTINATION include
+  PUBLIC_HEADER DESTINATION include/sockpuppet
 )
 # install the demo project
 set(DEMO_CMAKE_FILE_CONFIGURE_CODE
