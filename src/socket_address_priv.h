@@ -7,7 +7,7 @@
 # pragma push_macro("NOMINMAX")
 # undef NOMINMAX
 # define NOMINMAX // to avoid overwriting min()/max()
-# include <WS2tcpip.h> // for sockaddr_storage
+# include <ws2tcpip.h> // for sockaddr_storage
 # pragma pop_macro("NOMINMAX")
 #else
 # include <netdb.h> // for sockaddr_storage

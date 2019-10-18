@@ -6,7 +6,7 @@
 #include "socket_guard.h" // for SocketGuard
 
 #ifdef _WIN32
-# include <Winsock2.h> // for SOCKET
+# include <winsock2.h> // for SOCKET
 #else
 # include <poll.h> // for pollfd
 using SOCKET = int;

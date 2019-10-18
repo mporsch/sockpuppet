@@ -6,7 +6,7 @@
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
 #ifdef _WIN32
-# include <WinSock2.h> // for pollfd
+# include <winsock2.h> // for pollfd
 #else
 # include <poll.h> // for pollfd
 #endif // _WIN32
