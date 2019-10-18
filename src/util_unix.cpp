@@ -2,6 +2,10 @@
 
 #include "util.h"
 
+#include <cerrno> // for errno
+
+namespace sockpuppet {
+
 std::error_code LastError()
 {
   return std::error_code(errno, std::system_category());
