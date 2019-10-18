@@ -1,12 +1,10 @@
 #include "socket_priv.h"
-#include "util.h" // for SocketError
+#include "error_code.h" // for SocketError
 
 #ifndef _WIN32
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
-
-#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 

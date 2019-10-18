@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#include "util.h"
+#include "error_code.h"
 
 #include <winsock2.h> // for WSAGetLastError
 
@@ -8,7 +8,6 @@
 // https://gist.github.com/bbolli/710010adb309d5063111889530237d6d
 
 namespace {
-
 /// Wrap the winsock error code so we have a distinct type.
 struct winsock_error_code
 {
@@ -68,18 +67,15 @@ std::error_code make_error_code(winsock_error_code const &we)
 {
   return std::error_code(we.error, win32_category());
 }
-
 } // unnamed namespace
 
 namespace std {
-
 // Tell the C++ 11 STL metaprogramming that winsock_error_code
 // is registered with the standard error code system.
 template<>
 struct is_error_code_enum<winsock_error_code> : std::true_type
 {
 };
-
 } // namespace std
 
 namespace sockpuppet {

@@ -1,16 +1,14 @@
 #ifndef _WIN32
 
 #include "socket_address_priv.h"
-#include "util.h" // for LastError
+#include "error_code.h" // for SocketError
 
 #include <ifaddrs.h> // for ::getifaddrs
 #include <net/if.h> // for IFF_LOOPBACK
 
-#include <system_error> // for std::system_error
-
 namespace sockpuppet {
 
-namespace  {
+namespace {
   std::unique_ptr<ifaddrs, CDeleter<ifaddrs>> GetIfAddrs()
   {
     ifaddrs *addrsRaw;

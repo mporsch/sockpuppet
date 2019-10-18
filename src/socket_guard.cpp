@@ -1,12 +1,11 @@
 #ifdef _WIN32
 
 #include "socket_guard.h"
-#include "util.h" // for LastError
+#include "error_code.h" // for SocketError
 
 #include <winsock2.h> // for WSAStartup
 
 #include <mutex> // for std::mutex
-#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 

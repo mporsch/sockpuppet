@@ -1,4 +1,4 @@
-#include "util.h"
+#include "error_code.h"
 
 #ifdef _WIN32
 # include <ws2tcpip.h> // for gai_strerror
@@ -7,7 +7,6 @@
 #endif // _WIN32
 
 namespace {
-
 struct gai_error_code
 {
   int error;
@@ -41,16 +40,13 @@ std::error_code make_error_code(gai_error_code const &ge)
 {
   return std::error_code(ge.error, gai_category());
 }
-
 } // unnamed namespace
 
 namespace std {
-
 template<>
 struct is_error_code_enum<gai_error_code> : std::true_type
 {
 };
-
 } // namespace std
 
 namespace sockpuppet {

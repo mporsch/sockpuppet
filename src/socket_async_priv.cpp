@@ -1,9 +1,8 @@
 #include "socket_async_priv.h"
-#include "util.h" // for LastError
+#include "error_code.h" // for SocketError
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
-#include <system_error> // for std::system_error
 
 namespace sockpuppet {
 

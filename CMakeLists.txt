@@ -30,6 +30,10 @@ set(SOCKPUPPET_PUBLIC_HEADERS
 
 # this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
+  src/error_code.cpp
+  src/error_code_unix.cpp
+  src/error_code_win.cpp
+  src/error_code.h
   src/socket.cpp
   src/socket_address.cpp
   src/socket_address_priv.cpp
@@ -46,10 +50,6 @@ add_library(sockpuppet
   src/socket_guard.h
   src/socket_priv.cpp
   src/socket_priv.h
-  src/util.cpp
-  src/util_unix.cpp
-  src/util_win.cpp
-  src/util.h
   ${SOCKPUPPET_PUBLIC_HEADERS}
 )
 set_target_properties(sockpuppet PROPERTIES PUBLIC_HEADER "${SOCKPUPPET_PUBLIC_HEADERS}")

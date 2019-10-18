@@ -1,6 +1,6 @@
 #include "socket_address_priv.h"
+#include "error_code.h" // for AddressError
 #include "socket_guard.h" // for SocketGuard
-#include "util.h" // for AddressError
 
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
