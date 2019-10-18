@@ -91,7 +91,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
   }
 }
 
-std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>
+std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(timeout.count() >= 0) {
@@ -101,7 +101,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
       }
     } else {
       // timeout exceeded
-      return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
         0U
       , nullptr
       };
@@ -111,7 +111,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   auto sas = std::make_shared<SockAddrStorage>();
   auto const received = ::recvfrom(fd, data, size, 0,
                                    sas->Addr(), sas->AddrLen());
-  return std::tuple<size_t, std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+  return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
     received
   , std::move(sas)
   };
@@ -171,7 +171,7 @@ void Socket::SocketPriv::Listen()
 }
 
 std::tuple<std::unique_ptr<Socket::SocketPriv>,
-           std::shared_ptr<SocketAddress::SocketAddressPriv>>
+           std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::Accept(Duration timeout)
 {
   if(timeout.count() >= 0) {
@@ -190,7 +190,7 @@ Socket::SocketPriv::Accept(Duration timeout)
     ::accept(fd, sas->Addr(), sas->AddrLen()));
 
   return std::tuple<std::unique_ptr<Socket::SocketPriv>,
-                    std::shared_ptr<SocketAddress::SocketAddressPriv>>{
+                    std::shared_ptr<SockAddrStorage>>{
     std::move(client)
   , std::move(sas)
   };
