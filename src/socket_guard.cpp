@@ -25,7 +25,7 @@ namespace {
       // we are the first instance -> initialize
       WSADATA wsaData;
       if(auto const result = WSAStartup(MAKEWORD(2, 2), &wsaData)) {
-        throw std::system_error(LastError(), "failed to intitialize socket subsystem");
+        throw std::system_error(SocketError(result), "failed to intitialize socket subsystem");
       }
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup

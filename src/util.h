@@ -6,8 +6,11 @@
 namespace sockpuppet {
 
 // get error code for last socket operation
-// must be called before to_string() to avoid premature reset
-std::error_code LastError();
+// must be called before other operations that may overwrite the cached value
+// e.g. to_string(SocketAddress)
+std::error_code SocketError();
+
+std::error_code SocketError(int code);
 
 } // namespace sockpuppet
 

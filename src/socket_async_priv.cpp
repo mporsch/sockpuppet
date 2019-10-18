@@ -104,7 +104,7 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
-      throw std::system_error(LastError(), "failed to poll");
+      throw std::system_error(SocketError(), "failed to poll");
     }
   } else {
     // timeout exceeded

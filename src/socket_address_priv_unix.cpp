@@ -15,7 +15,7 @@ namespace  {
   {
     ifaddrs *addrsRaw;
     if(::getifaddrs(&addrsRaw)) {
-      throw std::system_error(LastError(),
+      throw std::system_error(SocketError(),
             "failed to get local interface addresses");
     }
     return make_unique(addrsRaw, ::freeifaddrs);

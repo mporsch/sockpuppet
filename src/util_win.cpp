@@ -20,8 +20,6 @@ struct winsock_error_code
   }
 };
 
-namespace detail {
-
 /// The Win32 error code category.
 struct win32_error_category : public std::error_category
 {
@@ -57,12 +55,10 @@ struct win32_error_category : public std::error_category
   }
 };
 
-} // namespace detail
-
 /// Return a static instance of the custom category.
-detail::win32_error_category const &win32_error_category()
+win32_error_category const &win32_category()
 {
-  static detail::win32_error_category const c;
+  static win32_error_category const c;
   return c;
 }
 
@@ -70,7 +66,7 @@ detail::win32_error_category const &win32_error_category()
 // custom error. It will be found via ADL by the compiler if needed.
 std::error_code make_error_code(winsock_error_code const &we)
 {
-  return std::error_code(we.error, win32_error_category());
+  return std::error_code(we.error, win32_category());
 }
 
 } // unnamed namespace
@@ -88,9 +84,14 @@ struct is_error_code_enum<winsock_error_code> : std::true_type
 
 namespace sockpuppet {
 
-std::error_code LastError()
+std::error_code SocketError()
 {
-  return make_error_code(winsock_error_code(WSAGetLastError()));
+  return SocketError(WSAGetLastError());
+}
+
+std::error_code SocketError(int code)
+{
+  return make_error_code(winsock_error_code(code));
 }
 
 } // namespace sockpuppet

@@ -6,9 +6,14 @@
 
 namespace sockpuppet {
 
-std::error_code LastError()
+std::error_code SocketError()
 {
-  return std::error_code(errno, std::system_category());
+  return SocketError(errno);
+}
+
+std::error_code SocketError(int code)
+{
+  return std::error_code(code, std::system_category());
 }
 
 } // namespace sockpuppet
