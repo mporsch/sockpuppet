@@ -202,7 +202,7 @@ try {
   }
 
   // wait to finish echo and receipt
-  bool success = (futureClientsDone.wait_for(std::chrono::seconds(10)) == std::future_status::ready);
+  bool success = (futureClientsDone.wait_for(std::chrono::seconds(60)) == std::future_status::ready);
 
   if(serverThread.joinable()) {
     serverDriver.Stop();
