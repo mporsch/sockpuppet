@@ -1,9 +1,9 @@
 #include "socket_address_priv.h"
 #include "socket_guard.h" // for SocketGuard
+#include "util.h" // for AddressError
 
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
-#include <stdexcept> // for std::runtime_error
 
 namespace sockpuppet {
 
@@ -94,9 +94,8 @@ namespace {
       if(auto const result = ::getaddrinfo(
            host.c_str(), serv.c_str(),
            &hints, &info)) {
-        throw std::runtime_error("failed to parse address \""
-                                 + uri + "\": "
-                                 + ::gai_strerror(result));
+        throw std::system_error(AddressError(result),
+              "failed to parse address \"" + uri + "\"");
       }
     }
     return make_unique(info, ::freeaddrinfo);
@@ -121,10 +120,8 @@ namespace {
       if(auto const result = ::getaddrinfo(
            host.c_str(), serv.c_str(),
            &hints, &info)) {
-        throw std::runtime_error("failed to parse host/port \""
-                                 + host + "\", \""
-                                 + serv + "\": "
-                                 + ::gai_strerror(result));
+        throw std::system_error(AddressError(result),
+              "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
       }
     }
     return make_unique(info, ::freeaddrinfo);
@@ -141,9 +138,8 @@ namespace {
     if(auto const result = ::getaddrinfo(
          "localhost", port.c_str(),
          &hints, &info)) {
-      throw std::runtime_error("failed to parse port "
-                               + port + ": "
-                               + ::gai_strerror(result));
+      throw std::system_error(AddressError(result),
+            "failed to parse port \"" + port + "\"");
     }
     return make_unique(info, ::freeaddrinfo);
   }
@@ -189,8 +185,7 @@ std::string SocketAddress::SocketAddressPriv::Host() const
       host, sizeof(host),
       nullptr, 0,
       NI_NUMERICHOST)) {
-    throw std::runtime_error(std::string("failed to print host: ")
-                             + ::gai_strerror(result));
+    throw std::system_error(AddressError(result), "failed to print host");
   }
 
   return std::string(host);
@@ -208,8 +203,7 @@ std::string SocketAddress::SocketAddressPriv::Service() const
       nullptr, 0,
       service, sizeof(service),
       NI_NUMERICSERV)) {
-    throw std::runtime_error(std::string("failed to print service: ")
-                             + ::gai_strerror(result));
+    throw std::system_error(AddressError(result), "failed to print service");
   }
 
   return std::string(service);
@@ -380,8 +374,7 @@ std::string to_string(SockAddrView const &sockAddr)
       host, sizeof(host),
       service, sizeof(service),
       NI_NUMERICHOST | NI_NUMERICSERV)) {
-    throw std::runtime_error(std::string("failed to print address: ")
-                             + ::gai_strerror(result));
+    throw std::system_error(AddressError(result), "failed to print address");
   }
 
   return (sockAddr.addr->sa_family == AF_INET ?

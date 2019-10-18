@@ -46,6 +46,7 @@ add_library(sockpuppet
   src/socket_guard.h
   src/socket_priv.cpp
   src/socket_priv.h
+  src/util.cpp
   src/util_unix.cpp
   src/util_win.cpp
   src/util.h
