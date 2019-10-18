@@ -36,7 +36,9 @@ try {
     SocketTcpServer server(serverAddr);
 
     for(;;) {
-      std::cout << "listening at " << to_string(serverAddr) << std::endl;
+      std::cout << "listening at " << to_string(server.LocalAddress())
+                << std::endl;
+
       ServerHandler(server.Listen());
     }
   }

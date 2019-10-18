@@ -17,7 +17,8 @@ try {
     SocketAddress const srcAddr(argv[1]);
     SocketUdp sock(srcAddr);
 
-    std::cout << "receiving at " << to_string(srcAddr) << std::endl;
+    std::cout << "receiving at " << to_string(sock.LocalAddress())
+              << std::endl;
 
     char buffer[256];
     for(;;) {
