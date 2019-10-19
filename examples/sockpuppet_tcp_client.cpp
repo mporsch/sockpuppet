@@ -15,7 +15,7 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    SocketAddress const serverAddr(argv[1]);
+    Address const serverAddr(argv[1]);
     SocketTcpClient client(serverAddr);
 
     std::cout << "connected to "

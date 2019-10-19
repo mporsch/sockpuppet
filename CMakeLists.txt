@@ -21,25 +21,25 @@ if(MINGW)
 endif(MINGW)
 
 set(SOCKPUPPET_PUBLIC_HEADERS
+  include/sockpuppet/address.h
   include/sockpuppet/resource_pool.h
   include/sockpuppet/socket.h
-  include/sockpuppet/socket_address.h
   include/sockpuppet/socket_async.h
   include/sockpuppet/socket_buffered.h
 )
 
 # this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
+  src/address.cpp
+  src/address_priv.cpp
+  src/address_priv_unix.cpp
+  src/address_priv_win.cpp
+  src/address_priv.h
   src/error_code.cpp
   src/error_code_unix.cpp
   src/error_code_win.cpp
   src/error_code.h
   src/socket.cpp
-  src/socket_address.cpp
-  src/socket_address_priv.cpp
-  src/socket_address_priv_unix.cpp
-  src/socket_address_priv_win.cpp
-  src/socket_address_priv.h
   src/socket_async.cpp
   src/socket_async_priv.cpp
   src/socket_async_priv.h

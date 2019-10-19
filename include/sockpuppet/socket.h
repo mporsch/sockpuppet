@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_H
 #define SOCKPUPPET_SOCKET_H
 
-#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/address.h" // for Address
 
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t
@@ -23,7 +23,7 @@ public:
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress LocalAddress() const;
+  Address LocalAddress() const;
 
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
@@ -52,7 +52,7 @@ struct SocketUdp : public Socket
 {
   /// Create a UDP socket bound to given address.
   /// @throws  If binding fails.
-  SocketUdp(SocketAddress const &bindAddress);
+  SocketUdp(Address const &bindAddress);
 
   SocketUdp(SocketUdp const &other) = delete;
   SocketUdp(SocketUdp &&other) noexcept;
@@ -66,7 +66,7 @@ struct SocketUdp : public Socket
   /// @throws  If sending fails locally.
   void SendTo(char const *data,
               size_t size,
-              SocketAddress const &dstAddress);
+              Address const &dstAddress);
 
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
@@ -83,7 +83,7 @@ struct SocketUdp : public Socket
   /// @return  Receipt size and source address.
   ///          May return 0 and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally.
-  std::tuple<size_t, SocketAddress> ReceiveFrom(char *data,
+  std::tuple<size_t, Address> ReceiveFrom(char *data,
                                                 size_t size,
                                                 Duration timeout = Duration(-1));
 };
@@ -95,7 +95,7 @@ struct SocketTcpClient : public Socket
 {
   /// Create a TCP socket connected to given address.
   /// @throws  If connect fails.
-  SocketTcpClient(SocketAddress const &connectAddress);
+  SocketTcpClient(Address const &connectAddress);
 
   /// Constructor for internal use.
   SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
@@ -125,7 +125,7 @@ struct SocketTcpClient : public Socket
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress PeerAddress() const;
+  Address PeerAddress() const;
 };
 
 /// TCP (reliable communication) socket class that is
@@ -135,7 +135,7 @@ struct SocketTcpServer : public Socket
 {
   /// Create a TCP server socket bound to given address.
   /// @throws  If binding fails.
-  SocketTcpServer(SocketAddress const &bindAddress);
+  SocketTcpServer(Address const &bindAddress);
 
   SocketTcpServer(SocketTcpServer const &other) = delete;
   SocketTcpServer(SocketTcpServer &&other) noexcept;
@@ -148,7 +148,7 @@ struct SocketTcpServer : public Socket
   ///                  a negative value allows unlimited blocking.
   /// @return  Connected client and its address.
   /// @throws  If listen or accept fails or timeout occurs.
-  std::tuple<SocketTcpClient, SocketAddress> Listen(Duration timeout = Duration(-1));
+  std::tuple<SocketTcpClient, Address> Listen(Duration timeout = Duration(-1));
 };
 
 } // namespace sockpuppet

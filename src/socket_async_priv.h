@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 #define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
-#include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
+#include "address_priv.h" // for Address::AddressPriv
 #include "sockpuppet/socket_async.h" // for SocketAsync
 #include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
@@ -52,7 +52,7 @@ struct SocketDriver::SocketDriverPriv
   };
 
   /// internal signalling pipe for cancelling Step()
-  std::shared_ptr<SocketAddress::SocketAddressPriv> pipeToAddr;
+  std::shared_ptr<Address::AddressPriv> pipeToAddr;
   Socket::SocketPriv pipeFrom;
   Socket::SocketPriv pipeTo;
 
@@ -90,7 +90,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 {
   using SendQElement = std::tuple<std::promise<void>, SocketBufferPtr>;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, SocketAddress>;
+  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, Address>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -98,7 +98,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   std::mutex sendQMtx;
   SendQ sendQ;
   SendToQ sendToQ;
-  std::shared_ptr<SocketAddress::SocketAddressPriv> peerAddr;
+  std::shared_ptr<Address::AddressPriv> peerAddr;
 
   SocketAsyncPriv(SocketPriv &&sock,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
@@ -114,7 +114,7 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 
   std::future<void> Send(SocketBufferPtr &&buffer);
   std::future<void> SendTo(SocketBufferPtr &&buffer,
-                           SocketAddress const &dstAddr);
+                           Address const &dstAddr);
   template<typename QueueElement, typename... Args>
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);

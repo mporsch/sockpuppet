@@ -1,13 +1,13 @@
 #ifdef _WIN32
 
-#include "socket_address_priv.h"
+#include "address_priv.h"
 
 namespace sockpuppet {
 
-std::vector<SocketAddress>
-SocketAddress::SocketAddressPriv::LocalAddresses()
+std::vector<Address>
+Address::AddressPriv::LocalAddresses()
 {
-  std::vector<SocketAddress> ret;
+  std::vector<Address> ret;
 
   // a special host name provides a list of local machine interface addresses
   const SockAddrInfo sockAddr("..localmachine");

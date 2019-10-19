@@ -84,7 +84,7 @@ struct TestData
            referenceData.size() - pos);
   }
 
-  inline void Send(SocketUdpBuffered &buff, SocketAddress const &dstAddr) const
+  inline void Send(SocketUdpBuffered &buff, Address const &dstAddr) const
   {
     std::cout << "sending reference data from " << to_string(buff.LocalAddress())
               << " to " << to_string(dstAddr) << std::endl;

@@ -3,9 +3,9 @@
 
 namespace sockpuppet {
 
-SocketAddress SocketBuffered::LocalAddress() const
+Address SocketBuffered::LocalAddress() const
 {
-  return SocketAddress(m_priv->GetSockName());
+  return Address(m_priv->GetSockName());
 }
 
 size_t SocketBuffered::ReceiveBufferSize() const
@@ -54,7 +54,7 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 }
 
 void SocketUdpBuffered::SendTo(char const *data, size_t size,
-    SocketAddress const &dstAddress)
+    Address const &dstAddress)
 {
   m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
 }
@@ -64,7 +64,7 @@ SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Duration timeout)
   return m_priv->Receive(timeout);
 }
 
-std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
+std::tuple<SocketBuffered::SocketBufferPtr, Address>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
   return m_priv->ReceiveFrom(timeout);
@@ -101,9 +101,9 @@ SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Duration timeout)
   return m_priv->Receive(timeout);
 }
 
-SocketAddress SocketTcpBuffered::PeerAddress() const
+Address SocketTcpBuffered::PeerAddress() const
 {
-  return SocketAddress(m_priv->GetPeerName());
+  return Address(m_priv->GetPeerName());
 }
 
 } // namespace sockpuppet

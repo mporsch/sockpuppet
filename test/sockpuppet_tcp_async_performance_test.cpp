@@ -42,9 +42,9 @@ struct Server
 
   SocketTcpAsyncServer server;
   SocketDriver &driver;
-  std::map<SocketAddress, std::unique_ptr<ClientSession>> clientSessions;
+  std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
-  Server(SocketAddress bindAddress,
+  Server(Address bindAddress,
          SocketDriver &driver)
     : server({bindAddress},
              driver,
@@ -58,14 +58,14 @@ struct Server
   Server(Server const &) = delete;
   Server(Server &&) = delete;
 
-  void HandleConnect(SocketTcpClient clientSock, SocketAddress clientAddr)
+  void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
   {
     (void)clientSessions.emplace(
           std::move(clientAddr),
           std::make_unique<ClientSession>(this, std::move(clientSock)));
   }
 
-  void HandleDisconnect(SocketAddress clientAddress)
+  void HandleDisconnect(Address clientAddress)
   {
     std::cout << "client "
               << to_string(clientAddress)
@@ -115,7 +115,7 @@ struct Clients
     }
   };
 
-  std::map<SocketAddress, std::unique_ptr<Client>> clients;
+  std::map<Address, std::unique_ptr<Client>> clients;
   size_t clientsDone;
 
   Clients()
@@ -125,7 +125,7 @@ struct Clients
   Clients(Clients const &) = delete;
   Clients(Clients &&) = delete;
 
-  void Add(SocketAddress serverAddr, SocketDriver &driver)
+  void Add(Address serverAddr, SocketDriver &driver)
   {
     SocketTcpClient client(serverAddr);
     auto clientAddr = client.LocalAddress();
@@ -138,7 +138,7 @@ struct Clients
           std::make_unique<Client>(this, std::move(client), driver));
   }
 
-  void HandleDisconnect(SocketAddress clientAddr)
+  void HandleDisconnect(Address clientAddr)
   {
     std::cout << "client "
               << to_string(clientAddr)
@@ -171,7 +171,7 @@ try {
 
   // set up a server that echoes all input data on multiple sessions
   SocketDriver serverDriver;
-  SocketAddress serverAddr("localhost:8554");
+  Address serverAddr("localhost:8554");
   Server server(serverAddr, serverDriver);
   auto serverThread = std::thread(&SocketDriver::Run, &serverDriver);
 

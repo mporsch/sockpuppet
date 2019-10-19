@@ -26,10 +26,10 @@ struct Server
   SocketTcpAsyncServer server;
   SocketDriver &driver;
   size_t bytesReceived;
-  std::map<SocketAddress, SocketTcpAsyncClient> serverHandlers;
+  std::map<Address, SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 
-  Server(SocketAddress bindAddress,
+  Server(Address bindAddress,
          SocketDriver &driver)
     : server({bindAddress},
              driver,
@@ -60,7 +60,7 @@ struct Server
     bytesReceived += ptr->size();
   }
 
-  void HandleConnect(SocketTcpClient clientSock, SocketAddress clientAddr)
+  void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
   {
     std::lock_guard<std::mutex> lock(mtx);
 
@@ -80,7 +80,7 @@ struct Server
     }
   }
 
-  void HandleDisconnect(SocketAddress clientAddress)
+  void HandleDisconnect(Address clientAddress)
   {
     std::cout << "client "
               << to_string(clientAddress)
@@ -100,11 +100,11 @@ void ReceiveDummy(SocketBuffered::SocketBufferPtr)
 {
 }
 
-void DisconnectDummy(SocketAddress)
+void DisconnectDummy(Address)
 {
 }
 
-void HandleDisconnect(SocketAddress serverAddress)
+void HandleDisconnect(Address serverAddress)
 {
   loneClient.reset();
 
@@ -132,7 +132,7 @@ int main(int, char **)
   SocketDriver driver;
   auto thread = std::thread(&SocketDriver::Run, &driver);
 
-  SocketAddress serverAddress("localhost:8554");
+  Address serverAddress("localhost:8554");
   auto server = std::make_unique<Server>(serverAddress, driver);
 
   std::cout << "server listening at " << to_string(serverAddress)

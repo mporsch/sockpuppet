@@ -1,5 +1,5 @@
 #include "sockpuppet/socket_async.h"
-#include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
+#include "address_priv.h" // for Address::AddressPriv
 #include "socket_async_priv.h" // for SocketAsyncPriv
 
 #include <stdexcept> // for std::logic_error
@@ -51,9 +51,9 @@ void SocketDriver::Stop()
 }
 
 
-SocketAddress SocketAsync::LocalAddress() const
+Address SocketAsync::LocalAddress() const
 {
-  return SocketAddress(m_priv->GetSockName());
+  return Address(m_priv->GetSockName());
 }
 
 size_t SocketAsync::ReceiveBufferSize() const
@@ -116,7 +116,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 }
 
 std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
-    SocketAddress const &dstAddress)
+    Address const &dstAddress)
 {
   return m_priv->SendTo(std::move(buffer), dstAddress);
 }
@@ -166,9 +166,9 @@ std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
   return m_priv->Send(std::move(buffer));
 }
 
-SocketAddress SocketTcpAsyncClient::PeerAddress() const
+Address SocketTcpAsyncClient::PeerAddress() const
 {
-  return SocketAddress(m_priv->GetPeerName());
+  return Address(m_priv->GetPeerName());
 }
 
 

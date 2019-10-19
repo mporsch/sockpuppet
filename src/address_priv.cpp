@@ -1,4 +1,4 @@
-#include "socket_address_priv.h"
+#include "address_priv.h"
 #include "error_code.h" // for AddressError
 #include "socket_guard.h" // for SocketGuard
 
@@ -171,9 +171,9 @@ bool SockAddrView::operator!=(SockAddrView const &other) const
 }
 
 
-SocketAddress::SocketAddressPriv::~SocketAddressPriv() = default;
+Address::AddressPriv::~AddressPriv() = default;
 
-std::string SocketAddress::SocketAddressPriv::Host() const
+std::string Address::AddressPriv::Host() const
 {
   SocketGuard guard;
 
@@ -191,7 +191,7 @@ std::string SocketAddress::SocketAddressPriv::Host() const
   return std::string(host);
 }
 
-std::string SocketAddress::SocketAddressPriv::Service() const
+std::string Address::AddressPriv::Service() const
 {
   SocketGuard guard;
 
@@ -209,7 +209,7 @@ std::string SocketAddress::SocketAddressPriv::Service() const
   return std::string(service);
 }
 
-uint16_t SocketAddress::SocketAddressPriv::Port() const
+uint16_t Address::AddressPriv::Port() const
 {
   auto const sockAddr = ForAny();
 
@@ -218,25 +218,25 @@ uint16_t SocketAddress::SocketAddressPriv::Port() const
       reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port);
 }
 
-bool SocketAddress::SocketAddressPriv::IsV6() const
+bool Address::AddressPriv::IsV6() const
 {
   return (Family() == AF_INET6);
 }
 
-bool SocketAddress::SocketAddressPriv::operator<(
-    SocketAddressPriv const &other) const
+bool Address::AddressPriv::operator<(
+    AddressPriv const &other) const
 {
   return (ForAny() < other.ForAny());
 }
 
-bool SocketAddress::SocketAddressPriv::operator==(
-    SocketAddressPriv const &other) const
+bool Address::AddressPriv::operator==(
+    AddressPriv const &other) const
 {
   return (ForAny() == other.ForAny());
 }
 
-bool SocketAddress::SocketAddressPriv::operator!=(
-    SocketAddressPriv const &other) const
+bool Address::AddressPriv::operator!=(
+    AddressPriv const &other) const
 {
   return (ForAny() != other.ForAny());
 }
@@ -358,7 +358,7 @@ int SockAddrStorage::Family() const
 }
 
 
-std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr)
+std::string to_string(Address::AddressPriv const& sockAddr)
 {
   return to_string(sockAddr.ForAny());
 }

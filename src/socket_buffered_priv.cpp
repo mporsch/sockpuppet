@@ -42,7 +42,7 @@ SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
   return buffer;
 }
 
-std::tuple<SocketBuffered::SocketBufferPtr, SocketAddress>
+std::tuple<SocketBuffered::SocketBufferPtr, Address>
 SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();
@@ -51,9 +51,9 @@ SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
     buffer->data(), buffer->size(), timeout);
   buffer->resize(std::get<0>(t));
 
-  return std::tuple<SocketBufferPtr, SocketAddress>{
+  return std::tuple<SocketBufferPtr, Address>{
     std::move(buffer)
-  , SocketAddress(std::move(std::get<1>(t)))
+  , Address(std::move(std::get<1>(t)))
   };
 }
 

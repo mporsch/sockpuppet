@@ -23,7 +23,7 @@ static int const clientCount = 3;
 
 static std::atomic<bool> success(true);
 
-void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
+void ServerHandler(std::tuple<SocketTcpClient, Address> t)
 try {
   auto &&handler = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
@@ -45,7 +45,7 @@ try {
   success = false;
 }
 
-void Server(SocketAddress serverAddr)
+void Server(Address serverAddr)
 try {
   SocketTcpServer server(serverAddr);
 
@@ -69,7 +69,7 @@ try {
   success = false;
 }
 
-void Client(SocketAddress serverAddr)
+void Client(Address serverAddr)
 try {
   SocketTcpClient client(serverAddr);
   auto const clientAddr = client.LocalAddress();
@@ -106,7 +106,7 @@ try {
 
 int main(int, char **)
 {
-  SocketAddress const serverAddr("localhost:8554");
+  Address const serverAddr("localhost:8554");
   std::thread server(Server, serverAddr);
 
   // wait for server thread to come up

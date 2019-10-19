@@ -1,5 +1,5 @@
 #include "sockpuppet/socket.h"
-#include "socket_address_priv.h" // for SocketAddress::SocketAddressPriv
+#include "address_priv.h" // for Address::AddressPriv
 #include "socket_priv.h" // for Socket::SocketPriv
 
 #ifdef _WIN32
@@ -10,9 +10,9 @@
 
 namespace sockpuppet {
 
-SocketAddress Socket::LocalAddress() const
+Address Socket::LocalAddress() const
 {
-  return SocketAddress(m_priv->GetSockName());
+  return Address(m_priv->GetSockName());
 }
 
 size_t Socket::ReceiveBufferSize() const
@@ -39,7 +39,7 @@ Socket &Socket::operator=(Socket &&other) noexcept
 }
 
 
-SocketUdp::SocketUdp(SocketAddress const &bindAddress)
+SocketUdp::SocketUdp(Address const &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
       bindAddress.Priv().Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
@@ -62,7 +62,7 @@ SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept
 }
 
 void SocketUdp::SendTo(char const *data, size_t size,
-    SocketAddress const &dstAddress)
+    Address const &dstAddress)
 {
   m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
 }
@@ -72,18 +72,18 @@ size_t SocketUdp::Receive(char *data, size_t size, Duration timeout)
   return m_priv->Receive(data, size, timeout);
 }
 
-std::tuple<size_t, SocketAddress> SocketUdp::ReceiveFrom(
+std::tuple<size_t, Address> SocketUdp::ReceiveFrom(
     char *data, size_t size, Duration timeout)
 {
   auto t = m_priv->ReceiveFrom(data, size, timeout);
-  return std::tuple<size_t, SocketAddress>{
+  return std::tuple<size_t, Address>{
     std::get<0>(t)
-  , SocketAddress(std::move(std::get<1>(t)))
+  , Address(std::move(std::get<1>(t)))
   };
 }
 
 
-SocketTcpClient::SocketTcpClient(SocketAddress const &connectAddress)
+SocketTcpClient::SocketTcpClient(Address const &connectAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
       connectAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
@@ -118,13 +118,13 @@ size_t SocketTcpClient::Receive(char *data, size_t size, Duration timeout)
   return m_priv->Receive(data, size, timeout);
 }
 
-SocketAddress SocketTcpClient::PeerAddress() const
+Address SocketTcpClient::PeerAddress() const
 {
-  return SocketAddress(m_priv->GetPeerName());
+  return Address(m_priv->GetPeerName());
 }
 
 
-SocketTcpServer::SocketTcpServer(const SocketAddress &bindAddress)
+SocketTcpServer::SocketTcpServer(const Address &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
       bindAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
@@ -145,13 +145,13 @@ SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept
   return *this;
 }
 
-std::tuple<SocketTcpClient, SocketAddress> SocketTcpServer::Listen(Duration timeout)
+std::tuple<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
 {
   m_priv->Listen();
   auto t = m_priv->Accept(timeout);
-  return std::tuple<SocketTcpClient, SocketAddress>{
+  return std::tuple<SocketTcpClient, Address>{
     SocketTcpClient(std::move(std::get<0>(t)))
-  , SocketAddress(std::move(std::get<1>(t)))
+  , Address(std::move(std::get<1>(t)))
   };
 }
 

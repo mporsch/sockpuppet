@@ -11,7 +11,7 @@ using namespace sockpuppet;
 
 static std::atomic<bool> success(true);
 
-void Server(SocketAddress serverAddr)
+void Server(Address serverAddr)
 try {
   SocketUdp server(serverAddr);
 
@@ -41,9 +41,9 @@ try {
   success = false;
 }
 
-void Client(SocketAddress serverAddr)
+void Client(Address serverAddr)
 try {
-  SocketUdp client(SocketAddress("localhost"));
+  SocketUdp client(Address("localhost"));
   auto const clientAddr = client.LocalAddress();
 
   char buffer[256];
@@ -69,7 +69,7 @@ try {
 
 int main(int, char **)
 try {
-  SocketAddress serverAddr("localhost:8554");
+  Address serverAddr("localhost:8554");
 
   std::thread server(Server, serverAddr);
   std::thread client(Client, serverAddr);

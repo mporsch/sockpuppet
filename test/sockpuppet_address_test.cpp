@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/address.h" // for Address
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iomanip> // for std::setw
@@ -9,13 +9,13 @@ using namespace sockpuppet;
 template<typename... Args>
 void Test(Args&&... args)
 {
-  SocketAddress socketAddress(std::forward<Args>(args)...);
+  Address Address(std::forward<Args>(args)...);
 
   std::cout << std::setw(20)
-            << to_string(socketAddress)
-            << " <-- host=\"" << socketAddress.Host() << "\""
-            << ", service=\"" << socketAddress.Service() << "\""
-            << ", " << (socketAddress.IsV6()  ? "IPv6" : "IPv4")
+            << to_string(Address)
+            << " <-- host=\"" << Address.Host() << "\""
+            << ", service=\"" << Address.Service() << "\""
+            << ", " << (Address.IsV6()  ? "IPv6" : "IPv4")
             << std::endl;
 }
 

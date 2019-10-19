@@ -3,7 +3,7 @@
 
 #include "sockpuppet/resource_pool.h" // for ResourcePool
 #include "sockpuppet/socket.h" // for Socket
-#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/address.h" // for Address
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
@@ -27,7 +27,7 @@ public:
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress LocalAddress() const;
+  Address LocalAddress() const;
 
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
@@ -81,7 +81,7 @@ struct SocketUdpBuffered : public SocketBuffered
   /// @throws  If sending fails locally.
   void SendTo(char const *data,
               size_t size,
-              SocketAddress const &dstAddress);
+              Address const &dstAddress);
 
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
@@ -97,7 +97,7 @@ struct SocketUdpBuffered : public SocketBuffered
   /// @return  Received data buffer borrowed from socket and source address.
   ///          May return empty buffer and invalid address only if non-negative timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  std::tuple<SocketBufferPtr, SocketAddress> ReceiveFrom(Duration timeout = Duration(-1));
+  std::tuple<SocketBufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that adds an internal
@@ -141,7 +141,7 @@ struct SocketTcpBuffered : public SocketBuffered
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress PeerAddress() const;
+  Address PeerAddress() const;
 };
 
 } // namespace sockpuppet

@@ -16,10 +16,10 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    SocketAddress const dstAddr(argv[1]);
-    SocketAddress srcAddr;
+    Address const dstAddr(argv[1]);
+    Address srcAddr;
     if(argc >= 3) {
-      srcAddr = SocketAddress(argv[2]);
+      srcAddr = Address(argv[2]);
     }
     SocketUdp sock(srcAddr);
 

@@ -32,7 +32,7 @@ void SignalHandler(int)
   driver.Stop();
 }
 
-void ConnectHandler(SocketTcpClient clientSock, SocketAddress clientAddr)
+void ConnectHandler(SocketTcpClient clientSock, Address clientAddr)
 try {
   // here we intentionally misuse the connect handler; instead of
   // only storing the client connection we do the whole HTTP handling and
@@ -66,11 +66,11 @@ try {
   }
 
   // list the local machine interface addresses
-  auto addrs = SocketAddress::LocalAddresses();
+  auto addrs = Address::LocalAddresses();
 
   // set the server port for each address
   for(auto &&addr : addrs) {
-    addr = SocketAddress(addr.Host(), "8080");
+    addr = Address(addr.Host(), "8080");
   }
 
   // prepare a server for each interface address

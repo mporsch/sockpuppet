@@ -1,6 +1,6 @@
 #ifndef _WIN32
 
-#include "socket_address_priv.h"
+#include "address_priv.h"
 #include "error_code.h" // for SocketError
 
 #include <ifaddrs.h> // for ::getifaddrs
@@ -20,10 +20,10 @@ namespace {
   }
 } // unnamed namespace
 
-std::vector<SocketAddress>
-SocketAddress::SocketAddressPriv::LocalAddresses()
+std::vector<Address>
+Address::AddressPriv::LocalAddresses()
 {
-  std::vector<SocketAddress> ret;
+  std::vector<Address> ret;
 
   // get a list of local machine interface addresses
   auto const ifAddrs = GetIfAddrs();

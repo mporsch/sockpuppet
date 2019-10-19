@@ -14,7 +14,7 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    SocketAddress const srcAddr(argv[1]);
+    Address const srcAddr(argv[1]);
     SocketUdp sock(srcAddr);
 
     std::cout << "receiving at " << to_string(sock.LocalAddress())

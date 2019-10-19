@@ -2,7 +2,7 @@
 #define SOCKPUPPET_SOCKET_ASYNC_H
 
 #include "sockpuppet/socket.h" // for Socket
-#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket_buffered.h" // for SocketBuffered
 
 #include <functional> // for std::function
@@ -66,18 +66,18 @@ public:
     void(SocketBufferPtr)
   >;
   using ReceiveFromHandler = std::function<
-    void(SocketBufferPtr, SocketAddress)
+    void(SocketBufferPtr, Address)
   >;
   using ConnectHandler = std::function<
-    void(SocketTcpClient, SocketAddress)
+    void(SocketTcpClient, Address)
   >;
   using DisconnectHandler = std::function<
-    void(SocketAddress)
+    void(Address)
   >;
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress LocalAddress() const;
+  Address LocalAddress() const;
 
   /// Determine the maximum size of data the socket may receive,
   /// i.e. the size the OS has allocated for its receive buffer.
@@ -149,7 +149,7 @@ struct SocketUdpAsync : public SocketAsync
   ///                     IP family of bound address.
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> SendTo(SocketBufferPtr &&buffer,
-                           SocketAddress const &dstAddress);
+                           Address const &dstAddress);
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
@@ -183,7 +183,7 @@ struct SocketTcpAsyncClient : public SocketAsync
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
-  SocketAddress PeerAddress() const;
+  Address PeerAddress() const;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for

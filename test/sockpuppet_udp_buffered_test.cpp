@@ -11,7 +11,7 @@ using namespace sockpuppet;
 static TestData const testData(100000U);
 static std::atomic<bool> success(true);
 
-void Server(SocketAddress serverAddress)
+void Server(Address serverAddress)
 try {
   SocketUdpBuffered server(serverAddress, 0U, 1500U);
 
@@ -46,9 +46,9 @@ try {
   success = false;
 }
 
-void Client(SocketAddress serverAddress)
+void Client(Address serverAddress)
 try {
-  SocketAddress clientAddress("localhost");
+  Address clientAddress("localhost");
   SocketUdpBuffered client(clientAddress);
 
   if((client.Receive(std::chrono::seconds(0))->size() != 0U) ||
@@ -65,7 +65,7 @@ try {
 int main(int, char **)
 {
   // start client and server threads
-  SocketAddress serverAddr("localhost:8554");
+  Address serverAddr("localhost:8554");
   std::thread server(Server, serverAddr);
 
   // wait for server to come up

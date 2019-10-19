@@ -1,7 +1,7 @@
-#ifndef SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
-#define SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
+#ifndef SOCKPUPPET_ADDRESS_PRIV_H
+#define SOCKPUPPET_ADDRESS_PRIV_H
 
-#include "sockpuppet/socket_address.h" // for SocketAddress
+#include "sockpuppet/address.h" // for Address
 
 #ifdef _WIN32
 # pragma push_macro("NOMINMAX")
@@ -56,9 +56,9 @@ struct SockAddrView
   bool operator!=(SockAddrView const &other) const;
 };
 
-struct SocketAddress::SocketAddressPriv
+struct Address::AddressPriv
 {
-  virtual ~SocketAddressPriv();
+  virtual ~AddressPriv();
 
   virtual SockAddrView ForTcp() const = 0;
   virtual SockAddrView ForUdp() const = 0;
@@ -70,14 +70,14 @@ struct SocketAddress::SocketAddressPriv
   uint16_t Port() const;
   bool IsV6() const;
 
-  bool operator<(SocketAddress::SocketAddressPriv const &other) const;
-  bool operator==(SocketAddress::SocketAddressPriv const &other) const;
-  bool operator!=(SocketAddress::SocketAddressPriv const &other) const;
+  bool operator<(Address::AddressPriv const &other) const;
+  bool operator==(Address::AddressPriv const &other) const;
+  bool operator!=(Address::AddressPriv const &other) const;
 
-  static std::vector<SocketAddress> LocalAddresses();
+  static std::vector<Address> LocalAddresses();
 };
 
-struct SockAddrInfo : public SocketAddress::SocketAddressPriv
+struct SockAddrInfo : public Address::AddressPriv
 {
   using AddrInfoPtr = std::unique_ptr<addrinfo, CDeleter<addrinfo>>;
 
@@ -95,7 +95,7 @@ struct SockAddrInfo : public SocketAddress::SocketAddressPriv
   int Family() const override;
 };
 
-struct SockAddrStorage : public SocketAddress::SocketAddressPriv
+struct SockAddrStorage : public Address::AddressPriv
 {
   sockaddr_storage storage;
   socklen_t size;
@@ -112,10 +112,10 @@ struct SockAddrStorage : public SocketAddress::SocketAddressPriv
   int Family() const override;
 };
 
-std::string to_string(SocketAddress::SocketAddressPriv const& sockAddr);
+std::string to_string(Address::AddressPriv const& sockAddr);
 
 std::string to_string(SockAddrView const &sockAddr);
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_SOCKET_ADDRESS_PRIV_H
+#endif // SOCKPUPPET_ADDRESS_PRIV_H

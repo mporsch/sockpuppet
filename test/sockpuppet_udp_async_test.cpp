@@ -8,7 +8,7 @@ using namespace sockpuppet;
 
 static auto promisedReceipt = std::make_unique<std::promise<void>>();
 
-void HandleReceiveFrom(SocketBuffered::SocketBufferPtr, SocketAddress addr)
+void HandleReceiveFrom(SocketBuffered::SocketBufferPtr, Address addr)
 {
   std::cout << "received from "
             << to_string(addr) << std::endl;
@@ -35,7 +35,7 @@ int main(int, char **)
   auto thread = std::thread(&SocketDriver::Run, &driver);
 
   {
-    SocketAddress serverAddress("localhost:8554");
+    Address serverAddress("localhost:8554");
     SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
 
     std::cout << "waiting for receipt at " << to_string(serverAddress)
@@ -46,7 +46,7 @@ int main(int, char **)
     {
       ResourcePool<std::vector<char>> sendPool;
 
-      SocketUdpAsync client({SocketAddress("localhost")},
+      SocketUdpAsync client({Address("localhost")},
                             driver,
                             ReceiveDummy);
 

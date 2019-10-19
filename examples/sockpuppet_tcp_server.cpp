@@ -6,7 +6,7 @@
 
 using namespace sockpuppet;
 
-void ServerHandler(std::tuple<SocketTcpClient, SocketAddress> t)
+void ServerHandler(std::tuple<SocketTcpClient, Address> t)
 try {
   auto &&client = std::get<0>(t);
   auto &&clientAddr = std::get<1>(t);
@@ -32,7 +32,7 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    SocketAddress const serverAddr(argv[1]);
+    Address const serverAddr(argv[1]);
     SocketTcpServer server(serverAddr);
 
     for(;;) {

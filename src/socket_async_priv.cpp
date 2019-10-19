@@ -251,7 +251,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBufferPtr &&buffer)
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-    SocketBufferPtr &&buffer, SocketAddress const &dstAddr)
+    SocketBufferPtr &&buffer, Address const &dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }
@@ -289,7 +289,7 @@ try {
 
     handlers.connect(
           SocketTcpClient(std::move(std::get<0>(t))),
-          SocketAddress(std::move(std::get<1>(t))));
+          Address(std::move(std::get<1>(t))));
   } else if(handlers.receive) {
     handlers.receive(this->Receive(noTimeout));
   } else if(handlers.receiveFrom) {
@@ -358,7 +358,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
 void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
 {
   if(handlers.disconnect) {
-    handlers.disconnect(SocketAddress(peerAddr));
+    handlers.disconnect(Address(peerAddr));
   } else {
     // silently discard UDP receive errors
   }
