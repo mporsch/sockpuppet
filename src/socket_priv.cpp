@@ -130,6 +130,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
   }
 
   if(size != ::send(fd, data, size, 0)) {
+    // as the socket is configured for blocking, partial send is not expected
     std::system_error(SocketError(), "failed to send");
   }
 }
