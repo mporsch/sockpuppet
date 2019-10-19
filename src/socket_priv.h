@@ -3,7 +3,7 @@
 
 #include "sockpuppet/socket.h" // for Socket
 #include "address_priv.h" // for SockAddrView
-#include "socket_guard.h" // for SocketGuard
+#include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
 # include <winsock2.h> // for SOCKET
@@ -20,7 +20,7 @@ namespace sockpuppet {
 
 struct Socket::SocketPriv
 {
-  SocketGuard socketGuard;  ///< Guard to initialize socket subsystem on windows
+  WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
   SOCKET fd;  ///< Socket file descriptor
 
   SocketPriv(int family,

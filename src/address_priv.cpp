@@ -1,6 +1,6 @@
 #include "address_priv.h"
 #include "error_code.h" // for AddressError
-#include "socket_guard.h" // for SocketGuard
+#include "winsock_guard.h" // for WinSockGuard
 
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
@@ -84,7 +84,7 @@ namespace {
 
     addrinfo *info;
     {
-      SocketGuard guard;
+      WinSockGuard guard;
 
       addrinfo hints{};
       hints.ai_family = AF_UNSPEC;
@@ -112,7 +112,7 @@ namespace {
 
     addrinfo *info;
     {
-      SocketGuard guard;
+      WinSockGuard guard;
 
       addrinfo hints{};
       hints.ai_family = AF_UNSPEC;
@@ -129,7 +129,7 @@ namespace {
 
   SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
   {
-    SocketGuard guard;
+    WinSockGuard guard;
 
     addrinfo hints{};
     hints.ai_family = AF_INET; // force IPv4 here
@@ -175,7 +175,7 @@ Address::AddressPriv::~AddressPriv() = default;
 
 std::string Address::AddressPriv::Host() const
 {
-  SocketGuard guard;
+  WinSockGuard guard;
 
   auto const sockAddr = ForAny();
 
@@ -193,7 +193,7 @@ std::string Address::AddressPriv::Host() const
 
 std::string Address::AddressPriv::Service() const
 {
-  SocketGuard guard;
+  WinSockGuard guard;
 
   auto const sockAddr = ForAny();
 
@@ -365,7 +365,7 @@ std::string to_string(Address::AddressPriv const& sockAddr)
 
 std::string to_string(SockAddrView const &sockAddr)
 {
-  SocketGuard guard;
+  WinSockGuard guard;
 
   char host[NI_MAXHOST];
   char service[NI_MAXSERV];

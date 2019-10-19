@@ -41,7 +41,7 @@ namespace {
 } // unnamed namespace
 
 Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
-  : socketGuard() // must be created before call to ::socket
+  : guard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
 {
   if(fd == fdInvalid) {

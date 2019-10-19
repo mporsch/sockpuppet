@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#include "socket_guard.h"
+#include "winsock_guard.h"
 #include "error_code.h" // for SocketError
 
 #include <winsock2.h> // for WSAStartup
@@ -33,12 +33,12 @@ namespace {
   }
 } // unnamed namespace
 
-SocketGuard::SocketGuard()
+WinSockGuard::WinSockGuard()
 {
   updateInstanceCount(1);
 }
 
-SocketGuard::~SocketGuard()
+WinSockGuard::~WinSockGuard()
 {
   updateInstanceCount(-1);
 }
