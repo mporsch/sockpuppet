@@ -20,13 +20,14 @@ So you want to have network communication in your little program but boost seems
 - [x] examples and demo project included
 - [ ] exhaustive unit tests :cold_sweat:
 - [ ] UDP multicast
-- [ ] UDP broadcast address lookup
+- [ ] address arithmetic/lookup for network/broadcast addresses
+- [ ] partial/incomplete send/receive handling
 
 ## Build
 Configure and build library/examples/demo/tests using CMake.
 
 ## Quickstart
-The `SocketAddress` class represents localhost or remote UDP/TCP addresses and is used to create local and send/connect to remote sockets.
+The `Address` class represents localhost or remote UDP/TCP addresses and is used to create local and send/connect to remote sockets.
 
 The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide different levels of convenience around the raw OS socket representation:
 * `SocketUdp`, `SocketTcpClient` and `SocketTcpServer` allow basic functions like connect, send and receive
@@ -35,7 +36,7 @@ The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide differ
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
-* the socket address class employs *getaddrinfo* when created by user input and *sockaddr_storage* when created by a socket; for users this distinction is transparent
+* the address class employs *getaddrinfo* when created by user input and *sockaddr_storage* when created by a socket; for users this distinction is transparent
 * while the user-visible socket classes distinguish between UDP/TCP, the socket PIMPL classes provide generic functions that may have redundancies for some use cases
 * the augmenting sockets consume pre-constructed basic sockets to avoid aggregating all base socket constructor arguments and funnelling all their exceptions
 * threads are not created internally to avoid messy shared library shutdown on Windows
