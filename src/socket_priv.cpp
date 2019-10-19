@@ -122,7 +122,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
   if(timeout.count() >= 0) {
     if(auto const result = PollWrite(timeout)) {
       if(result < 0) {
-        std::system_error(SocketError(), "failed to send");
+        throw std::system_error(SocketError(), "failed to send");
       }
     } else {
       throw std::runtime_error("send timed out");
@@ -131,7 +131,7 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 
   if(size != ::send(fd, data, size, 0)) {
     // as the socket is configured for blocking, partial send is not expected
-    std::system_error(SocketError(), "failed to send");
+    throw std::system_error(SocketError(), "failed to send");
   }
 }
 
