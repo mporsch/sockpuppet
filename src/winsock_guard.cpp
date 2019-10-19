@@ -10,7 +10,7 @@
 namespace sockpuppet {
 
 namespace {
-  void updateInstanceCount(int modifier)
+  void UpdateInstanceCount(int modifier)
   {
     static std::mutex mtx;
     static int curr = 0;
@@ -23,24 +23,24 @@ namespace {
     if(prev == 0 && curr == 1) {
       // we are the first instance -> initialize
       WSADATA wsaData;
-      if(auto const result = WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+      if(auto const result = ::WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         throw std::system_error(SocketError(result), "failed to intitialize socket subsystem");
       }
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup
-      (void)WSACleanup();
+      (void)::WSACleanup();
     }
   }
 } // unnamed namespace
 
 WinSockGuard::WinSockGuard()
 {
-  updateInstanceCount(1);
+  UpdateInstanceCount(1);
 }
 
 WinSockGuard::~WinSockGuard()
 {
-  updateInstanceCount(-1);
+  UpdateInstanceCount(-1);
 }
 
 } // namespace sockpuppet

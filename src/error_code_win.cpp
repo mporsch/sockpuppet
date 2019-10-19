@@ -32,7 +32,7 @@ struct win32_error_category : public std::error_category
   std::string message(int messageId) const override
   {
     char buffer[256];
-    if(DWORD const len = FormatMessage(
+    if(DWORD const len = ::FormatMessage(
          FORMAT_MESSAGE_FROM_SYSTEM,
          nullptr,
          static_cast<DWORD>(messageId),
@@ -82,7 +82,7 @@ namespace sockpuppet {
 
 std::error_code SocketError()
 {
-  return SocketError(WSAGetLastError());
+  return SocketError(::WSAGetLastError());
 }
 
 std::error_code SocketError(int code)
