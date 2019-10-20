@@ -83,7 +83,8 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
     }
   }
 
-  auto const received = ::recv(fd, data, size, 0);
+  static int const flags = 0;
+  auto const received = ::recv(fd, data, size, flags);
   if(received > 0) {
     return static_cast<size_t>(received);
   } else {
@@ -108,13 +109,23 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
     }
   }
 
+  static int const flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
-  auto const received = ::recvfrom(fd, data, size, 0,
-                                   sas->Addr(), sas->AddrLen());
-  return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-    received
-  , std::move(sas)
-  };
+  if(auto const received = ::recvfrom(fd,
+       data, size,
+       flags,
+       sas->Addr(), sas->AddrLen())) {
+    if(received > 0) {
+      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
+        static_cast<size_t>(received)
+      , std::move(sas)
+      };
+    } else {
+      throw std::system_error(SocketError(), "failed to receive");
+    }
+  } else {
+    throw std::logic_error("unexpected UDP receive result");
+  }
 }
 
 void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
@@ -129,7 +140,8 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
     }
   }
 
-  if(size != ::send(fd, data, size, 0)) {
+  static int const flags = 0;
+  if(size != ::send(fd, data, size, flags)) {
     // as the socket is configured for blocking, partial send is not expected
     throw std::system_error(SocketError(), "failed to send");
   }
@@ -138,7 +150,8 @@ void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 void Socket::SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr)
 {
-  if(size != ::sendto(fd, data, size, 0,
+  static int const flags = 0;
+  if(size != ::sendto(fd, data, size, flags,
                       dstAddr.addr, dstAddr.addrLen)) {
     auto const error = SocketError(); // cache before calling to_string
     throw std::system_error(error,
@@ -209,8 +222,8 @@ void Socket::SocketPriv::SetSockOptBroadcast()
 
 void Socket::SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)
 {
-  if (::setsockopt(fd, SOL_SOCKET, id,
-                   reinterpret_cast<char const *>(&value), sizeof(value))) {
+  if(::setsockopt(fd, SOL_SOCKET, id,
+                  reinterpret_cast<char const *>(&value), sizeof(value))) {
     throw std::system_error(SocketError(), errorMessage);
   }
 }
@@ -220,15 +233,15 @@ size_t Socket::SocketPriv::GetSockOptRcvBuf() const
   int value;
   {
     auto size = static_cast<socklen_t>(sizeof(value));
-    if (::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
-                     reinterpret_cast<char *>(&value), &size) ||
+    if(::getsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+                    reinterpret_cast<char *>(&value), &size) ||
         size != sizeof(value)) {
       throw std::system_error(SocketError(), "failed to get socket receive buffer size");
     }
   }
 
   if(value < 0) {
-    throw std::logic_error("invalid receive buffer size");
+    throw std::logic_error("unexpected receive buffer size");
   }
   return static_cast<size_t>(value);
 }
@@ -237,7 +250,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 
-  if (::getsockname(fd, sas->Addr(), sas->AddrLen())) {
+  if(::getsockname(fd, sas->Addr(), sas->AddrLen())) {
     throw std::system_error(SocketError(), "failed to get socket address");
   }
 
@@ -248,7 +261,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 
-  if (::getpeername(fd, sas->Addr(), sas->AddrLen())) {
+  if(::getpeername(fd, sas->Addr(), sas->AddrLen())) {
     throw std::system_error(SocketError(), "failed to get peer address");
   }
 
