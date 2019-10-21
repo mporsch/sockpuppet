@@ -74,8 +74,8 @@ struct Server
 
     if(serverHandlers.size() == clientCount) {
       promisedClientsConnect.set_value();
-    } else if ((bytesReceived > 0U) &&
-               (serverHandlers.size() == 1U)) {
+    } else if((bytesReceived > 0U) &&
+              (serverHandlers.size() == 1U)) {
       promisedLoneClientConnect.set_value();
     }
   }

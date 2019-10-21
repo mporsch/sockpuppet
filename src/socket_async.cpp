@@ -10,7 +10,7 @@ namespace {
   template<typename Fn>
   std::function<Fn> &checked(std::function<Fn> &handler)
   {
-    if (!handler) {
+    if(!handler) {
       throw std::logic_error("invalid handler");
     }
     return handler;

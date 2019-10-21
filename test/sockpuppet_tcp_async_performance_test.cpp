@@ -195,7 +195,7 @@ try {
   }
 
   // wait for the sending threads to finish
-  for (auto &&t : clientSendThreads) {
+  for(auto &&t : clientSendThreads) {
     if(t.joinable()) {
       t.join();
     }

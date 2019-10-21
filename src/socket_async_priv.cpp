@@ -201,7 +201,7 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
       sock.DriverDoFdTaskReadable();
       return;
     } else if(pfd.revents & POLLOUT) {
-      if (sock.DriverDoFdTaskWritable()) {
+      if(sock.DriverDoFdTaskWritable()) {
         pfd.events &= ~POLLOUT;
       }
       return;
