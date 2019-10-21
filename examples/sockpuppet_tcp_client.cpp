@@ -28,7 +28,7 @@ try {
       if(line.empty()) {
         break;
       } else {
-        client.Send(line.c_str(), line.size());
+        (void)client.Send(line.c_str(), line.size());
       }
     }
 

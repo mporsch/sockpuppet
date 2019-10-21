@@ -34,7 +34,7 @@ try {
       if(line.empty()) {
         break;
       } else {
-        sock.SendTo(line.c_str(), line.size(), dstAddr);
+        (void)sock.SendTo(line.c_str(), line.size(), dstAddr);
       }
     }
   }

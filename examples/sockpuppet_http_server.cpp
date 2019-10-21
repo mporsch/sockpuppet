@@ -49,7 +49,7 @@ try {
   std::cout << "sending HTTP response to "
             << to_string(clientAddr) << std::endl;
 
-  clientSock.Send(response.c_str(), response.size());
+  (void)clientSock.Send(response.c_str(), response.size());
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {

@@ -36,7 +36,7 @@ struct Server
     void HandleReceive(SocketAsync::SocketBufferPtr buffer)
     {
       // echo received data
-      client.Send(std::move(buffer));
+      (void)client.Send(std::move(buffer));
     }
   };
 

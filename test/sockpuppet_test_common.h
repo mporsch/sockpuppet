@@ -90,7 +90,7 @@ struct TestData
               << " to " << to_string(dstAddr) << std::endl;
 
     auto send = [&](char const *data, size_t size) {
-      buff.SendTo(data, size, dstAddr);
+      (void)buff.SendTo(data, size, dstAddr);
     };
     DoSendUdp(send);
   }
@@ -103,7 +103,7 @@ struct TestData
               << std::endl;
 
     auto send = [&](char const *data, size_t size) {
-      buff.Send(data, size);
+      (void)buff.Send(data, size);
     };
     DoSendTcp(send);
   }
@@ -116,7 +116,7 @@ struct TestData
               << std::endl;
 
     auto send = [&](char const *data, size_t size) {
-      async.Send(ToBufferPtr(data, size));
+      (void)async.Send(ToBufferPtr(data, size));
     };
     DoSendTcp(send);
   }

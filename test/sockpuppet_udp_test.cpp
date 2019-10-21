@@ -60,7 +60,7 @@ try {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     static char const hello[] = "hello";
-    client.SendTo(hello, sizeof(hello), serverAddr);
+    (void)client.SendTo(hello, sizeof(hello), serverAddr);
   }
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;

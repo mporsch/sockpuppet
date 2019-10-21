@@ -37,7 +37,7 @@ try {
        << std::endl;
 
   static char const hello[] = "hello";
-  handler.Send(hello, sizeof(hello));
+  (void)handler.Send(hello, sizeof(hello));
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {
