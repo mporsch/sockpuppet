@@ -2,6 +2,7 @@
 #include "error_code.h" // for SocketError
 
 #ifndef _WIN32
+# include <fcntl.h> // for fcntl
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
@@ -38,6 +39,20 @@ namespace {
     return ::WSAPoll(&pfd, 1U, msec);
 #else
     return ::poll(&pfd, 1U, msec);
+#endif // _WIN32
+  }
+
+  int SetNonBlocking(SOCKET fd)
+  {
+#ifdef _WIN32
+    unsigned long enable = 1U;
+    return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
+#else
+    int const flags = fcntl(fd, F_GETFL, 0);
+    if (flags == -1) {
+      return flags;
+    }
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif // _WIN32
   }
 
@@ -280,8 +295,7 @@ Socket::SocketPriv::Accept(Duration timeout)
 
 void Socket::SocketPriv::SetSockOptNonBlocking()
 {
-  unsigned long enable = 1U;
-  if(::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable)) {
+  if(SetNonBlocking(fd)) {
     throw std::system_error(SocketError(),
         "failed to set socket option non-blocking");
   }
