@@ -64,9 +64,10 @@ struct SocketUdp : public Socket
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @throws  If sending fails locally.
-  void SendTo(char const *data,
-              size_t size,
-              Address const &dstAddress);
+  size_t SendTo(char const *data,
+                size_t size,
+                Address const &dstAddress,
+                Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
@@ -110,9 +111,9 @@ struct SocketTcpClient : public Socket
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
   /// @throws  If sending fails or times out.
-  void Send(char const *data,
-            size_t size,
-            Duration timeout = Duration(-1));
+  size_t Send(char const *data,
+              size_t size,
+              Duration timeout = Duration(-1));
 
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,

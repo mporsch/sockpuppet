@@ -6,6 +6,8 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
+#include <cassert> // for assert
+
 namespace sockpuppet {
 
 namespace {
@@ -38,6 +40,34 @@ namespace {
     return ::poll(&pfd, 1U, msec);
 #endif // _WIN32
   }
+
+  struct Deadline
+  {
+    Socket::Duration remaining;
+    std::chrono::time_point<std::chrono::steady_clock> lastStart;
+
+    Deadline(Socket::Duration timeout)
+      :remaining(timeout)
+    {
+      if(remaining.count() >= 0) {
+        lastStart = std::chrono::steady_clock::now();
+      }
+    }
+
+    bool TimeLeft()
+    {
+      if(remaining.count() >= 0) {
+        auto const now = std::chrono::steady_clock::now();
+
+        remaining -= std::chrono::duration_cast<Socket::Duration>(now - lastStart);
+        lastStart = now;
+
+        return (remaining.count() > 0);
+      }
+      return true;
+    }
+  };
+
 } // unnamed namespace
 
 Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
@@ -72,91 +102,129 @@ Socket::SocketPriv::~SocketPriv()
 
 size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() >= 0) {
-    if(auto const result = PollRead(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to receive");
-      }
-    } else {
-      // timeout exceeded
-      return 0U;
+  if(auto const result = PollRead(timeout)) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), "failed to receive");
     }
+  } else {
+    // timeout exceeded
+    return 0U;
   }
 
   static int const flags = 0;
-  auto const received = ::recv(fd, data, size, flags);
-  if(received > 0) {
-    return static_cast<size_t>(received);
-  } else {
+  auto const received = ::recv(fd,
+                               data, size,
+                               flags);
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
     throw std::runtime_error("connection closed");
   }
+  return static_cast<size_t>(received);
 }
 
 std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() >= 0) {
-    if(auto const result = PollRead(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to receive");
-      }
-    } else {
-      // timeout exceeded
-      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-        0U
-      , nullptr
-      };
+  if(auto const result = PollRead(timeout)) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), "failed to receive");
     }
+  } else {
+    // timeout exceeded
+    return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
+      0U
+    , nullptr
+    };
   }
 
   static int const flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
-  if(auto const received = ::recvfrom(fd,
-       data, size,
-       flags,
-       sas->Addr(), sas->AddrLen())) {
-    if(received > 0) {
-      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-        static_cast<size_t>(received)
-      , std::move(sas)
-      };
-    } else {
-      throw std::system_error(SocketError(), "failed to receive");
-    }
-  } else {
+  auto const received = ::recvfrom(fd,
+                                   data, size,
+                                   flags,
+                                   sas->Addr(), sas->AddrLen());
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
     throw std::logic_error("unexpected UDP receive result");
   }
+  return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
+    static_cast<size_t>(received)
+  , std::move(sas)
+  };
 }
 
-void Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
+size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
-  if(timeout.count() >= 0) {
-    if(auto const result = PollWrite(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to send");
-      }
-    } else {
-      throw std::runtime_error("send timed out");
+  size_t sent = 0U;
+  Deadline deadline(timeout);
+  do
+  {
+    sent += SendIteration(data + sent, size - sent, deadline.remaining);
+  } while((sent < size) && deadline.TimeLeft());
+
+  assert((sent == size) || (timeout.count() >= 0));
+  return sent;
+}
+
+size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration timeout)
+{
+  // TCP sockets will block regularly, if:
+  //   the user enqueues faster than the NIC can send or the peer can process
+  //   network losses/delay causes retransmissions
+  // causing the OS send buffer to fill up
+
+  if(auto const result = PollWrite(timeout)) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), "failed to send");
     }
+  } else {
+    // timeout exceeded
+    return 0U;
   }
 
   static int const flags = 0;
-  if(size != ::send(fd, data, size, flags)) {
-    // as the socket is configured for blocking, partial send is not expected
+  auto const sent = ::send(fd,
+                           data, size,
+                           flags);
+  if(sent < 0) {
     throw std::system_error(SocketError(), "failed to send");
+  } else if((sent == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected send result");
   }
+  return static_cast<size_t>(sent);
 }
 
-void Socket::SocketPriv::SendTo(char const *data, size_t size,
-    SockAddrView const &dstAddr)
+size_t Socket::SocketPriv::SendTo(char const *data, size_t size,
+    SockAddrView const &dstAddr, Duration timeout)
 {
+  // UDP sockets will block only rarely,
+  // if the user enqueues faster than the NIC can send
+  // causing the OS send buffer to fill up
+
+  if(auto const result = PollWrite(timeout)) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), "failed to send");
+    }
+  } else {
+    // timeout exceeded
+    return 0U;
+  }
+
   static int const flags = 0;
-  if(size != ::sendto(fd, data, size, flags,
-                      dstAddr.addr, dstAddr.addrLen)) {
+  auto const sent = ::sendto(fd,
+                             data, size,
+                             flags,
+                             dstAddr.addr, dstAddr.addrLen);
+  if(sent < 0) {
     auto const error = SocketError(); // cache before calling to_string
     throw std::system_error(error,
           "failed to send to " + to_string(dstAddr));
+  } else if(static_cast<size_t>(sent) != size) {
+    throw std::logic_error("unexpected send result");
   }
+  return static_cast<size_t>(sent);
 }
 
 void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
@@ -208,6 +276,15 @@ Socket::SocketPriv::Accept(Duration timeout)
     std::move(client)
   , std::move(sas)
   };
+}
+
+void Socket::SocketPriv::SetSockOptNonBlocking()
+{
+  unsigned long enable = 1U;
+  if(::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable)) {
+    throw std::system_error(SocketError(),
+        "failed to set socket option non-blocking");
+  }
 }
 
 void Socket::SocketPriv::SetSockOptReuseAddr()

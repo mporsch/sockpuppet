@@ -53,10 +53,10 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
   return *this;
 }
 
-void SocketUdpBuffered::SendTo(char const *data, size_t size,
-    Address const &dstAddress)
+size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
+    Address const &dstAddress, Duration timeout)
 {
-  m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
+  return m_priv->SendTo(data, size, dstAddress.Priv().ForUdp(), timeout);
 }
 
 SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Duration timeout)
@@ -90,10 +90,10 @@ SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexc
   return *this;
 }
 
-void SocketTcpBuffered::Send(char const *data, size_t size,
+size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
 {
-  m_priv->Send(data, size, timeout);
+  return m_priv->Send(data, size, timeout);
 }
 
 SocketBuffered::SocketBufferPtr SocketTcpBuffered::Receive(Duration timeout)

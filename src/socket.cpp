@@ -44,6 +44,7 @@ SocketUdp::SocketUdp(Address const &bindAddress)
       bindAddress.Priv().Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
   m_priv->Bind(bindAddress.Priv().ForUdp());
+  m_priv->SetSockOptNonBlocking();
   m_priv->SetSockOptBroadcast();
 }
 
@@ -61,10 +62,10 @@ SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept
   return *this;
 }
 
-void SocketUdp::SendTo(char const *data, size_t size,
-    Address const &dstAddress)
+size_t SocketUdp::SendTo(char const *data, size_t size,
+    Address const &dstAddress, Duration timeout)
 {
-  m_priv->SendTo(data, size, dstAddress.Priv().ForUdp());
+  return m_priv->SendTo(data, size, dstAddress.Priv().ForUdp(), timeout);
 }
 
 size_t SocketUdp::Receive(char *data, size_t size, Duration timeout)
@@ -88,11 +89,13 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
       connectAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   m_priv->Connect(connectAddress.Priv().ForTcp());
+  m_priv->SetSockOptNonBlocking();
 }
 
 SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
   : Socket(std::move(other))
 {
+  m_priv->SetSockOptNonBlocking();
 }
 
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
@@ -108,9 +111,9 @@ SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept
   return *this;
 }
 
-void SocketTcpClient::Send(const char *data, size_t size, Duration timeout)
+size_t SocketTcpClient::Send(const char *data, size_t size, Duration timeout)
 {
-  m_priv->Send(data, size, timeout);
+  return m_priv->Send(data, size, timeout);
 }
 
 size_t SocketTcpClient::Receive(char *data, size_t size, Duration timeout)

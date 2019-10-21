@@ -38,13 +38,17 @@ struct Socket::SocketPriv
   std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
   ReceiveFrom(char *data, size_t size, Duration timeout);
 
-  void Send(char const *data,
-            size_t size,
-            Duration timeout);
-
-  void SendTo(char const *data,
+  size_t Send(char const *data,
               size_t size,
-              SockAddrView const &dstAddr);
+              Duration timeout);
+  size_t SendIteration(char const *data,
+                       size_t size,
+                       Duration timeout);
+
+  size_t SendTo(char const *data,
+                size_t size,
+                SockAddrView const &dstAddr,
+                Duration timeout);
 
   void Bind(SockAddrView const &sockAddr);
 
@@ -56,6 +60,7 @@ struct Socket::SocketPriv
              std::shared_ptr<SockAddrStorage>>
   Accept(Duration timeout);
 
+  void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
   void SetSockOpt(int id,

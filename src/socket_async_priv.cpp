@@ -178,7 +178,10 @@ void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
 void SocketDriver::SocketDriverPriv::Bump()
 {
   static char const one = '1';
-  pipeFrom.SendTo(&one, sizeof(one), pipeToAddr->ForUdp());
+  auto const sent = pipeFrom.SendTo(&one, sizeof(one),
+                                    pipeToAddr->ForUdp(),
+                                    noTimeout);
+  assert(sent == sizeof(one));
 }
 
 void SocketDriver::SocketDriverPriv::Unbump()
@@ -334,7 +337,9 @@ void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQElement &t)
   auto &&promise = std::get<0>(t);
   try {
     auto &&buffer = std::get<1>(t);
-    SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
+    auto const sent = SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
+    // as unlimited timeout is set, partially sent data is not expected
+    assert(sent == buffer->size());
     promise.set_value();
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
@@ -347,8 +352,10 @@ void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
   try {
     auto &&buffer = std::get<1>(t);
     auto &&addr = std::get<2>(t);
-    SocketPriv::SendTo(buffer->data(), buffer->size(),
-                       addr.Priv().ForUdp());
+    auto const sent = SocketPriv::SendTo(buffer->data(), buffer->size(),
+                                         addr.Priv().ForUdp(),
+                                         noTimeout);
+    assert(sent == buffer->size());
     promise.set_value();
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
