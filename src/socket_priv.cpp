@@ -88,6 +88,7 @@ namespace {
 Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
+  , isBlocking(true)
 {
   if(fd == fdInvalid) {
     throw std::system_error(SocketError(), "failed to create socket");
@@ -96,6 +97,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
 
 Socket::SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
+  , isBlocking(true)
 {
   if(fd == fdInvalid) {
     throw std::system_error(SocketError(), "failed to create socket");
@@ -104,6 +106,7 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
 
 Socket::SocketPriv::SocketPriv(SocketPriv &&other) noexcept
   : fd(other.fd)
+  , isBlocking(other.isBlocking)
 {
   other.fd = fdInvalid;
 }
@@ -117,13 +120,15 @@ Socket::SocketPriv::~SocketPriv()
 
 size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(auto const result = PollRead(timeout)) {
-    if(result < 0) {
-      throw std::system_error(SocketError(), "failed to receive");
+  if(NeedsPoll(timeout)) {
+    if(auto const result = PollRead(timeout)) {
+      if(result < 0) {
+        throw std::system_error(SocketError(), "failed to receive");
+      }
+    } else {
+      // timeout exceeded
+      return 0U;
     }
-  } else {
-    // timeout exceeded
-    return 0U;
   }
 
   static int const flags = 0;
@@ -141,16 +146,18 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
 std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(auto const result = PollRead(timeout)) {
-    if(result < 0) {
-      throw std::system_error(SocketError(), "failed to receive");
+  if(NeedsPoll(timeout)) {
+    if(auto const result = PollRead(timeout)) {
+      if(result < 0) {
+        throw std::system_error(SocketError(), "failed to receive");
+      }
+    } else {
+      // timeout exceeded
+      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
+        0U
+      , nullptr
+      };
     }
-  } else {
-    // timeout exceeded
-    return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-      0U
-    , nullptr
-    };
   }
 
   static int const flags = 0;
@@ -185,18 +192,20 @@ size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 
 size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration timeout)
 {
-  // TCP sockets will block regularly, if:
+  // TCP send will block regularly, if:
   //   the user enqueues faster than the NIC can send or the peer can process
   //   network losses/delay causes retransmissions
   // causing the OS send buffer to fill up
 
-  if(auto const result = PollWrite(timeout)) {
-    if(result < 0) {
-      throw std::system_error(SocketError(), "failed to send");
+  if(NeedsPoll(timeout)) {
+    if(auto const result = PollWrite(timeout)) {
+      if(result < 0) {
+        throw std::system_error(SocketError(), "failed to send");
+      }
+    } else {
+      // timeout exceeded
+      return 0U;
     }
-  } else {
-    // timeout exceeded
-    return 0U;
   }
 
   static int const flags = 0;
@@ -214,17 +223,19 @@ size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration
 size_t Socket::SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  // UDP sockets will block only rarely,
+  // UDP send will block only rarely,
   // if the user enqueues faster than the NIC can send
   // causing the OS send buffer to fill up
 
-  if(auto const result = PollWrite(timeout)) {
-    if(result < 0) {
-      throw std::system_error(SocketError(), "failed to send");
+  if(NeedsPoll(timeout)) {
+    if(auto const result = PollWrite(timeout)) {
+      if(result < 0) {
+        throw std::system_error(SocketError(), "failed to send");
+      }
+    } else {
+      // timeout exceeded
+      return 0U;
     }
-  } else {
-    // timeout exceeded
-    return 0U;
   }
 
   static int const flags = 0;
@@ -357,6 +368,15 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   }
 
   return sas;
+}
+
+bool Socket::SocketPriv::NeedsPoll(Duration timeout)
+{
+  if(isBlocking && timeout.count() >= 0) {
+    SetSockOptNonBlocking();
+    isBlocking = false;
+  }
+  return !isBlocking;
 }
 
 int Socket::SocketPriv::PollRead(Duration timeout) const

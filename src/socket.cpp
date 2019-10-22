@@ -44,7 +44,6 @@ SocketUdp::SocketUdp(Address const &bindAddress)
       bindAddress.Priv().Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
   m_priv->Bind(bindAddress.Priv().ForUdp());
-  m_priv->SetSockOptNonBlocking();
   m_priv->SetSockOptBroadcast();
 }
 
@@ -89,13 +88,11 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
       connectAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   m_priv->Connect(connectAddress.Priv().ForTcp());
-  m_priv->SetSockOptNonBlocking();
 }
 
 SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
   : Socket(std::move(other))
 {
-  m_priv->SetSockOptNonBlocking();
 }
 
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
