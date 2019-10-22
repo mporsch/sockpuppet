@@ -62,7 +62,7 @@ namespace {
     std::chrono::time_point<std::chrono::steady_clock> lastStart;
 
     Deadline(Socket::Duration timeout)
-      :remaining(timeout)
+      : remaining(timeout)
     {
       if(remaining.count() >= 0) {
         lastStart = std::chrono::steady_clock::now();
@@ -372,7 +372,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
 
 bool Socket::SocketPriv::NeedsPoll(Duration timeout)
 {
-  if(isBlocking && timeout.count() >= 0) {
+  if(isBlocking && (timeout.count() >= 0)) {
     SetSockOptNonBlocking();
     isBlocking = false;
   }

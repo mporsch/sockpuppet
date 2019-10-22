@@ -78,6 +78,9 @@ struct SocketUdpBuffered : public SocketBuffered
   /// Unreliably send data to address.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
+  /// @param  timeout  Timeout to use; non-null causes blocking send,
+  ///                  a negative value allows unlimited blocking.
+  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
   /// @throws  If sending fails locally.
   size_t SendTo(char const *data,
                 size_t size,
@@ -127,6 +130,7 @@ struct SocketTcpBuffered : public SocketBuffered
   /// Reliably send data to connected peer.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
+  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
   /// @throws  If sending fails or times out.
   size_t Send(char const *data,
               size_t size,
