@@ -3,7 +3,6 @@
 #include <algorithm> // for std::generate
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
-#include <thread> // for std::this_thread
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -51,11 +50,8 @@ struct TestData
     // send in fixed packet sizes
     size_t pos = 0;
     static size_t const packetSize = 1400U;
-    for(; pos + packetSize < referenceData.size(); pos += packetSize) {
-      sendFn(referenceData.data() + pos, packetSize);
-
-      // delay packets to avoid loss / out-of-order / queue overflow
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    while(pos + packetSize < referenceData.size()) {
+      pos += sendFn(referenceData.data() + pos, packetSize);
     }
 
     // send the remaining data not filling a whole packet
@@ -72,38 +68,36 @@ struct TestData
     auto gen = [&]() -> size_t { return distribution(generator); };
 
     size_t pos = 0;
-    auto packetSize = gen();
-    while(pos + packetSize < referenceData.size()) {
-      sendFn(referenceData.data() + pos, packetSize);
-      pos += packetSize;
-      packetSize = gen();
+    while(pos < referenceData.size()) {
+      auto const packetSize = gen();
+      pos += sendFn(referenceData.data() + pos,
+                    std::min(packetSize, referenceData.size() - pos));
     }
-
-    // send the remaining data not filling a whole packet
-    sendFn(referenceData.data() + pos,
-           referenceData.size() - pos);
   }
 
-  inline void Send(SocketUdpBuffered &buff, Address const &dstAddr) const
+  inline void Send(SocketUdpBuffered &buff,
+                   Address const &dstAddr,
+                   Socket::Duration perPacketTimeout) const
   {
     std::cout << "sending reference data from " << to_string(buff.LocalAddress())
               << " to " << to_string(dstAddr) << std::endl;
 
-    auto send = [&](char const *data, size_t size) {
-      (void)buff.SendTo(data, size, dstAddr);
+    auto send = [&](char const *data, size_t size) -> size_t {
+      return buff.SendTo(data, size, dstAddr, perPacketTimeout);
     };
     DoSendUdp(send);
   }
 
-  inline void Send(SocketTcpBuffered &buff) const
+  inline void Send(SocketTcpBuffered &buff,
+                   SocketBuffered::Duration perPacketTimeout) const
   {
     std::cout << "sending reference data from "
               << to_string(buff.LocalAddress())
               << " to " << to_string(buff.PeerAddress())
               << std::endl;
 
-    auto send = [&](char const *data, size_t size) {
-      (void)buff.Send(data, size);
+    auto send = [&](char const *data, size_t size) -> size_t {
+      return buff.Send(data, size, perPacketTimeout);
     };
     DoSendTcp(send);
   }
@@ -115,8 +109,9 @@ struct TestData
               << " to " << to_string(async.PeerAddress())
               << std::endl;
 
-    auto send = [&](char const *data, size_t size) {
+    auto send = [&](char const *data, size_t size) -> size_t {
       (void)async.Send(ToBufferPtr(data, size));
+      return size;
     };
     DoSendTcp(send);
   }

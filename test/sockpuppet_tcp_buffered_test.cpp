@@ -3,7 +3,7 @@
 
 #include <atomic> // for std::atomic
 #include <iostream> // for std::cout
-#include <stdexcept> // for std::runtime_error
+#include <stdexcept> // for std::exception
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
@@ -22,6 +22,9 @@ void ServerHandler(std::tuple<SocketTcpClient, Address> t)
   try {
     for(;;) {
       storage.emplace_back(serverHandler.Receive());
+
+      // simulate some processing delay to trigger TCP congestion control
+      std::this_thread::sleep_for(std::chrono::microseconds(1));
     }
   } catch(std::exception const &) {
   }
@@ -44,19 +47,15 @@ try {
   success = false;
 }
 
-void Client(Address serverAddress)
+void Client(Address serverAddress, SocketBuffered::Duration perPacketSendTimeout)
 try {
   SocketTcpBuffered client(serverAddress);
-
-  if(client.Receive(std::chrono::seconds(0))->size() != 0U) {
-    throw std::runtime_error("unexpected receive");
-  }
 
   std::cout << "client " << to_string(client.LocalAddress())
             << " connected to server " << to_string(serverAddress)
             << std::endl;
 
-  testData.Send(client);
+  testData.Send(client, perPacketSendTimeout);
 
   // destroying the client socket closes the connection
 } catch (std::exception const &e) {
@@ -64,7 +63,7 @@ try {
   success = false;
 }
 
-int main(int, char **)
+void Test(SocketBuffered::Duration perPacketSendTimeout)
 {
   // start client and server threads
   Address serverAddr("localhost:8554");
@@ -73,7 +72,7 @@ int main(int, char **)
   // wait for server to come up
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  std::thread client(Client, serverAddr);
+  std::thread client(Client, serverAddr, perPacketSendTimeout);
 
   // wait for both to finish
   if(server.joinable()) {
@@ -82,6 +81,18 @@ int main(int, char **)
   if(client.joinable()) {
     client.join();
   }
+}
+
+int main(int, char **)
+{
+  std::cout << "test case #1: unlimited send timeout" << std::endl;
+  Test(SocketBuffered::Duration(-1));
+
+  std::cout << "test case #2: limited send timeout" << std::endl;
+  Test(std::chrono::milliseconds(1));
+
+  std::cout << "test case #3: non-blocking send" << std::endl;
+  Test(SocketBuffered::Duration(0));
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }

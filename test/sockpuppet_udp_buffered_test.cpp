@@ -3,7 +3,7 @@
 
 #include <atomic> // for std::atomic
 #include <iostream> // for std::cout
-#include <stdexcept> // for std::runtime_error
+#include <stdexcept> // for std::exception
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
@@ -46,23 +46,18 @@ try {
   success = false;
 }
 
-void Client(Address serverAddress)
+void Client(Address serverAddress, SocketBuffered::Duration perPacketSendTimeout)
 try {
   Address clientAddress("localhost");
   SocketUdpBuffered client(clientAddress);
 
-  if((client.Receive(std::chrono::seconds(0))->size() != 0U) ||
-     (std::get<0>(client.ReceiveFrom(std::chrono::seconds(0)))->size() != 0U)){
-    throw std::runtime_error("unexpected receive");
-  }
-
-  testData.Send(client, serverAddress);
+  testData.Send(client, serverAddress, perPacketSendTimeout);
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;
 }
 
-int main(int, char **)
+void Test(SocketBuffered::Duration perPacketSendTimeout)
 {
   // start client and server threads
   Address serverAddr("localhost:8554");
@@ -71,7 +66,7 @@ int main(int, char **)
   // wait for server to come up
   std::this_thread::sleep_for(std::chrono::seconds(1));
 
-  std::thread client(Client, serverAddr);
+  std::thread client(Client, serverAddr, perPacketSendTimeout);
 
   // wait for both to finish
   if(server.joinable()) {
@@ -80,6 +75,18 @@ int main(int, char **)
   if(client.joinable()) {
     client.join();
   }
+}
+
+int main(int, char **)
+{
+  std::cout << "test case #1: unlimited send timeout" << std::endl;
+  Test(SocketBuffered::Duration(-1));
+
+  std::cout << "test case #2: limited send timeout" << std::endl;
+  Test(std::chrono::milliseconds(1));
+
+  std::cout << "test case #3: non-blocking send" << std::endl;
+  Test(SocketBuffered::Duration(0));
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }
