@@ -10,7 +10,7 @@ Address::AddressPriv::LocalAddresses()
   std::vector<Address> ret;
 
   // a special host name provides a list of local machine interface addresses
-  const SockAddrInfo sockAddr("..localmachine");
+  SockAddrInfo const sockAddr("..localmachine");
 
   for(auto it = sockAddr.info.get(); it != nullptr; it = it->ai_next) {
     ret.emplace_back(std::make_shared<SockAddrStorage>(

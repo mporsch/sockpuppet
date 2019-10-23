@@ -152,7 +152,7 @@ struct Clients
     return std::all_of(
           std::begin(clients),
           std::end(clients),
-          [](const decltype(clients)::value_type &p) -> bool {
+          [](decltype(clients)::value_type const &p) -> bool {
       return p.second->Verify();
     });
   }

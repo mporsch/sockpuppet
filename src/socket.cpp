@@ -87,7 +87,7 @@ SocketTcpClient::~SocketTcpClient() = default;
 
 SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = default;
 
-size_t SocketTcpClient::Send(const char *data, size_t size, Duration timeout)
+size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
 {
   return m_priv->Send(data, size, timeout);
 }
@@ -103,7 +103,7 @@ Address SocketTcpClient::PeerAddress() const
 }
 
 
-SocketTcpServer::SocketTcpServer(const Address &bindAddress)
+SocketTcpServer::SocketTcpServer(Address const &bindAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
       bindAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {

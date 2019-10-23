@@ -247,8 +247,8 @@ SockAddrInfo::SockAddrInfo(std::string const &uri)
 {
 }
 
-SockAddrInfo::SockAddrInfo(const std::string &host,
-    const std::string &serv)
+SockAddrInfo::SockAddrInfo(std::string const &host,
+    std::string const &serv)
   : info(ParseHostServ(host, serv))
 {
 }
@@ -358,7 +358,7 @@ int SockAddrStorage::Family() const
 }
 
 
-std::string to_string(Address::AddressPriv const& sockAddr)
+std::string to_string(Address::AddressPriv const &sockAddr)
 {
   return to_string(sockAddr.ForAny());
 }

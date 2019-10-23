@@ -30,7 +30,7 @@ namespace {
   {
     SOCKET fd;
 
-    bool operator()(const SocketAsync::SocketAsyncPriv& async) const
+    bool operator()(SocketAsync::SocketAsyncPriv const &async) const
     {
       return (async.fd == fd);
     }
@@ -148,14 +148,14 @@ void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  const auto itSocket = std::find_if(
+  auto const itSocket = std::find_if(
         std::begin(sockets),
         std::end(sockets),
         CompareFd{fd});
   assert(itSocket != std::end(sockets));
   sockets.erase(itSocket);
 
-  const auto itPfd = std::find_if(
+  auto const itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
         CompareFd{fd});
@@ -167,7 +167,7 @@ void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  const auto itPfd = std::find_if(
+  auto const itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
         CompareFd{fd});

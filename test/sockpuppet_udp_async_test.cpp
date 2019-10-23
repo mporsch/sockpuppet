@@ -27,7 +27,7 @@ int main(int, char **)
 {
   using namespace std::chrono;
 
-  const int sendCount = 5;
+  int const sendCount = 5;
 
   bool success = true;
 
