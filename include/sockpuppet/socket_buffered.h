@@ -1,9 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_BUFFERED_H
 #define SOCKPUPPET_SOCKET_BUFFERED_H
 
+#include "sockpuppet/address.h" // for Address
 #include "sockpuppet/resource_pool.h" // for ResourcePool
 #include "sockpuppet/socket.h" // for Socket
-#include "sockpuppet/address.h" // for Address
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
@@ -76,6 +76,8 @@ struct SocketUdpBuffered : public SocketBuffered
   SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
 
   /// Unreliably send data to address.
+  /// @param  data  Pointer to data to send.
+  /// @param  size  Size of data to send.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
@@ -91,7 +93,7 @@ struct SocketUdpBuffered : public SocketBuffered
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Received data buffer borrowed from socket.
-  ///          May return empty buffer only if non-negative timeout is specified.
+  ///          May return empty buffer only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Duration timeout = Duration(-1));
 
@@ -99,7 +101,8 @@ struct SocketUdpBuffered : public SocketBuffered
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Received data buffer borrowed from socket and source address.
-  ///          May return empty buffer and invalid address only if non-negative timeout is specified.
+  ///          May return empty buffer and invalid address
+  ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   std::tuple<SocketBufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
 };
@@ -128,6 +131,8 @@ struct SocketTcpBuffered : public SocketBuffered
   SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 
   /// Reliably send data to connected peer.
+  /// @param  data  Pointer to data to send.
+  /// @param  size  Size of data to send.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
   /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
@@ -140,7 +145,7 @@ struct SocketTcpBuffered : public SocketBuffered
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Received data buffer borrowed from socket.
-  ///          May return empty buffer only if non-negative timeout is specified.
+  ///          May return empty buffer only if non-negative \p timeout is specified.
   /// @throws  If receipt fails or number of receive buffers is exceeded.
   SocketBufferPtr Receive(Duration timeout = Duration(-1));
 

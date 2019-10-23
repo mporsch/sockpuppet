@@ -1,8 +1,8 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_H
 #define SOCKPUPPET_SOCKET_ASYNC_H
 
-#include "sockpuppet/socket.h" // for Socket
 #include "sockpuppet/address.h" // for Address
+#include "sockpuppet/socket.h" // for Socket
 #include "sockpuppet/socket_buffered.h" // for SocketBuffered
 
 #include <functional> // for std::function
@@ -12,7 +12,7 @@
 namespace sockpuppet {
 
 /// Socket driver that runs one or multiple attached socket classes and
-/// may be run by a dedicated thread or stepped iteratively.
+/// may be driven by a dedicated thread or stepped iteratively.
 class SocketDriver
 {
   friend class SocketAsync;
@@ -62,18 +62,10 @@ class SocketAsync
 public:
   using SocketBufferPool = SocketBuffered::SocketBufferPool;
   using SocketBufferPtr = SocketBuffered::SocketBufferPtr;
-  using ReceiveHandler = std::function<
-    void(SocketBufferPtr)
-  >;
-  using ReceiveFromHandler = std::function<
-    void(SocketBufferPtr, Address)
-  >;
-  using ConnectHandler = std::function<
-    void(SocketTcpClient, Address)
-  >;
-  using DisconnectHandler = std::function<
-    void(Address)
-  >;
+  using ReceiveHandler = std::function<void(SocketBufferPtr)>;
+  using ReceiveFromHandler = std::function<void(SocketBufferPtr, Address)>;
+  using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
+  using DisconnectHandler = std::function<void(Address)>;
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.

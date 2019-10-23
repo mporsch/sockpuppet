@@ -51,7 +51,7 @@ protected:
 struct SocketUdp : public Socket
 {
   /// Create a UDP socket bound to given address.
-  /// @throws  If binding fails.
+  /// @throws  If binding or configuration fails.
   SocketUdp(Address const &bindAddress);
 
   SocketUdp(SocketUdp const &other) = delete;
@@ -61,6 +61,8 @@ struct SocketUdp : public Socket
   SocketUdp &operator=(SocketUdp &&other) noexcept;
 
   /// Unreliably send data to address.
+  /// @param  data  Pointer to data to send.
+  /// @param  size  Size of data to send.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
@@ -73,19 +75,24 @@ struct SocketUdp : public Socket
                 Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address.
+  /// @param  data  Pointer to receive buffer to fill.
+  /// @param  size  Available receive buffer size.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Receipt size. May return 0 only if non-negative timeout is specified.
+  /// @return  Filled receive buffer size. May return 0
+  ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
   size_t Receive(char *data,
                  size_t size,
                  Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address and report the source.
+  /// @param  data  Pointer to receive buffer to fill.
+  /// @param  size  Available receive buffer size.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Receipt size and source address.
-  ///          May return 0 and invalid address only if non-negative timeout is specified.
+  /// @return  Filled receive buffer size and source address.
+  ///          May return 0 only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
   std::tuple<size_t, Address> ReceiveFrom(char *data,
                                                 size_t size,
@@ -111,6 +118,8 @@ struct SocketTcpClient : public Socket
   SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
   /// Reliably send data to connected peer.
+  /// @param  data  Pointer to data to send.
+  /// @param  size  Size of data to send.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
   /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
@@ -120,9 +129,12 @@ struct SocketTcpClient : public Socket
               Duration timeout = Duration(-1));
 
   /// Reliably receive data from connected peer.
+  /// @param  data  Pointer to receive buffer to fill.
+  /// @param  size  Available receive buffer size.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Receipt size. May return 0 only if non-negative timeout is specified.
+  /// @return  Filled receive buffer size. May return 0
+  ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails.
   size_t Receive(char *data,
                  size_t size,
@@ -139,7 +151,7 @@ struct SocketTcpClient : public Socket
 struct SocketTcpServer : public Socket
 {
   /// Create a TCP server socket bound to given address.
-  /// @throws  If binding fails.
+  /// @throws  If binding or configuration fails.
   SocketTcpServer(Address const &bindAddress);
 
   SocketTcpServer(SocketTcpServer const &other) = delete;
