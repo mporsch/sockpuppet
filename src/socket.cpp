@@ -25,18 +25,11 @@ Socket::Socket(std::unique_ptr<SocketPriv> &&other)
 {
 }
 
-Socket::Socket(Socket &&other) noexcept
-  : m_priv(std::move(other.m_priv))
-{
-}
+Socket::Socket(Socket &&other) noexcept = default;
 
 Socket::~Socket() = default;
 
-Socket &Socket::operator=(Socket &&other) noexcept
-{
-  m_priv = std::move(other.m_priv);
-  return *this;
-}
+Socket &Socket::operator=(Socket &&other) noexcept = default;
 
 
 SocketUdp::SocketUdp(Address const &bindAddress)
@@ -47,19 +40,12 @@ SocketUdp::SocketUdp(Address const &bindAddress)
   m_priv->SetSockOptBroadcast();
 }
 
-SocketUdp::SocketUdp(SocketUdp &&other) noexcept
-  : Socket(std::move(other))
-{
-}
+SocketUdp::SocketUdp(SocketUdp &&other) noexcept = default;
 
 SocketUdp::~SocketUdp() = default;
 
 
-SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept
-{
-  Socket::operator=(std::move(other));
-  return *this;
-}
+SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept = default;
 
 size_t SocketUdp::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
@@ -95,18 +81,11 @@ SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
 {
 }
 
-SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept
-  : Socket(std::move(other))
-{
-}
+SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept = default;
 
 SocketTcpClient::~SocketTcpClient() = default;
 
-SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept
-{
-  Socket::operator=(std::move(other));
-  return *this;
-}
+SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = default;
 
 size_t SocketTcpClient::Send(const char *data, size_t size, Duration timeout)
 {
@@ -132,18 +111,11 @@ SocketTcpServer::SocketTcpServer(const Address &bindAddress)
   m_priv->Bind(bindAddress.Priv().ForTcp());
 }
 
-SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept
-  : Socket(std::move(other))
-{
-}
+SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept = default;
 
 SocketTcpServer::~SocketTcpServer() = default;
 
-SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept
-{
-  Socket::operator=(std::move(other));
-  return *this;
-}
+SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept = default;
 
 std::tuple<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
 {

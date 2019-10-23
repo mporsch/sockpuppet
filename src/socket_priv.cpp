@@ -82,7 +82,6 @@ namespace {
       return true;
     }
   };
-
 } // unnamed namespace
 
 Socket::SocketPriv::SocketPriv(int family, int type, int protocol)

@@ -22,18 +22,11 @@ SocketDriver::SocketDriver()
 {
 }
 
-SocketDriver::SocketDriver(SocketDriver &&other) noexcept
-  : m_priv(std::move(other.m_priv))
-{
-}
+SocketDriver::SocketDriver(SocketDriver &&other) noexcept = default;
 
 SocketDriver::~SocketDriver() = default;
 
-SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept
-{
-  m_priv = std::move(other.m_priv);
-  return *this;
-}
+SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept = default;
 
 void SocketDriver::Step(Duration timeout)
 {
@@ -75,18 +68,11 @@ SocketAsync::SocketAsync(SocketBuffered &&buff,
 {
 }
 
-SocketAsync::SocketAsync(SocketAsync &&other) noexcept
-  : m_priv(std::move(other.m_priv))
-{
-}
+SocketAsync::SocketAsync(SocketAsync &&other) noexcept = default;
 
 SocketAsync::~SocketAsync() = default;
 
-SocketAsync &SocketAsync::operator=(SocketAsync &&other) noexcept
-{
-  m_priv = std::move(other.m_priv);
-  return *this;
-}
+SocketAsync &SocketAsync::operator=(SocketAsync &&other) noexcept = default;
 
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
@@ -121,18 +107,11 @@ std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
   return m_priv->SendTo(std::move(buffer), dstAddress);
 }
 
-SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept
-  : SocketAsync(std::move(other))
-{
-}
+SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept = default;
 
 SocketUdpAsync::~SocketUdpAsync() = default;
 
-SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept
-{
-  SocketAsync::operator=(std::move(other));
-  return *this;
-}
+SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept = default;
 
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(
@@ -148,18 +127,11 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
 {
 }
 
-SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept
-  : SocketAsync(std::move(other))
-{
-}
+SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept = default;
 
 SocketTcpAsyncClient::~SocketTcpAsyncClient() = default;
 
-SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other) noexcept
-{
-  SocketAsync::operator=(std::move(other));
-  return *this;
-}
+SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other) noexcept = default;
 
 std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
 {
@@ -185,17 +157,10 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
   m_priv->Listen();
 }
 
-SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept
-  : SocketAsync(std::move(other))
-{
-}
+SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept = default;
 
 SocketTcpAsyncServer::~SocketTcpAsyncServer() = default;
 
-SocketTcpAsyncServer &SocketTcpAsyncServer::operator=(SocketTcpAsyncServer &&other) noexcept
-{
-  SocketAsync::operator=(std::move(other));
-  return *this;
-}
+SocketTcpAsyncServer &SocketTcpAsyncServer::operator=(SocketTcpAsyncServer &&other) noexcept = default;
 
 } // namespace sockpuppet

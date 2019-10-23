@@ -20,18 +20,11 @@ SocketBuffered::SocketBuffered(Socket &&sock,
 {
 }
 
-SocketBuffered::SocketBuffered(SocketBuffered &&other) noexcept
-  : m_priv(std::move(other.m_priv))
-{
-}
+SocketBuffered::SocketBuffered(SocketBuffered &&other) noexcept = default;
 
 SocketBuffered::~SocketBuffered() = default;
 
-SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other) noexcept
-{
-  m_priv = std::move(other.m_priv);
-  return *this;
-}
+SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other) noexcept = default;
 
 
 SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
@@ -40,18 +33,11 @@ SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
 {
 }
 
-SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept
-  : SocketBuffered(std::move(other))
-{
-}
+SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
 
 SocketUdpBuffered::~SocketUdpBuffered() = default;
 
-SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept
-{
-  SocketBuffered::operator=(std::move(other));
-  return *this;
-}
+SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept = default;
 
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
@@ -77,18 +63,11 @@ SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
 {
 }
 
-SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept
-  : SocketBuffered(std::move(other))
-{
-}
+SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;
 
 SocketTcpBuffered::~SocketTcpBuffered() = default;
 
-SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexcept
-{
-  SocketBuffered::operator=(std::move(other));
-  return *this;
-}
+SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexcept = default;
 
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)

@@ -24,29 +24,15 @@ Address::Address(std::shared_ptr<AddressPriv> other)
 {
 }
 
-Address::Address(Address const &other)
-  : m_priv(other.m_priv)
-{
-}
+Address::Address(Address const &other) = default;
 
-Address::Address(Address &&other) noexcept
-  : m_priv(std::move(other.m_priv))
-{
-}
+Address::Address(Address &&other) noexcept = default;
 
 Address::~Address() = default;
 
-Address &Address::operator=(Address const &other)
-{
-  m_priv = other.m_priv;
-  return *this;
-}
+Address &Address::operator=(Address const &other) = default;
 
-Address &Address::operator=(Address &&other) noexcept
-{
-  m_priv = std::move(other.m_priv);
-  return *this;
-}
+Address &Address::operator=(Address &&other) noexcept = default;
 
 std::string Address::Host() const
 {
