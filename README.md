@@ -21,7 +21,6 @@ So you want to have network communication in your little program but boost seems
 - [ ] exhaustive unit tests :cold_sweat:
 - [ ] UDP multicast
 - [ ] address arithmetic/lookup for network/broadcast addresses
-- [ ] partial/incomplete send/receive handling
 
 ## Build
 Configure and build library/examples/demo/tests using CMake.
@@ -38,5 +37,6 @@ The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide differ
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
 * the address class employs *getaddrinfo* when created by user input and *sockaddr_storage* when created by a socket; for users this distinction is transparent
 * while the user-visible socket classes distinguish between UDP/TCP, the socket PIMPL classes provide generic functions that may have redundancies for some use cases
+* all sockets are created in blocking mode internally for minimal system call overhead (i.e. no poll required); once a timeout is given, the socket switches to non-blocking mode, subsequently needing a poll before each IO
 * the augmenting sockets consume pre-constructed basic sockets to avoid aggregating all base socket constructor arguments and funnelling all their exceptions
 * threads are not created internally to avoid messy shared library shutdown on Windows
