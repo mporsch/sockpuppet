@@ -136,7 +136,7 @@ struct SocketTcpBuffered : public SocketBuffered
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
   /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
-  /// @throws  If sending fails or times out.
+  /// @throws  If sending fails locally or the peer closes the connection.
   size_t Send(char const *data,
               size_t size,
               Duration timeout = Duration(-1));
@@ -146,7 +146,8 @@ struct SocketTcpBuffered : public SocketBuffered
   ///                  a negative value allows unlimited blocking.
   /// @return  Received data buffer borrowed from socket.
   ///          May return empty buffer only if non-negative \p timeout is specified.
-  /// @throws  If receipt fails or number of receive buffers is exceeded.
+  /// @throws  If the number of receive buffers is exceeded, receipt fails or
+  ///          the peer closes the connection.
   SocketBufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Get the remote peer address of the socket.

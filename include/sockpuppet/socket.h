@@ -95,8 +95,8 @@ struct SocketUdp : public Socket
   ///          May return 0 only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
   std::tuple<size_t, Address> ReceiveFrom(char *data,
-                                                size_t size,
-                                                Duration timeout = Duration(-1));
+                                          size_t size,
+                                          Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that is either
@@ -123,7 +123,7 @@ struct SocketTcpClient : public Socket
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
   /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
-  /// @throws  If sending fails or times out.
+  /// @throws  If sending fails locally or the peer closes the connection.
   size_t Send(char const *data,
               size_t size,
               Duration timeout = Duration(-1));
@@ -135,7 +135,7 @@ struct SocketTcpClient : public Socket
   ///                  a negative value allows unlimited blocking.
   /// @return  Filled receive buffer size. May return 0
   ///          only if non-negative \p timeout is specified.
-  /// @throws  If receipt fails.
+  /// @throws  If receipt fails or the peer closes the connection.
   size_t Receive(char *data,
                  size_t size,
                  Duration timeout = Duration(-1));
