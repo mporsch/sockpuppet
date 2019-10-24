@@ -1,0 +1,19 @@
+language: cpp
+
+matrix:
+  include:
+    - name: "MSVC14.1 on Windows"
+      os: windows
+      before_script:
+        - mkdir build
+        - cd build
+        - cmake .. -G "Visual Studio 15 2017 Win64"
+      script: cmake --build . --target run_tests
+    - name: "GCC on Unix"
+      os: linux
+      compiler: gcc
+      before_script:
+        - mkdir build
+        - cd build
+        - cmake ..
+      script: cmake --build . --target run_tests
