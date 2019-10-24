@@ -22,10 +22,13 @@ So you want to have network communication in your little program but boost seems
 - [ ] UDP multicast
 - [ ] address arithmetic/lookup for network/broadcast addresses
 
-## Build
+## Build [![Build Status](https://travis-ci.com/mporsch/sockpuppet.svg?branch=master)](https://travis-ci.com/mporsch/sockpuppet)
 Configure and build library/examples/demo/tests using CMake.
 
 ## Quickstart
+The CMake install target prepares a CMake-based demo project suitable as a starting point for own applications.
+
+## Library interface
 The `Address` class represents localhost or remote UDP/TCP addresses and is used to create local and send/connect to remote sockets.
 
 The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide different levels of convenience around the raw OS socket representation:
