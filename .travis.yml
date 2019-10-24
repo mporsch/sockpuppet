@@ -5,13 +5,13 @@ jobs:
     - name: "Windows MSVC14.1 static library"
       os: windows
       env:
-        - GENERATOR='-G "Visual Studio 15 2017 Win64"'
+        - GENERATOR="-G \"Visual Studio 15 2017 Win64\""
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
 
     - name: "Windows MSVC14.1 shared library"
       os: windows
       env:
-        - GENERATOR='-G "Visual Studio 15 2017 Win64"'
+        - GENERATOR="-G \"Visual Studio 15 2017 Win64\""
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
 
     - name: "Unix GCC static library"
