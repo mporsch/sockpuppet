@@ -1,19 +1,36 @@
 language: cpp
 
-matrix:
+jobs:
   include:
-    - name: "MSVC14.1 on Windows"
+    - name: "Windows MSVC14.1 static library"
       os: windows
-      before_script:
-        - mkdir build
-        - cd build
-        - cmake .. -G "Visual Studio 15 2017 Win64"
-      script: cmake --build . --target run_tests
-    - name: "GCC on Unix"
+      env:
+        - GENERATOR='-G "Visual Studio 15 2017 Win64"'
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+
+    - name: "Windows MSVC14.1 shared library"
+      os: windows
+      env:
+        - GENERATOR='-G "Visual Studio 15 2017 Win64"'
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
+
+    - name: "Unix GCC static library"
       os: linux
       compiler: gcc
-      before_script:
-        - mkdir build
-        - cd build
-        - cmake ..
-      script: cmake --build . --target run_tests
+      env:
+        - GENERATOR=
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+
+    - name: "Unix GCC shared library"
+      os: linux
+      compiler: gcc
+      env:
+        - GENERATOR=
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
+
+before_script:
+  - mkdir build
+  - cd build
+  - cmake .. $GENERATOR $SHARED
+
+script: cmake --build . --target run_tests
