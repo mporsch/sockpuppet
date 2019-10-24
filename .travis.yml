@@ -5,32 +5,32 @@ jobs:
     - name: "Windows MSVC14.1 static library"
       os: windows
       env:
-        - GENERATOR='-GVisual Studio 15 2017 Win64'
+        - GENERATOR="Visual Studio 15 2017 Win64"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
 
     - name: "Windows MSVC14.1 shared library"
       os: windows
       env:
-        - GENERATOR='-GVisual Studio 15 2017 Win64'
+        - GENERATOR="Visual Studio 15 2017 Win64"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
 
     - name: "Unix GCC static library"
       os: linux
       compiler: gcc
       env:
-        - GENERATOR=
+        - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
 
     - name: "Unix GCC shared library"
       os: linux
       compiler: gcc
       env:
-        - GENERATOR=
+        - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
 
 before_script:
   - mkdir build
   - cd build
-  - cmake .. "${GENERATOR}" $SHARED
+  - cmake .. -G "${GENERATOR}" $SHARED
 
 script: cmake --build . --target run_tests
