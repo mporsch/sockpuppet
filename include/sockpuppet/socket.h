@@ -92,7 +92,8 @@ struct SocketUdp : public Socket
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Filled receive buffer size and source address.
-  ///          May return 0 only if non-negative \p timeout is specified.
+  ///          May return 0 size and invalid address only if
+  ///          non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
   std::tuple<size_t, Address> ReceiveFrom(char *data,
                                           size_t size,
