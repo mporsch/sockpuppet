@@ -19,6 +19,7 @@ if(MINGW)
   # allow MinGW to drop compatibility with legacy Windows
   add_definitions(-D_WIN32_WINNT=0x0600)
 endif(MINGW)
+set(CMAKE_CXX_STANDARD 11)
 
 set(SOCKPUPPET_PUBLIC_HEADERS
   include/sockpuppet/address.h
