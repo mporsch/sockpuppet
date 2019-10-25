@@ -58,14 +58,11 @@ size_t SocketUdp::Receive(char *data, size_t size, Duration timeout)
   return m_priv->Receive(data, size, timeout);
 }
 
-std::tuple<size_t, Address> SocketUdp::ReceiveFrom(
+std::pair<size_t, Address> SocketUdp::ReceiveFrom(
     char *data, size_t size, Duration timeout)
 {
-  auto t = m_priv->ReceiveFrom(data, size, timeout);
-  return std::tuple<size_t, Address>{
-    std::get<0>(t)
-  , Address(std::move(std::get<1>(t)))
-  };
+  return std::pair<size_t, Address>(
+        m_priv->ReceiveFrom(data, size, timeout));
 }
 
 
@@ -117,14 +114,11 @@ SocketTcpServer::~SocketTcpServer() = default;
 
 SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept = default;
 
-std::tuple<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
+std::pair<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
 {
   m_priv->Listen();
-  auto t = m_priv->Accept(timeout);
-  return std::tuple<SocketTcpClient, Address>{
-    SocketTcpClient(std::move(std::get<0>(t)))
-  , Address(std::move(std::get<1>(t)))
-  };
+  return std::pair<SocketTcpClient, Address>(
+        m_priv->Accept(timeout));
 }
 
 } // namespace sockpuppet

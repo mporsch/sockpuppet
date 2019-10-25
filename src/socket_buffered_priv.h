@@ -6,6 +6,7 @@
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <utility> // for std::pair
 
 namespace sockpuppet {
 
@@ -24,7 +25,7 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
   SocketBufferPtr GetBuffer();
 
   SocketBufferPtr Receive(Duration timeout);
-  std::tuple<SocketBufferPtr, Address> ReceiveFrom(Duration timeout);
+  std::pair<SocketBufferPtr, Address> ReceiveFrom(Duration timeout);
 };
 
 } // namespace sockpuppet

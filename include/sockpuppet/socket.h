@@ -6,7 +6,7 @@
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
-#include <tuple> // for std::tuple
+#include <utility> // for std::pair
 
 namespace sockpuppet {
 
@@ -95,9 +95,9 @@ struct SocketUdp : public Socket
   ///          May return 0 size and invalid address only if
   ///          non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
-  std::tuple<size_t, Address> ReceiveFrom(char *data,
-                                          size_t size,
-                                          Duration timeout = Duration(-1));
+  std::pair<size_t, Address> ReceiveFrom(char *data,
+                                         size_t size,
+                                         Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that is either
@@ -166,7 +166,7 @@ struct SocketTcpServer : public Socket
   ///                  a negative value allows unlimited blocking.
   /// @return  Connected client and its address.
   /// @throws  If listen or accept fails or timeout occurs.
-  std::tuple<SocketTcpClient, Address> Listen(Duration timeout = Duration(-1));
+  std::pair<SocketTcpClient, Address> Listen(Duration timeout = Duration(-1));
 };
 
 } // namespace sockpuppet

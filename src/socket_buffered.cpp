@@ -50,7 +50,7 @@ SocketBuffered::SocketBufferPtr SocketUdpBuffered::Receive(Duration timeout)
   return m_priv->Receive(timeout);
 }
 
-std::tuple<SocketBuffered::SocketBufferPtr, Address>
+std::pair<SocketBuffered::SocketBufferPtr, Address>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
   return m_priv->ReceiveFrom(timeout);

@@ -6,17 +6,17 @@
 
 using namespace sockpuppet;
 
-void ServerHandler(std::tuple<SocketTcpClient, Address> t)
+void ServerHandler(std::pair<SocketTcpClient, Address> p)
 try {
-  auto &&client = std::get<0>(t);
-  auto &&clientAddr = std::get<1>(t);
+  auto &&clientSock = p.first;
+  auto &&clientAddr = p.second;
 
   std::cout << "client " << to_string(clientAddr)
     << " connected" << std::endl;
 
   for(;;) {
     char buffer[256];
-    auto const received = client.Receive(buffer, sizeof(buffer));
+    auto const received = clientSock.Receive(buffer, sizeof(buffer));
     std::cout << std::string(buffer, received) << std::endl;
   }
 } catch (std::exception const &e) {

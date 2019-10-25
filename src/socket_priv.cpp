@@ -142,7 +142,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
   return static_cast<size_t>(received);
 }
 
-std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
+std::pair<size_t, std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(NeedsPoll(timeout)) {
@@ -152,10 +152,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
       }
     } else {
       // timeout exceeded
-      return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-        0U
-      , nullptr
-      };
+      return {0U, nullptr};
     }
   }
 
@@ -170,10 +167,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   } else if(received == 0) {
     throw std::logic_error("unexpected UDP receive result");
   }
-  return std::tuple<size_t, std::shared_ptr<SockAddrStorage>>{
-    static_cast<size_t>(received)
-  , std::move(sas)
-  };
+  return {static_cast<size_t>(received), std::move(sas)};
 }
 
 size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
@@ -277,8 +271,7 @@ void Socket::SocketPriv::Listen()
   }
 }
 
-std::tuple<std::unique_ptr<Socket::SocketPriv>,
-           std::shared_ptr<SockAddrStorage>>
+std::pair<std::unique_ptr<Socket::SocketPriv>, std::shared_ptr<SockAddrStorage>>
 Socket::SocketPriv::Accept(Duration timeout)
 {
   if(timeout.count() >= 0) {
@@ -296,11 +289,7 @@ Socket::SocketPriv::Accept(Duration timeout)
   auto client = std::make_unique<SocketPriv>(
     ::accept(fd, sas->Addr(), sas->AddrLen()));
 
-  return std::tuple<std::unique_ptr<Socket::SocketPriv>,
-                    std::shared_ptr<SockAddrStorage>>{
-    std::move(client)
-  , std::move(sas)
-  };
+  return {std::move(client), std::move(sas)};
 }
 
 void Socket::SocketPriv::SetSockOptNonBlocking()

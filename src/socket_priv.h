@@ -14,7 +14,7 @@ using SOCKET = int;
 
 #include <cstddef> // for size_t
 #include <memory> // for std::shared_ptr
-#include <tuple> // for std::tuple
+#include <utility> // for std::pair
 
 namespace sockpuppet {
 
@@ -36,7 +36,7 @@ struct Socket::SocketPriv
                  size_t size,
                  Duration timeout);
 
-  std::tuple<size_t, std::shared_ptr<SockAddrStorage>>
+  std::pair<size_t, std::shared_ptr<SockAddrStorage>>
   ReceiveFrom(char *data, size_t size, Duration timeout);
 
   size_t Send(char const *data,
@@ -57,8 +57,7 @@ struct Socket::SocketPriv
 
   void Listen();
 
-  std::tuple<std::unique_ptr<SocketPriv>,
-             std::shared_ptr<SockAddrStorage>>
+  std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
   Accept(Duration timeout);
 
   void SetSockOptNonBlocking();

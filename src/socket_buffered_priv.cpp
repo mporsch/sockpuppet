@@ -37,19 +37,17 @@ SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
   return buffer;
 }
 
-std::tuple<SocketBuffered::SocketBufferPtr, Address>
+std::pair<SocketBuffered::SocketBufferPtr, Address>
 SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();
 
-  auto t = SocketPriv::ReceiveFrom(
+  auto p = SocketPriv::ReceiveFrom(
     buffer->data(), buffer->size(), timeout);
-  buffer->resize(std::get<0>(t));
+  buffer->resize(p.first);
 
-  return std::tuple<SocketBufferPtr, Address>{
-    std::move(buffer)
-  , Address(std::move(std::get<1>(t)))
-  };
+  return std::pair<SocketBufferPtr, Address>(
+        std::move(buffer), std::move(p.second));
 }
 
 } // namespace sockpuppet

@@ -15,6 +15,7 @@
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
+#include <tuple> // for std::tuple
 #include <vector> // for std::vector
 
 namespace sockpuppet {

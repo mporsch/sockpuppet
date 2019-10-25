@@ -23,13 +23,13 @@ static int const clientCount = 3;
 
 static std::atomic<bool> success(true);
 
-void ServerHandler(std::tuple<SocketTcpClient, Address> t)
+void ServerHandler(std::pair<SocketTcpClient, Address> p)
 try {
-  auto &&handler = std::get<0>(t);
-  auto &&clientAddr = std::get<1>(t);
+  auto &&clientSock = p.first;
+  auto &&clientAddr = p.second;
 
   char buffer[256];
-  if(handler.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) {
+  if(clientSock.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) {
     throw std::runtime_error("unexpected receive");
   }
 
@@ -37,7 +37,7 @@ try {
        << std::endl;
 
   static char const hello[] = "hello";
-  (void)handler.Send(hello, sizeof(hello));
+  (void)clientSock.Send(hello, sizeof(hello));
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {

@@ -7,7 +7,7 @@
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
-#include <tuple> // for std::tuple
+#include <utility> // for std::pair
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -104,7 +104,7 @@ struct SocketUdpBuffered : public SocketBuffered
   ///          May return empty buffer and invalid address
   ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  std::tuple<SocketBufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
+  std::pair<SocketBufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that adds an internal
