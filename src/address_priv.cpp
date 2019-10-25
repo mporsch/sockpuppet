@@ -212,10 +212,10 @@ std::string Address::AddressPriv::Service() const
 uint16_t Address::AddressPriv::Port() const
 {
   auto const sockAddr = ForAny();
-
-  return ::ntohs(IsV6() ?
-      reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
-      reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port);
+  auto const num = IsV6() ?
+        reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
+        reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port;
+  return ntohs(num); // careful; ntohs is a fragile macro in OSX
 }
 
 bool Address::AddressPriv::IsV6() const
