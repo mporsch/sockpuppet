@@ -41,8 +41,10 @@ try {
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  CERR << "ServerHandler" << std::endl;
   success = false;
+} catch (...) {
+  CERR << "ServerHandler unhandled exception" << std::endl;
 }
 
 void Server(Address serverAddr)
@@ -65,8 +67,10 @@ try {
     }
   }
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  CERR << "Server" << std::endl;
   success = false;
+} catch (...) {
+  CERR << "Server unhandled exception" << std::endl;
 }
 
 void Client(Address serverAddr)
@@ -100,12 +104,14 @@ try {
 
   throw std::runtime_error("client failed to receive");
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  CERR << "Client" << std::endl;
   success = false;
+} catch (...) {
+  CERR << "Client unhandled exception" << std::endl;
 }
 
 int main(int, char **)
-{
+try {
   Address const serverAddr("localhost:8554");
   std::thread server(Server, serverAddr);
 
@@ -127,4 +133,10 @@ int main(int, char **)
   }
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
+} catch (std::exception const &e) {
+  CERR << e.what() << std::endl;
+  return EXIT_FAILURE;
+} catch (...) {
+  CERR << "unhandled exception" << std::endl;
+  return EXIT_FAILURE;
 }
