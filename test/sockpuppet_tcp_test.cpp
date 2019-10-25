@@ -19,7 +19,7 @@
 
 using namespace sockpuppet;
 
-static int const clientCount = 3;
+static int const clientCount = 1;
 
 static std::atomic<bool> success(true);
 
