@@ -20,6 +20,7 @@ jobs:
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+        - CTEST_OUTPUT_ON_FAILURE=1
 
     - name: "Unix GCC shared library"
       os: linux
@@ -27,6 +28,21 @@ jobs:
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
+        - CTEST_OUTPUT_ON_FAILURE=1
+
+    - name: "OSX clang static library"
+      os: osx
+      env:
+        - GENERATOR="Unix Makefiles"
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+        - CTEST_OUTPUT_ON_FAILURE=1
+
+    - name: "OSX clang shared library"
+      os: osx
+      env:
+        - GENERATOR="Unix Makefiles"
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
+        - CTEST_OUTPUT_ON_FAILURE=1
 
 before_script:
   - mkdir build
