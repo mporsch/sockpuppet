@@ -7,6 +7,7 @@ jobs:
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+        - CTEST_OUTPUT_ON_FAILURE=1
 
     - name: "OSX clang shared library"
       os: osx
