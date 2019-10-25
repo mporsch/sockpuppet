@@ -6,6 +6,8 @@
 # include <netdb.h> // for gai_strerror
 #endif // _WIN32
 
+#include <string> // for std::string
+
 namespace {
 struct gai_error_code
 {
