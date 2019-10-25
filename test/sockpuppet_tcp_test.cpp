@@ -1,18 +1,8 @@
 #include "sockpuppet/socket.h" // for SocketTcpClient
 
-#ifdef HAVE_HELPER
-# include "print_unmangled.h" // for PrintUnmangled
-
-# define COUT PrintUnmangled()
-# define CERR PrintUnmangled(std::cerr)
-#else
-# define COUT std::cout
-# define CERR std::cerr
-#endif // HAVE_HELPER
-
 #include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
-#include <iostream> // for std::cerr
+#include <iostream> // for std::std::cerr
 #include <stdexcept> // for std::runtime_error
 #include <string> // for std::string
 #include <thread> // for std::thread
@@ -33,7 +23,7 @@ try {
     throw std::runtime_error("unexpected receive");
   }
 
-  COUT << "server sending to client " << to_string(clientAddr)
+  std::cout << "server sending to client " << to_string(clientAddr)
        << std::endl;
 
   static char const hello[] = "hello";
@@ -41,17 +31,17 @@ try {
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {
-  CERR << "ServerHandler" << std::endl;
+  std::cerr << "ServerHandler" << std::endl;
   success = false;
 } catch (...) {
-  CERR << "ServerHandler unhandled exception" << std::endl;
+  std::cerr << "ServerHandler unhandled exception" << std::endl;
 }
 
 void Server(Address serverAddr)
 try {
   SocketTcpServer server(serverAddr);
 
-  COUT << "server listening at "
+  std::cout << "server listening at "
        << to_string(serverAddr) << std::endl;
 
   std::thread serverHandlers[clientCount];
@@ -67,10 +57,10 @@ try {
     }
   }
 } catch (std::exception const &e) {
-  CERR << "Server" << std::endl;
+  std::cerr << "Server" << std::endl;
   success = false;
 } catch (...) {
-  CERR << "Server unhandled exception" << std::endl;
+  std::cerr << "Server unhandled exception" << std::endl;
 }
 
 void Client(Address serverAddr)
@@ -78,7 +68,7 @@ try {
   SocketTcpClient client(serverAddr);
   auto const clientAddr = client.LocalAddress();
 
-  COUT << "client " << to_string(clientAddr)
+  std::cout << "client " << to_string(clientAddr)
        << " connected to server " << to_string(serverAddr)
        << std::endl;
 
@@ -87,7 +77,7 @@ try {
                                        std::chrono::seconds(1));
   if(received > 0U &&
      std::string(buffer, received).find("hello") != std::string::npos) {
-    COUT << "client " << to_string(clientAddr)
+    std::cout << "client " << to_string(clientAddr)
          << " received from server" << std::endl;
 
     try {
@@ -97,17 +87,17 @@ try {
                            std::chrono::seconds(1));
       success = false;
     } catch(std::exception const &e) {
-      COUT << e.what() << std::endl;
+      std::cout << e.what() << std::endl;
       return;
     }
   }
 
   throw std::runtime_error("client failed to receive");
 } catch (std::exception const &e) {
-  CERR << "Client" << std::endl;
+  std::cerr << "Client" << std::endl;
   success = false;
 } catch (...) {
-  CERR << "Client unhandled exception" << std::endl;
+  std::cerr << "Client unhandled exception" << std::endl;
 }
 
 int main(int, char **)
@@ -134,9 +124,9 @@ try {
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  std::cerr << e.what() << std::endl;
   return EXIT_FAILURE;
 } catch (...) {
-  CERR << "unhandled exception" << std::endl;
+  std::cerr << "unhandled exception" << std::endl;
   return EXIT_FAILURE;
 }
