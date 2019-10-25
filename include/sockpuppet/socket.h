@@ -51,6 +51,9 @@ protected:
 struct SocketUdp : public Socket
 {
   /// Create a UDP socket bound to given address.
+  /// @param  bindAddress  Local interface address to bind to.
+  ///                      Unspecified service or port number 0
+  ///                      binds to an OS-assigned port.
   /// @throws  If binding or configuration fails.
   SocketUdp(Address const &bindAddress);
 
@@ -106,6 +109,7 @@ struct SocketUdp : public Socket
 struct SocketTcpClient : public Socket
 {
   /// Create a TCP socket connected to given address.
+  /// @param  connectAddress  Peer address to connect to.
   /// @throws  If connect fails.
   SocketTcpClient(Address const &connectAddress);
 
@@ -152,6 +156,9 @@ struct SocketTcpClient : public Socket
 struct SocketTcpServer : public Socket
 {
   /// Create a TCP server socket bound to given address.
+  /// @param  bindAddress  Local interface address to bind to.
+  ///                      Unspecified service or port number 0
+  ///                      binds to an OS-assigned port.
   /// @throws  If binding or configuration fails.
   SocketTcpServer(Address const &bindAddress);
 

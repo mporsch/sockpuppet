@@ -29,10 +29,11 @@ struct Address
   /// @param  service  service number or name for well-known services.
   /// @throws  If host/service lookup fails.
   Address(std::string const &host,
-                std::string const &service);
+          std::string const &service);
 
   /// Create a localhost address from given port number.
-  /// @param  port  Port number.
+  /// @param  port  Port number; 0 can be used for
+  ///               binding to an OS-assigned port.
   /// @throws  If parsing fails.
   Address(uint16_t port = 0U);
 
