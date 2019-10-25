@@ -62,7 +62,7 @@ std::pair<size_t, Address> SocketUdp::ReceiveFrom(
     char *data, size_t size, Duration timeout)
 {
   auto p = m_priv->ReceiveFrom(data, size, timeout);
-  return std::pair<size_t, Address>(p.first, std::move(p.second));
+  return {p.first, Address(std::move(p.second))};
 }
 
 
@@ -118,8 +118,7 @@ std::pair<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
 {
   m_priv->Listen();
   auto p = m_priv->Accept(timeout);
-  return std::pair<SocketTcpClient, Address>(
-        std::move(p.first), std::move(p.second));
+  return {std::move(p.first), Address(std::move(p.second))};
 }
 
 } // namespace sockpuppet

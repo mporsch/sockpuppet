@@ -46,8 +46,7 @@ SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
     buffer->data(), buffer->size(), timeout);
   buffer->resize(p.first);
 
-  return std::pair<SocketBufferPtr, Address>(
-        std::move(buffer), std::move(p.second));
+  return {std::move(buffer), Address(std::move(p.second))};
 }
 
 } // namespace sockpuppet
