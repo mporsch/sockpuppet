@@ -28,6 +28,12 @@ jobs:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
 
+    - name: "OSX clang static library"
+      os: osx
+      env:
+        - GENERATOR="Unix Makefiles"
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+
 before_script:
   - mkdir build
   - cd build
