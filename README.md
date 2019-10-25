@@ -5,7 +5,7 @@ Minimalistic and easy-to-use C++ socket and address library without external dep
 So you want to have network communication in your little program but boost seems just too much? And how hard can this socket stuff be anyhow, eh? - After being there more than once, I write this library with the hope that it spares me from future coding of half-assed single-use sockets.
 
 ## Library features
-- [x] supports Unix and Windows OS
+- [x] supports Unix, OSX and Windows OS
 - [x] IPv6 and IPv4 address handling (lookup using *getaddrinfo* and storage using *sockaddr_storage*)
 - [x] multi-interface-aware (list local host interface addresses before selecting one to bind to)
 - [x] UDP and TCP socket classes
