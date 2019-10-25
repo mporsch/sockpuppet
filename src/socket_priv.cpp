@@ -266,7 +266,8 @@ void Socket::SocketPriv::Bind(SockAddrView const &sockAddr)
 
 void Socket::SocketPriv::Listen()
 {
-  if(::listen(fd, 1)) {
+  static int const backlog = 128;
+  if(::listen(fd, backlog)) {
     throw std::system_error(SocketError(), "failed to listen");
   }
 }
