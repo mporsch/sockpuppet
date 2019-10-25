@@ -2,37 +2,17 @@ language: cpp
 
 jobs:
   include:
-    - name: "Windows MSVC14.1 static library"
-      os: windows
-      env:
-        - GENERATOR="Visual Studio 15 2017 Win64"
-        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
-
-    - name: "Windows MSVC14.1 shared library"
-      os: windows
-      env:
-        - GENERATOR="Visual Studio 15 2017 Win64"
-        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
-
-    - name: "Unix GCC static library"
-      os: linux
-      compiler: gcc
-      env:
-        - GENERATOR="Unix Makefiles"
-        - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
-
-    - name: "Unix GCC shared library"
-      os: linux
-      compiler: gcc
-      env:
-        - GENERATOR="Unix Makefiles"
-        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
-
     - name: "OSX clang static library"
       os: osx
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
+
+    - name: "OSX clang shared library"
+      os: osx
+      env:
+        - GENERATOR="Unix Makefiles"
+        - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
 
 before_script:
   - mkdir build
