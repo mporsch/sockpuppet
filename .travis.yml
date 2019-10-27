@@ -49,4 +49,4 @@ before_script:
   - cd build
   - cmake .. -G "${GENERATOR}" $SHARED
 
-script: cmake --build . --target run_tests
+script: cmake --build . && cmake --build . --target run_tests
