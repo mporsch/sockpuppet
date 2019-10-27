@@ -19,6 +19,13 @@ namespace {
       SOCKET(-1);
     #endif // _WIN32
 
+  static int const sendFlags =
+#ifdef MSG_NOSIGNAL
+      MSG_NOSIGNAL;
+#else
+      0;
+#endif // MSG_NOSIGNAL
+
   void CloseSocket(SOCKET fd)
   {
 #ifdef _WIN32
@@ -201,10 +208,9 @@ size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration
     }
   }
 
-  static int const flags = 0;
   auto const sent = ::send(fd,
                            data, size,
-                           flags);
+                           sendFlags);
   if(sent < 0) {
     throw std::system_error(SocketError(), "failed to send");
   } else if((sent == 0) && (size > 0U)) {
@@ -309,6 +315,13 @@ void Socket::SocketPriv::SetSockOptReuseAddr()
 void Socket::SocketPriv::SetSockOptBroadcast()
 {
   SetSockOpt(SO_BROADCAST, 1, "failed to set socket option broadcast");
+}
+
+void Socket::SocketPriv::SetSockOptNoSigPipe()
+{
+#ifdef SO_NOSIGPIPE
+  SetSockOpt(SO_NOSIGPIPE, 1, "failed to set socket option non-SIGPIPE");
+#endif // SO_NOSIGPIPE
 }
 
 void Socket::SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)

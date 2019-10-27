@@ -70,12 +70,14 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
   : Socket(std::make_unique<Socket::SocketPriv>(
       connectAddress.Priv().Family(), SOCK_STREAM, IPPROTO_TCP))
 {
+  m_priv->SetSockOptNoSigPipe();
   m_priv->Connect(connectAddress.Priv().ForTcp());
 }
 
 SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
   : Socket(std::move(other))
 {
+  m_priv->SetSockOptNoSigPipe();
 }
 
 SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept = default;

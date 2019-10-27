@@ -63,6 +63,7 @@ struct Socket::SocketPriv
   void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
+  void SetSockOptNoSigPipe();
   void SetSockOpt(int id,
                   int value,
                   char const *errorMessage);
