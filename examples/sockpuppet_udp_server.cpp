@@ -2,8 +2,37 @@
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
+#include <string> // for std::string
 
 using namespace sockpuppet;
+
+void Server(Address bindAddress)
+{
+  // bind a UDP socket to given address
+  SocketUdp sock(bindAddress);
+
+  // print the bound UDP socket address
+  // (might have OS-assigned port number if
+  // it has not been explicitly set in the bind address)
+  std::cout << "receiving at "
+            << to_string(sock.LocalAddress())
+            << std::endl;
+
+  // receive and print until Ctrl-C
+  for(;;) {
+    char buffer[256];
+    static Socket::Duration const noTimeout(-1);
+
+    // wait for and receive incoming data into provided buffer
+    // negative timeout -> blocking until receipt
+    size_t received = sock.Receive(buffer,
+                                   sizeof(buffer),
+                                   noTimeout);
+
+    // print whatever has just been received
+    std::cout << std::string(buffer, received) << std::endl;
+  }
+}
 
 int main(int argc, char *argv[])
 try {
@@ -14,17 +43,11 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    Address const srcAddr(argv[1]);
-    SocketUdp sock(srcAddr);
+    // parse given address string
+    Address bindAddress(argv[1]);
 
-    std::cout << "receiving at " << to_string(sock.LocalAddress())
-              << std::endl;
-
-    char buffer[256];
-    for(;;) {
-      auto const received = sock.Receive(buffer, sizeof(buffer));
-      std::cout << std::string(buffer, received) << std::endl;
-    }
+    // create and run a UDP socket
+    Server(bindAddress);
   }
 
   return EXIT_SUCCESS;

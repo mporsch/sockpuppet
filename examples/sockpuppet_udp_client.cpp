@@ -1,10 +1,50 @@
 #include "sockpuppet/socket.h" // for SocketUdp
 
 #include <cstdlib> // for EXIT_SUCCESS
-#include <iostream> // for std::cerr
+#include <iostream> // for std::cout
 #include <string> // for std::string
 
 using namespace sockpuppet;
+
+void Client(Address bindAddress, Address remoteAddress)
+{
+  // bind a UDP socket to given address
+  SocketUdp sock(bindAddress);
+
+  // print the bound UDP socket address
+  // (might have OS-assigned port number if
+  // it has not been explicitly set in the bind address)
+  // and remote address
+  std::cout << "sending from "
+            << to_string(sock.LocalAddress())
+            << " to "
+            << to_string(remoteAddress)
+            << std::endl;
+
+  // query and send until cancelled
+  for(;;) {
+    // query a string to send from the command line
+    std::string line;
+    std::cout << "message to send? (empty for exit) - ";
+    std::getline(std::cin, line);
+
+    if(line.empty()) {
+      break;
+    } else {
+      static Socket::Duration const noTimeout(-1);
+
+      // send the given string data to the remote address
+      // negative timeout -> blocking until sent (although
+      // UDP sockets will rarely ever block on send)
+      // ignore the return value as - with unlimited timeout -
+      // it will always match the sent size
+      (void)sock.SendTo(line.c_str(),
+                        line.size(),
+                        remoteAddress,
+                        noTimeout);
+    }
+  }
+}
 
 int main(int argc, char *argv[])
 try {
@@ -16,27 +56,15 @@ try {
          "e.g. \"localhost:8554\""
       << std::endl;
   } else {
-    Address const dstAddr(argv[1]);
-    Address srcAddr;
+    // parse given address string(s)
+    Address remoteAddress(argv[1]);
+    Address bindAddress;
     if(argc >= 3) {
-      srcAddr = Address(argv[2]);
+      bindAddress = Address(argv[2]);
     }
-    SocketUdp sock(srcAddr);
 
-    std::cout << "sending from "
-              << to_string(sock.LocalAddress()) << " to "
-              << to_string(dstAddr) << std::endl;
-
-    for(;;) {
-      std::string line;
-      std::cout << "message to send? (empty for exit) - ";
-      std::getline(std::cin, line);
-      if(line.empty()) {
-        break;
-      } else {
-        (void)sock.SendTo(line.c_str(), line.size(), dstAddr);
-      }
-    }
+    // create and run a UDP socket
+    Client(bindAddress, remoteAddress);
   }
 
   return EXIT_SUCCESS;
