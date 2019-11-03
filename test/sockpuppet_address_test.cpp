@@ -9,13 +9,13 @@ using namespace sockpuppet;
 template<typename... Args>
 void Test(Args&&... args)
 {
-  Address Address(std::forward<Args>(args)...);
+  Address addr(std::forward<Args>(args)...);
 
   std::cout << std::setw(20)
-            << to_string(Address)
-            << " <-- host=\"" << Address.Host() << "\""
-            << ", service=\"" << Address.Service() << "\""
-            << ", " << (Address.IsV6()  ? "IPv6" : "IPv4")
+            << to_string(addr)
+            << " <-- host=\"" << addr.Host() << "\""
+            << ", service=\"" << addr.Service() << "\""
+            << ", " << (addr.IsV6()  ? "IPv6" : "IPv4")
             << std::endl;
 }
 
