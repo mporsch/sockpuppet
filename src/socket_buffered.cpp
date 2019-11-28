@@ -18,6 +18,10 @@ void BufferPool::Recycler::operator()(Buffer *buf)
 BufferPool::BufferPool(size_t maxSize)
   : m_maxSize(maxSize - 1U)
 {
+  // with given limit, pre-allocate the buffers now
+  for(size_t i = 0U; i < maxSize; ++i) {
+    m_idle.emplace(std::make_unique<Buffer>());
+  }
 }
 
 BufferPool::~BufferPool()
