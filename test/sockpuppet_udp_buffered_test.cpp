@@ -18,7 +18,7 @@ try {
   std::cout << "waiting for receipt at " << to_string(serverAddress)
             << std::endl;
 
-  std::vector<SocketUdpBuffered::SocketBufferPtr> storage;
+  std::vector<BufferPtr> storage;
 
   // wait for first receipt
   {

@@ -2,15 +2,65 @@
 #define SOCKPUPPET_SOCKET_BUFFERED_H
 
 #include "sockpuppet/address.h" // for Address
-#include "sockpuppet/resource_pool.h" // for ResourcePool
 #include "sockpuppet/socket.h" // for Socket
 
 #include <cstddef> // for size_t
+#include <deque> // for std::deque
+#include <functional> // for std::reference_wrapper
 #include <memory> // for std::unique_ptr
+#include <mutex> // for std::mutex
+#include <stack> // for std::stack
 #include <utility> // for std::pair
 #include <vector> // for std::vector
 
 namespace sockpuppet {
+
+/// Send/Receive buffer resource storage.
+/// Internally stores two buffer lists; busy and idle.
+/// Idle buffers may be obtained by the user and
+/// are moved to the busy list. Once released,
+/// it is automatically moved back again.
+struct BufferPool
+{
+  using Buffer = std::vector<char>;
+  struct Recycler
+  {
+    std::reference_wrapper<BufferPool> pool;
+
+    void operator()(Buffer *buf);
+  };
+  using BufferPtr = std::unique_ptr<Buffer, Recycler>;
+
+  /// Create a pool with given maximum number of buffers.
+  /// @param  maxSize  Maximum number of buffers to maintain (0 -> unlimited).
+  BufferPool(size_t maxSize = 0U);
+
+  BufferPool(BufferPool const &other) = delete;
+  BufferPool(BufferPool &&other) = delete;
+  ~BufferPool();
+  BufferPool &operator=(BufferPool const &other) = delete;
+  BufferPool &operator=(BufferPool &&other) = delete;
+
+  /// Obtain an idle buffer.
+  /// @return  Pointer to borrowed buffer still owned by
+  ///          the pool; the user must not change the pointer.
+  /// @throws  If more buffers are obtained than initially agreed upon.
+  /// @note  Mind that all buffers must be released before destroying the pool.
+  BufferPtr Get();
+
+private:
+  void Recycle(Buffer *buf);
+
+private:
+  using BufferStorage = std::unique_ptr<Buffer>;
+
+  size_t m_maxSize;
+  std::mutex m_mtx;
+  std::stack<BufferStorage> m_idle;
+  std::deque<BufferStorage> m_busy;
+};
+
+using BufferPtr = BufferPool::BufferPtr;
 
 /// The buffered socket base class stores the receive buffer pool.
 /// It is created by its derived classes and is not intended to
@@ -21,9 +71,6 @@ class SocketBuffered
 
 public:
   using Duration = Socket::Duration;
-  using SocketBuffer = std::vector<char>;
-  using SocketBufferPool = ResourcePool<SocketBuffer>;
-  using SocketBufferPtr = SocketBufferPool::ResourcePtr;
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
@@ -95,7 +142,7 @@ struct SocketUdpBuffered : public SocketBuffered
   /// @return  Received data buffer borrowed from socket.
   ///          May return empty buffer only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  SocketBufferPtr Receive(Duration timeout = Duration(-1));
+  BufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Unreliably receive data on bound address and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
@@ -104,7 +151,7 @@ struct SocketUdpBuffered : public SocketBuffered
   ///          May return empty buffer and invalid address
   ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  std::pair<SocketBufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
+  std::pair<BufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
 };
 
 /// TCP (reliable communication) socket class that adds an internal
@@ -148,7 +195,7 @@ struct SocketTcpBuffered : public SocketBuffered
   ///          May return empty buffer only if non-negative \p timeout is specified.
   /// @throws  If the number of receive buffers is exceeded, receipt fails or
   ///          the peer closes the connection.
-  SocketBufferPtr Receive(Duration timeout = Duration(-1));
+  BufferPtr Receive(Duration timeout = Duration(-1));
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.

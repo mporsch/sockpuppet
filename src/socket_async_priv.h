@@ -89,9 +89,9 @@ struct SocketDriver::SocketDriverPriv
 
 struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
 {
-  using SendQElement = std::tuple<std::promise<void>, SocketBufferPtr>;
+  using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<std::promise<void>, SocketBufferPtr, Address>;
+  using SendToQElement = std::tuple<std::promise<void>, BufferPtr, Address>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -113,8 +113,8 @@ struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
   SocketAsyncPriv &operator=(SocketAsyncPriv const &) = delete;
   SocketAsyncPriv &operator=(SocketAsyncPriv &&) = delete;
 
-  std::future<void> Send(SocketBufferPtr &&buffer);
-  std::future<void> SendTo(SocketBufferPtr &&buffer,
+  std::future<void> Send(BufferPtr &&buffer);
+  std::future<void> SendTo(BufferPtr &&buffer,
                            Address const &dstAddr);
   template<typename QueueElement, typename... Args>
   std::future<void> DoSend(std::queue<QueueElement> &q,

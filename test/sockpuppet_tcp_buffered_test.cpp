@@ -16,7 +16,7 @@ void ServerHandler(std::tuple<SocketTcpClient, Address> t)
   SocketTcpBuffered serverHandler(
         std::move(std::get<0>(t)), 0U, 1500U);
 
-  std::vector<SocketUdpBuffered::SocketBufferPtr> storage;
+  std::vector<BufferPtr> storage;
 
   // receive until disconnect
   try {

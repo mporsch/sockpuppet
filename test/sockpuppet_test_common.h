@@ -35,9 +35,9 @@ struct TestData
     return bytes;
   }
 
-  static SocketAsync::SocketBufferPtr ToBufferPtr(char const *data, size_t size)
+  static BufferPtr ToBufferPtr(char const *data, size_t size)
   {
-    static SocketAsync::SocketBufferPool pool;
+    static BufferPool pool;
 
     auto ptr = pool.Get();
     ptr->assign(data, data + size);
@@ -116,7 +116,7 @@ struct TestData
     DoSendTcp(send);
   }
 
-  inline bool Verify(std::vector<SocketUdpBuffered::SocketBufferPtr> const &storage) const
+  inline bool Verify(std::vector<BufferPtr> const &storage) const
   {
     std::cout << "verifying received against reference data" << std::endl;
 

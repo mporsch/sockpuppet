@@ -5,7 +5,7 @@ namespace sockpuppet {
 SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketPriv &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : SocketPriv(std::move(sock))
-  , pool(std::make_unique<ResourcePool<SocketBuffer>>(rxBufCount))
+  , pool(std::make_unique<BufferPool>(rxBufCount))
   , rxBufSize((rxBufSize ?
                  rxBufSize :
                  this->GetSockOptRcvBuf()))
@@ -16,17 +16,14 @@ SocketBuffered::SocketBufferedPriv::SocketBufferedPriv(SocketBufferedPriv &&othe
 
 SocketBuffered::SocketBufferedPriv::~SocketBufferedPriv() = default;
 
-SocketBuffered::SocketBufferPtr SocketBuffered::SocketBufferedPriv::GetBuffer()
+BufferPtr SocketBuffered::SocketBufferedPriv::GetBuffer()
 {
-  auto buffer = pool->Get(rxBufSize);
-
+  auto buffer = pool->Get();
   buffer->resize(rxBufSize);
-
   return buffer;
 }
 
-SocketBuffered::SocketBufferPtr
-SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
+BufferPtr SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
 {
   auto buffer = GetBuffer();
 
@@ -37,7 +34,7 @@ SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
   return buffer;
 }
 
-std::pair<SocketBuffered::SocketBufferPtr, Address>
+std::pair<BufferPtr, Address>
 SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();

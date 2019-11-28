@@ -33,7 +33,7 @@ struct Server
     ClientSession(ClientSession const &) = delete;
     ClientSession(ClientSession &&) = delete;
 
-    void HandleReceive(SocketAsync::SocketBufferPtr buffer)
+    void HandleReceive(BufferPtr buffer)
     {
       // echo received data
       (void)client.Send(std::move(buffer));
@@ -82,7 +82,7 @@ struct Clients
     Clients *parent;
     SocketTcpAsyncClient client;
     size_t receivedSize;
-    std::vector<sockpuppet::SocketUdpBuffered::SocketBufferPtr> receivedData;
+    std::vector<BufferPtr> receivedData;
 
     Client(Clients *parent, SocketTcpClient client, SocketDriver &driver)
       : parent(parent)
@@ -96,7 +96,7 @@ struct Clients
     Client(Client const &) = delete;
     Client(Client &&) = delete;
 
-    void HandleReceive(SocketAsync::SocketBufferPtr buffer)
+    void HandleReceive(BufferPtr buffer)
     {
       receivedSize += buffer->size();
 

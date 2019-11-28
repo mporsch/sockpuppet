@@ -60,10 +60,8 @@ private:
 class SocketAsync
 {
 public:
-  using SocketBufferPool = SocketBuffered::SocketBufferPool;
-  using SocketBufferPtr = SocketBuffered::SocketBufferPtr;
-  using ReceiveHandler = std::function<void(SocketBufferPtr)>;
-  using ReceiveFromHandler = std::function<void(SocketBufferPtr, Address)>;
+  using ReceiveHandler = std::function<void(BufferPtr)>;
+  using ReceiveFromHandler = std::function<void(BufferPtr, Address)>;
   using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
   using DisconnectHandler = std::function<void(Address)>;
 
@@ -136,11 +134,11 @@ struct SocketUdpAsync : public SocketAsync
 
   /// Enqueue data to unreliably send to address.
   /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
-  ///                 Create using your own SocketBufferPool.
+  ///                 Create using your own BufferPool.
   /// @param  dstAddress  Address to send to; must match
   ///                     IP family of bound address.
   /// @return  Future object to fulfill when data was actually sent.
-  std::future<void> SendTo(SocketBufferPtr &&buffer,
+  std::future<void> SendTo(BufferPtr &&buffer,
                            Address const &dstAddress);
 };
 
@@ -169,9 +167,9 @@ struct SocketTcpAsyncClient : public SocketAsync
 
   /// Enqueue data to reliably send to connected peer.
   /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
-  ///                 Create using your own SocketBufferPool.
+  ///                 Create using your own BufferPool.
   /// @return  Future object to fulfill when data was actually sent.
-  std::future<void> Send(SocketBufferPtr &&buffer);
+  std::future<void> Send(BufferPtr &&buffer);
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.

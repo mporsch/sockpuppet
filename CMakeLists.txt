@@ -23,7 +23,6 @@ set(CMAKE_CXX_STANDARD 14) # C++11 + std::make_unique
 
 set(SOCKPUPPET_PUBLIC_HEADERS
   include/sockpuppet/address.h
-  include/sockpuppet/resource_pool.h
   include/sockpuppet/socket.h
   include/sockpuppet/socket_async.h
   include/sockpuppet/socket_buffered.h

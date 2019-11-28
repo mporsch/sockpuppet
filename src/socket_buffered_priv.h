@@ -12,7 +12,7 @@ namespace sockpuppet {
 
 struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
 {
-  std::unique_ptr<SocketBufferPool> pool;
+  std::unique_ptr<BufferPool> pool;
   size_t rxBufSize;
 
   SocketBufferedPriv(SocketPriv &&sock,
@@ -22,10 +22,10 @@ struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
   SocketBufferedPriv(SocketBufferedPriv &&other) noexcept;
   ~SocketBufferedPriv() override;
 
-  SocketBufferPtr GetBuffer();
+  BufferPtr GetBuffer();
 
-  SocketBufferPtr Receive(Duration timeout);
-  std::pair<SocketBufferPtr, Address> ReceiveFrom(Duration timeout);
+  BufferPtr Receive(Duration timeout);
+  std::pair<BufferPtr, Address> ReceiveFrom(Duration timeout);
 };
 
 } // namespace sockpuppet

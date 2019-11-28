@@ -1,5 +1,4 @@
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
-#include "sockpuppet/resource_pool.h" // for ResourcePool
 
 #include <iostream> // for std::cout
 #include <map> // for std::map
@@ -54,7 +53,7 @@ struct Server
     return bytesReceived;
   }
 
-  void HandleReceive(SocketBuffered::SocketBufferPtr ptr)
+  void HandleReceive(BufferPtr ptr)
   {
     std::lock_guard<std::mutex> lock(mtx);
     bytesReceived += ptr->size();
@@ -96,7 +95,7 @@ struct Server
   }
 };
 
-void ReceiveDummy(SocketBuffered::SocketBufferPtr)
+void ReceiveDummy(BufferPtr)
 {
 }
 
@@ -139,7 +138,7 @@ int main(int, char **)
             << std::endl;
 
   {
-    SocketAsync::SocketBufferPool clientSendPool;
+    BufferPool clientSendPool;
     std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
 
     std::vector<std::future<void>> futures;
@@ -156,7 +155,8 @@ int main(int, char **)
                 << " connected and sending to server" << std::endl;
 
       for(size_t i = 0U; i < clientSendCount; ++i) {
-        auto buffer = clientSendPool.Get(clientSendSize);
+        auto buffer = clientSendPool.Get();
+        buffer->resize(clientSendSize);
         futures.push_back(
               client->Send(std::move(buffer)));
       }

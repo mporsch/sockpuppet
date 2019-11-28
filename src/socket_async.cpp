@@ -101,7 +101,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 {
 }
 
-std::future<void> SocketUdpAsync::SendTo(SocketBufferPtr &&buffer,
+std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
     Address const &dstAddress)
 {
   return m_priv->SendTo(std::move(buffer), dstAddress);
@@ -133,7 +133,7 @@ SocketTcpAsyncClient::~SocketTcpAsyncClient() = default;
 
 SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other) noexcept = default;
 
-std::future<void> SocketTcpAsyncClient::Send(SocketBufferPtr &&buffer)
+std::future<void> SocketTcpAsyncClient::Send(BufferPtr &&buffer)
 {
   return m_priv->Send(std::move(buffer));
 }

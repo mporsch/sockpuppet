@@ -248,13 +248,13 @@ SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
   }
 }
 
-std::future<void> SocketAsync::SocketAsyncPriv::Send(SocketBufferPtr &&buffer)
+std::future<void> SocketAsync::SocketAsyncPriv::Send(BufferPtr &&buffer)
 {
   return DoSend(sendQ, std::move(buffer));
 }
 
 std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
-    SocketBufferPtr &&buffer, Address const &dstAddr)
+    BufferPtr &&buffer, Address const &dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }

@@ -1,5 +1,4 @@
 #include "sockpuppet/socket_async.h" // for SocketUdpAsync
-#include "sockpuppet/resource_pool.h" // for ResourcePool
 
 #include <iostream> // for std::cout
 #include <thread> // for std::this_thread
@@ -8,7 +7,7 @@ using namespace sockpuppet;
 
 static auto promisedReceipt = std::make_unique<std::promise<void>>();
 
-void HandleReceiveFrom(SocketBuffered::SocketBufferPtr, Address addr)
+void HandleReceiveFrom(BufferPtr, Address addr)
 {
   std::cout << "received from "
             << to_string(addr) << std::endl;
@@ -19,7 +18,7 @@ void HandleReceiveFrom(SocketBuffered::SocketBufferPtr, Address addr)
   }
 }
 
-void ReceiveDummy(SocketBuffered::SocketBufferPtr)
+void ReceiveDummy(BufferPtr)
 {
 }
 
@@ -44,7 +43,7 @@ int main(int, char **)
     auto futureReceipt = promisedReceipt->get_future();
 
     {
-      ResourcePool<std::vector<char>> sendPool;
+      BufferPool sendPool;
 
       SocketUdpAsync client({Address("localhost")},
                             driver,
@@ -56,7 +55,8 @@ int main(int, char **)
       std::vector<std::future<void>> futuresSend;
       futuresSend.reserve(sendCount);
       for(int i = 0; i < sendCount; ++i) {
-        auto buffer = sendPool.Get(100U);
+        auto buffer = sendPool.Get();
+        buffer->resize(100U);
         futuresSend.emplace_back(
               client.SendTo(std::move(buffer), serverAddress));
       }
