@@ -13,6 +13,9 @@ target_link_libraries(sockpuppet_tcp_server sockpuppet)
 add_executable(sockpuppet_http_server sockpuppet_http_server.cpp)
 target_link_libraries(sockpuppet_http_server sockpuppet)
 
+add_executable(sockpuppet_http_client sockpuppet_http_client.cpp)
+target_link_libraries(sockpuppet_http_client sockpuppet)
+
 install(TARGETS sockpuppet_udp_client DESTINATION bin)
 install(TARGETS sockpuppet_udp_server DESTINATION bin)
 install(TARGETS sockpuppet_tcp_client DESTINATION bin)
