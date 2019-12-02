@@ -29,7 +29,9 @@ BufferPtr SocketBuffered::SocketBufferedPriv::Receive(Duration timeout)
 
   buffer->resize(
     SocketPriv::Receive(
-      buffer->data(), buffer->size(), timeout));
+          const_cast<char *>(buffer->data()),
+          buffer->size(),
+          timeout));
 
   return buffer;
 }
@@ -40,7 +42,9 @@ SocketBuffered::SocketBufferedPriv::ReceiveFrom(Duration timeout)
   auto buffer = GetBuffer();
 
   auto p = SocketPriv::ReceiveFrom(
-    buffer->data(), buffer->size(), timeout);
+        const_cast<char *>(buffer->data()),
+        buffer->size(),
+        timeout);
   buffer->resize(p.first);
 
   return {std::move(buffer), Address(std::move(p.second))};

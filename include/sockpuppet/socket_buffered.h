@@ -10,8 +10,8 @@
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <stack> // for std::stack
+#include <string> // for std::string
 #include <utility> // for std::pair
-#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -22,7 +22,7 @@ namespace sockpuppet {
 /// it is automatically moved back again.
 struct BufferPool
 {
-  using Buffer = std::vector<char>;
+  using Buffer = std::string;
   struct Recycler
   {
     std::reference_wrapper<BufferPool> pool;
