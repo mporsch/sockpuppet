@@ -1,15 +1,5 @@
 #include "sockpuppet/socket.h" // for SocketTcpClient
 
-#ifdef HAVE_HELPER
-# include "print_unmangled.h" // for PrintUnmangled
-
-# define COUT PrintUnmangled()
-# define CERR PrintUnmangled(std::cerr)
-#else
-# define COUT std::cout
-# define CERR std::cerr
-#endif // HAVE_HELPER
-
 #include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
@@ -18,6 +8,7 @@
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
+using namespace std::chrono;
 
 static int const clientCount = 3;
 
@@ -29,19 +20,18 @@ try {
   auto &&clientAddr = p.second;
 
   char buffer[256];
-  if(clientSock.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) {
+  if(clientSock.Receive(buffer, sizeof(buffer), seconds(0)) != 0U) {
     throw std::runtime_error("unexpected receive");
   }
 
-  COUT << "server sending to client " << to_string(clientAddr)
-       << std::endl;
+  std::cout << "server sending to client " << to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
   (void)clientSock.Send(hello, sizeof(hello));
 
   // destroying the handler socket closes the connection
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  std::cerr << e.what() << std::endl;
   success = false;
 }
 
@@ -49,14 +39,14 @@ void Server(Address serverAddr)
 try {
   SocketTcpServer server(serverAddr);
 
-  COUT << "server listening at "
-       << to_string(serverAddr) << std::endl;
+  std::cout << "server listening at " << to_string(serverAddr)
+    << std::endl;
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
     serverHandler = std::thread(
           ServerHandler,
-          server.Listen(std::chrono::seconds(2)));
+          server.Listen(seconds(2)));
   }
 
   for(auto &&serverHandler : serverHandlers) {
@@ -65,7 +55,7 @@ try {
     }
   }
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  std::cerr << e.what() << std::endl;
   success = false;
 }
 
@@ -74,33 +64,32 @@ try {
   SocketTcpClient client(serverAddr);
   auto const clientAddr = client.LocalAddress();
 
-  COUT << "client " << to_string(clientAddr)
-       << " connected to server " << to_string(serverAddr)
-       << std::endl;
+  std::cout << "client " << to_string(clientAddr)
+    << " connected to server " << to_string(serverAddr)
+    << std::endl;
 
   char buffer[256];
-  auto const received = client.Receive(buffer, sizeof(buffer),
-                                       std::chrono::seconds(1));
+  auto const received =
+    client.Receive(buffer, sizeof(buffer), seconds(1));
   if(received > 0U &&
      std::string(buffer, received).find("hello") != std::string::npos) {
-    COUT << "client " << to_string(clientAddr)
-         << " received from server" << std::endl;
+    std::cout << "client " << to_string(clientAddr)
+      << " received from server" << std::endl;
 
     try {
       // the server closes the connection after the "hello" message
       // we expect to get the corresponding exception now
-      (void)client.Receive(buffer, sizeof(buffer),
-                           std::chrono::seconds(1));
+      (void)client.Receive(buffer, sizeof(buffer), seconds(1));
       success = false;
     } catch(std::exception const &e) {
-      COUT << e.what() << std::endl;
+      std::cout << e.what() << std::endl;
       return;
     }
   }
 
   throw std::runtime_error("client failed to receive");
 } catch (std::exception const &e) {
-  CERR << e.what() << std::endl;
+  std::cerr << e.what() << std::endl;
   success = false;
 }
 
@@ -110,7 +99,7 @@ int main(int, char **)
   std::thread server(Server, serverAddr);
 
   // wait for server thread to come up
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(seconds(1));
 
   std::thread clients[clientCount];
   for(auto &&client : clients) {

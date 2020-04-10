@@ -1,10 +1,3 @@
-set(HELPER_INCLUDE_DIR "" CACHE PATH "Path to \"helper\" repo (optional)")
-
-if(EXISTS ${HELPER_INCLUDE_DIR})
-  add_definitions(-DHAVE_HELPER)
-  include_directories(${HELPER_INCLUDE_DIR})
-endif()
-
 add_executable(sockpuppet_address_test sockpuppet_address_test.cpp)
 target_link_libraries(sockpuppet_address_test sockpuppet)
 
