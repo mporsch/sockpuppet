@@ -1,7 +1,6 @@
 #include "sockpuppet/socket_buffered.h" // for SocketTcpBuffered
 
 #include <cstdlib> // for EXIT_SUCCESS
-#include <functional> // for std::plus
 #include <iostream> // for std::cout
 #include <numeric> // for std::accumulate
 #include <stdexcept> // for std::exception
@@ -57,8 +56,7 @@ try {
 
   // print statistics
   std::cout << "\n\nreceived "
-            << std::accumulate(std::begin(sizes), std::end(sizes),
-                               size_t(0U), std::plus<size_t>())
+            << std::accumulate(std::begin(sizes), std::end(sizes), size_t(0U))
             << " bytes in "
             << sizes.size()
             << " buffers"

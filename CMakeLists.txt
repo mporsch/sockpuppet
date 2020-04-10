@@ -57,6 +57,7 @@ set_target_properties(sockpuppet PROPERTIES PUBLIC_HEADER "${SOCKPUPPET_PUBLIC_H
 include_directories(include)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  # link with WinSock
   target_link_libraries(sockpuppet WS2_32.Lib)
 endif()
 

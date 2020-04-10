@@ -55,7 +55,7 @@ namespace {
     unsigned long enable = 1U;
     return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
 #else
-    int const flags = fcntl(fd, F_GETFL, 0);
+    int const flags = ::fcntl(fd, F_GETFL, 0);
     if (flags == -1) {
       return flags;
     }
@@ -181,8 +181,7 @@ size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
   size_t sent = 0U;
   Deadline deadline(timeout);
-  do
-  {
+  do {
     sent += SendIteration(data + sent, size - sent, deadline.remaining);
   } while((sent < size) && deadline.TimeLeft());
 
