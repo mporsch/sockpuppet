@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.1.0)
 
 project(sockpuppet CXX)
+set(CMAKE_CXX_STANDARD 14) # C++11 + std::make_unique
 
 if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default
@@ -18,8 +19,7 @@ endif()
 if(MINGW)
   # allow MinGW to drop compatibility with legacy Windows
   add_definitions(-D_WIN32_WINNT=0x0600)
-endif(MINGW)
-set(CMAKE_CXX_STANDARD 14) # C++11 + std::make_unique
+endif()
 
 set(SOCKPUPPET_PUBLIC_HEADERS
   include/sockpuppet/address.h
@@ -54,11 +54,19 @@ add_library(sockpuppet
 )
 set_target_properties(sockpuppet PROPERTIES PUBLIC_HEADER "${SOCKPUPPET_PUBLIC_HEADERS}")
 
-include_directories(include)
+# set/forward include directory
+target_include_directories(sockpuppet PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   # link with WinSock
-  target_link_libraries(sockpuppet WS2_32.Lib)
+  if(${BUILD_SHARED_LIBS})
+    target_link_libraries(sockpuppet PRIVATE WS2_32.Lib)
+  else()
+    target_link_libraries(sockpuppet PUBLIC WS2_32.Lib)
+  endif()
 endif()
 
 if(${BUILD_TESTS})
@@ -68,13 +76,17 @@ if(${BUILD_EXAMPLES})
   add_subdirectory(examples)
 endif()
 
-# install the library and includes
+# install the library, includes and CMake package
 install(TARGETS sockpuppet
+  EXPORT sockpuppet-config
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
   PUBLIC_HEADER DESTINATION include/sockpuppet
 )
+install(EXPORT sockpuppet-config DESTINATION cmake)
+export(TARGETS sockpuppet FILE sockpuppet-config.cmake)
+
 # install the demo project
 set(DEMO_CMAKE_FILE_CONFIGURE_CODE
   "configure_file(

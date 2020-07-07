@@ -103,7 +103,7 @@ int main(int, char **)
 
   std::thread clients[clientCount];
   for(auto &&client : clients) {
-    client = std::thread (Client, serverAddr);
+    client = std::thread(Client, serverAddr);
   }
 
   if(server.joinable()) {
