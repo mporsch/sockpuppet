@@ -65,11 +65,8 @@ using BufferPtr = BufferPool::BufferPtr;
 /// The buffered socket base class stores the receive buffer pool.
 /// It is created by its derived classes and is not intended to
 /// be created by the user.
-class SocketBuffered
+struct SocketBuffered
 {
-  friend class SocketAsync;
-
-public:
   using Duration = Socket::Duration;
 
   /// Get the local (bound-to) address of the socket.
@@ -82,10 +79,11 @@ public:
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
+public: // for internal use
   /// Pimpl to hide away the OS-specifics.
   struct SocketBufferedPriv;
+  std::unique_ptr<SocketBufferedPriv> priv;
 
-protected:
   SocketBuffered(Socket &&sock,
                  size_t rxBufCount,
                  size_t rxBufSize);
@@ -94,9 +92,6 @@ protected:
   virtual ~SocketBuffered();
   SocketBuffered &operator=(SocketBuffered const &other) = delete;
   SocketBuffered &operator=(SocketBuffered &&other) noexcept;
-
-protected:
-  std::unique_ptr<SocketBufferedPriv> m_priv;
 };
 
 /// UDP (unreliable communication) socket class that adds an internal

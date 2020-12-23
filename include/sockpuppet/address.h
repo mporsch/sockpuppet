@@ -10,9 +10,6 @@ namespace sockpuppet {
 
 struct Address
 {
-  /// Pimpl to hide away the OS-specifics.
-  struct AddressPriv;
-
   /// Create a local/remote host address from given URI.
   /// @param  uri  URI in one of the following formats:
   ///              host/path
@@ -37,52 +34,39 @@ struct Address
   /// @throws  If parsing fails.
   Address(uint16_t port = 0U);
 
-  /// Constructor for internal use.
-  Address(std::shared_ptr<AddressPriv> other);
-
   Address(Address const &other);
   Address(Address &&other) noexcept;
   ~Address();
   Address &operator=(Address const &other);
   Address &operator=(Address &&other) noexcept;
+  bool operator<(Address const &other) const;
+  bool operator==(Address const &other) const;
+  bool operator!=(Address const &other) const;
 
   /// Retrieve the host name of the address.
-  /// @throws  If accessing a moved-from instance.
   std::string Host() const;
 
   /// Retrieve the service name of the address.
-  /// @throws  If accessing a moved-from instance.
   std::string Service() const;
 
   /// Retrieve the port number of the address.
-  /// @throws  If accessing a moved-from instance.
   uint16_t Port() const;
 
   /// Return whether the address is an IPv6 address (rather than an IPv4 one).
-  /// @throws  If accessing a moved-from instance.
   bool IsV6() const;
 
   /// Return a list of the OS's network interface addresses.
   static std::vector<Address> LocalAddresses();
 
-  /// Pimpl getter for internal use.
-  /// @throws  If accessing a moved-from instance.
-  AddressPriv const &Priv() const;
+public: // for internal use
+  /// Pimpl to hide away the OS-specifics.
+  struct AddressPriv;
+  std::shared_ptr<AddressPriv> priv;
 
-  /// @throws  If accessing a moved-from instance.
-  bool operator<(Address const &other) const;
-
-  /// @throws  If accessing a moved-from instance.
-  bool operator==(Address const &other) const;
-
-  /// @throws  If accessing a moved-from instance.
-  bool operator!=(Address const &other) const;
-
-private:
-  std::shared_ptr<AddressPriv> m_priv;
+  Address(std::shared_ptr<AddressPriv> other);
 };
 
-/// @throws  If accessing a moved-from instance.
+/// String format address as "host:port"
 std::string to_string(Address const &addr);
 
 } // namespace sockpuppet

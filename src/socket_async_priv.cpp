@@ -353,7 +353,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
     auto &&buffer = std::get<1>(t);
     auto &&addr = std::get<2>(t);
     auto const sent = SocketPriv::SendTo(buffer->data(), buffer->size(),
-                                         addr.Priv().ForUdp(),
+                                         addr.priv->ForUdp(),
                                          noTimeout);
     assert(sent == buffer->size());
     promise.set_value();

@@ -18,7 +18,7 @@ namespace {
 } // unnamed namespace
 
 SocketDriver::SocketDriver()
-  : m_priv(std::make_shared<SocketDriverPriv>())
+  : priv(std::make_shared<SocketDriverPriv>())
 {
 }
 
@@ -30,41 +30,41 @@ SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept = default;
 
 void SocketDriver::Step(Duration timeout)
 {
-  m_priv->Step(timeout);
+  priv->Step(timeout);
 }
 
 void SocketDriver::Run()
 {
-  m_priv->Run();
+  priv->Run();
 }
 
 void SocketDriver::Stop()
 {
-  m_priv->Stop();
+  priv->Stop();
 }
 
 
 Address SocketAsync::LocalAddress() const
 {
-  return Address(m_priv->GetSockName());
+  return Address(priv->GetSockName());
 }
 
 size_t SocketAsync::ReceiveBufferSize() const
 {
-  return m_priv->GetSockOptRcvBuf();
+  return priv->GetSockOptRcvBuf();
 }
 
 SocketAsync::SocketAsync(Socket &&sock,
     SocketDriver &driver, Handlers handlers)
-  : m_priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*sock.m_priv), driver.m_priv, std::move(handlers)))
+  : priv(std::make_unique<SocketAsyncPriv>(
+      std::move(*sock.priv), driver.priv, std::move(handlers)))
 {
 }
 
 SocketAsync::SocketAsync(SocketBuffered &&buff,
     SocketDriver &driver, Handlers handlers)
-  : m_priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*buff.m_priv), driver.m_priv, std::move(handlers)))
+  : priv(std::make_unique<SocketAsyncPriv>(
+      std::move(*buff.priv), driver.priv, std::move(handlers)))
 {
 }
 
@@ -104,7 +104,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
     Address const &dstAddress)
 {
-  return m_priv->SendTo(std::move(buffer), dstAddress);
+  return priv->SendTo(std::move(buffer), dstAddress);
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept = default;
@@ -135,12 +135,12 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
 
 std::future<void> SocketTcpAsyncClient::Send(BufferPtr &&buffer)
 {
-  return m_priv->Send(std::move(buffer));
+  return priv->Send(std::move(buffer));
 }
 
 Address SocketTcpAsyncClient::PeerAddress() const
 {
-  return Address(m_priv->GetPeerName());
+  return Address(priv->GetPeerName());
 }
 
 
@@ -154,7 +154,7 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
                 , std::move(checked(handleConnect))
                 , nullptr})
 {
-  m_priv->Listen();
+  priv->Listen();
 }
 
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept = default;

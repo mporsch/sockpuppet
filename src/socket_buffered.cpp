@@ -78,18 +78,18 @@ void BufferPool::Recycle(Buffer *buf)
 
 Address SocketBuffered::LocalAddress() const
 {
-  return Address(m_priv->GetSockName());
+  return Address(priv->GetSockName());
 }
 
 size_t SocketBuffered::ReceiveBufferSize() const
 {
-  return m_priv->GetSockOptRcvBuf();
+  return priv->GetSockOptRcvBuf();
 }
 
 SocketBuffered::SocketBuffered(Socket &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : m_priv(std::make_unique<SocketBufferedPriv>(
-      std::move(*sock.m_priv), rxBufCount, rxBufSize))
+  : priv(std::make_unique<SocketBufferedPriv>(
+      std::move(*sock.priv), rxBufCount, rxBufSize))
 {
 }
 
@@ -115,18 +115,18 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return m_priv->SendTo(data, size, dstAddress.Priv().ForUdp(), timeout);
+  return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
 BufferPtr SocketUdpBuffered::Receive(Duration timeout)
 {
-  return m_priv->Receive(timeout);
+  return priv->Receive(timeout);
 }
 
 std::pair<BufferPtr, Address>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
-  return m_priv->ReceiveFrom(timeout);
+  return priv->ReceiveFrom(timeout);
 }
 
 
@@ -145,17 +145,17 @@ SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexc
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
 {
-  return m_priv->Send(data, size, timeout);
+  return priv->Send(data, size, timeout);
 }
 
 BufferPtr SocketTcpBuffered::Receive(Duration timeout)
 {
-  return m_priv->Receive(timeout);
+  return priv->Receive(timeout);
 }
 
 Address SocketTcpBuffered::PeerAddress() const
 {
-  return Address(m_priv->GetPeerName());
+  return Address(priv->GetPeerName());
 }
 
 } // namespace sockpuppet

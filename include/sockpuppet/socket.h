@@ -13,12 +13,8 @@ namespace sockpuppet {
 /// The socket base class stores the hidden implementation.
 /// It is created by its derived classes and is not intended
 /// to be created by the user.
-class Socket
+struct Socket
 {
-  friend class SocketBuffered;
-  friend class SocketAsync;
-
-public:
   using Duration = std::chrono::milliseconds;
 
   /// Get the local (bound-to) address of the socket.
@@ -31,19 +27,17 @@ public:
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
+public: // for internal use
   /// Pimpl to hide away the OS-specifics.
   struct SocketPriv;
+  std::unique_ptr<SocketPriv> priv;
 
-protected:
   Socket(std::unique_ptr<SocketPriv> &&other);
   Socket(Socket const &other) = delete;
   Socket(Socket &&other) noexcept;
   virtual ~Socket();
   Socket &operator=(Socket const &other) = delete;
   Socket &operator=(Socket &&other) noexcept;
-
-protected:
-  std::unique_ptr<SocketPriv> m_priv;
 };
 
 /// UDP (unreliable communication) socket class that is

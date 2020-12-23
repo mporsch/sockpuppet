@@ -13,11 +13,8 @@ namespace sockpuppet {
 
 /// Socket driver that runs one or multiple attached socket classes and
 /// may be driven by a dedicated thread or stepped iteratively.
-class SocketDriver
+struct SocketDriver
 {
-  friend class SocketAsync;
-
-public:
   using Duration = SocketBuffered::Duration;
 
   /// Create a socket driver that can be passed to sockets to attach to.
@@ -46,20 +43,18 @@ public:
   /// @throws  If the internal event signalling fails.
   void Stop();
 
+public: // for internal use
   /// Pimpl to hide away the OS-specifics.
   struct SocketDriverPriv;
-
-private:
-  std::shared_ptr<SocketDriverPriv> m_priv;
+  std::shared_ptr<SocketDriverPriv> priv;
 };
 
 /// The externally driven socket base class stores the user handlers and
 /// the link to the socket driver.
 /// It is created by its derived classes and is not intended to
 /// be created by the user.
-class SocketAsync
+struct SocketAsync
 {
-public:
   using ReceiveHandler = std::function<void(BufferPtr)>;
   using ReceiveFromHandler = std::function<void(BufferPtr, Address)>;
   using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
@@ -75,10 +70,11 @@ public:
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
+public: // for internal use
   /// Pimpl to hide away the OS-specifics.
   struct SocketAsyncPriv;
+  std::unique_ptr<SocketAsyncPriv> priv;
 
-protected:
   struct Handlers
   {
     ReceiveHandler receive;
@@ -87,7 +83,6 @@ protected:
     DisconnectHandler disconnect;
   };
 
-protected:
   SocketAsync(Socket &&sock,
               SocketDriver &driver,
               Handlers handlers);
@@ -99,9 +94,6 @@ protected:
   virtual ~SocketAsync();
   SocketAsync &operator=(SocketAsync const &other) = delete;
   SocketAsync &operator=(SocketAsync &&other) noexcept;
-
-protected:
-  std::unique_ptr<SocketAsyncPriv> m_priv;
 };
 
 /// UDP (unreliable communication) socket class that adds an interface for
