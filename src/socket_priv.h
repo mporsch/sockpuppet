@@ -51,7 +51,7 @@ struct Socket::SocketPriv
                 SockAddrView const &dstAddr,
                 Duration timeout);
 
-  void Bind(SockAddrView const &sockAddr);
+  void Bind(SockAddrView const &bindAddr);
 
   void Connect(SockAddrView const &connectAddr);
 

@@ -13,11 +13,11 @@ namespace sockpuppet {
 
 namespace {
   static auto const fdInvalid =
-    #ifdef _WIN32
+#ifdef _WIN32
       INVALID_SOCKET;
-    #else
+#else
       SOCKET(-1);
-    #endif // _WIN32
+#endif // _WIN32
 
   static int const sendFlags =
 #ifdef MSG_NOSIGNAL
@@ -260,12 +260,12 @@ void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
   }
 }
 
-void Socket::SocketPriv::Bind(SockAddrView const &sockAddr)
+void Socket::SocketPriv::Bind(SockAddrView const &bindAddr)
 {
-  if(::bind(fd, sockAddr.addr, sockAddr.addrLen)) {
+  if(::bind(fd, bindAddr.addr, bindAddr.addrLen)) {
     auto const error = SocketError(); // cache before calling to_string
     throw std::system_error(error,
-          "failed to bind socket to address " + to_string(sockAddr));
+          "failed to bind socket to address " + to_string(bindAddr));
   }
 }
 
