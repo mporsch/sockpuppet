@@ -10,42 +10,13 @@
 
 namespace sockpuppet {
 
-Address Socket::LocalAddress() const
-{
-  return Address(priv->GetSockName());
-}
-
-size_t Socket::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
-}
-
-Socket::Socket(std::unique_ptr<SocketPriv> &&other)
-  : priv(std::move(other))
-{
-}
-
-Socket::Socket(Socket &&other) noexcept = default;
-
-Socket::~Socket() = default;
-
-Socket &Socket::operator=(Socket &&other) noexcept = default;
-
-
 SocketUdp::SocketUdp(Address const &bindAddress)
-  : Socket(std::make_unique<Socket::SocketPriv>(
+  : priv(std::make_unique<SocketPriv>(
       bindAddress.priv->Family(), SOCK_DGRAM, IPPROTO_UDP))
 {
   priv->Bind(bindAddress.priv->ForUdp());
   priv->SetSockOptBroadcast();
 }
-
-SocketUdp::SocketUdp(SocketUdp &&other) noexcept = default;
-
-SocketUdp::~SocketUdp() = default;
-
-
-SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept = default;
 
 size_t SocketUdp::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
@@ -65,26 +36,30 @@ std::pair<size_t, Address> SocketUdp::ReceiveFrom(
   return {p.first, Address(std::move(p.second))};
 }
 
+Address SocketUdp::LocalAddress() const
+{
+  return Address(priv->GetSockName());
+}
+
+size_t SocketUdp::ReceiveBufferSize() const
+{
+  return priv->GetSockOptRcvBuf();
+}
+
+SocketUdp::SocketUdp(SocketUdp &&other) noexcept = default;
+
+SocketUdp::~SocketUdp() = default;
+
+SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept = default;
+
 
 SocketTcpClient::SocketTcpClient(Address const &connectAddress)
-  : Socket(std::make_unique<Socket::SocketPriv>(
+  : priv(std::make_unique<SocketPriv>(
       connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   priv->SetSockOptNoSigPipe();
   priv->Connect(connectAddress.priv->ForTcp());
 }
-
-SocketTcpClient::SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other)
-  : Socket(std::move(other))
-{
-  priv->SetSockOptNoSigPipe();
-}
-
-SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept = default;
-
-SocketTcpClient::~SocketTcpClient() = default;
-
-SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = default;
 
 size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
 {
@@ -96,25 +71,41 @@ size_t SocketTcpClient::Receive(char *data, size_t size, Duration timeout)
   return priv->Receive(data, size, timeout);
 }
 
+Address SocketTcpClient::LocalAddress() const
+{
+  return Address(priv->GetSockName());
+}
+
 Address SocketTcpClient::PeerAddress() const
 {
   return Address(priv->GetPeerName());
 }
 
+size_t SocketTcpClient::ReceiveBufferSize() const
+{
+  return priv->GetSockOptRcvBuf();
+}
+
+SocketTcpClient::SocketTcpClient(std::unique_ptr<SocketPriv> &&other)
+  : priv(std::move(other))
+{
+  priv->SetSockOptNoSigPipe();
+}
+
+SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept = default;
+
+SocketTcpClient::~SocketTcpClient() = default;
+
+SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = default;
+
 
 SocketTcpServer::SocketTcpServer(Address const &bindAddress)
-  : Socket(std::make_unique<Socket::SocketPriv>(
+  : priv(std::make_unique<SocketPriv>(
       bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
   priv->SetSockOptReuseAddr();
   priv->Bind(bindAddress.priv->ForTcp());
 }
-
-SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept = default;
-
-SocketTcpServer::~SocketTcpServer() = default;
-
-SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept = default;
 
 std::pair<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
 {
@@ -122,5 +113,16 @@ std::pair<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
   auto p = priv->Accept(timeout);
   return {std::move(p.first), Address(std::move(p.second))};
 }
+
+Address SocketTcpServer::LocalAddress() const
+{
+  return Address(priv->GetSockName());
+}
+
+SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept = default;
+
+SocketTcpServer::~SocketTcpServer() = default;
+
+SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept = default;
 
 } // namespace sockpuppet

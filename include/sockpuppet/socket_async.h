@@ -2,8 +2,8 @@
 #define SOCKPUPPET_SOCKET_ASYNC_H
 
 #include "sockpuppet/address.h" // for Address
-#include "sockpuppet/socket.h" // for Socket
-#include "sockpuppet/socket_buffered.h" // for SocketBuffered
+#include "sockpuppet/socket.h" // for Duration
+#include "sockpuppet/socket_buffered.h" // for BufferPtr
 
 #include <functional> // for std::function
 #include <future> // for std::future
@@ -15,17 +15,9 @@ namespace sockpuppet {
 /// may be driven by a dedicated thread or stepped iteratively.
 struct SocketDriver
 {
-  using Duration = SocketBuffered::Duration;
-
   /// Create a socket driver that can be passed to sockets to attach to.
   /// @throws  If creating the internal event signalling fails.
   SocketDriver();
-
-  SocketDriver(SocketDriver const &) = delete;
-  SocketDriver(SocketDriver &&other) noexcept;
-  ~SocketDriver();
-  SocketDriver &operator=(SocketDriver const &) = delete;
-  SocketDriver &operator=(SocketDriver &&other) noexcept;
 
   /// Run one iteration on the attached sockets.
   /// @param  timeout  Timeout to use; non-null allows blocking if
@@ -43,62 +35,26 @@ struct SocketDriver
   /// @throws  If the internal event signalling fails.
   void Stop();
 
-public: // for internal use
-  /// Pimpl to hide away the OS-specifics.
+  SocketDriver(SocketDriver const &) = delete;
+  SocketDriver(SocketDriver &&other) noexcept;
+  ~SocketDriver();
+  SocketDriver &operator=(SocketDriver const &) = delete;
+  SocketDriver &operator=(SocketDriver &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
   struct SocketDriverPriv;
   std::shared_ptr<SocketDriverPriv> priv;
 };
 
-/// The externally driven socket base class stores the user handlers and
-/// the link to the socket driver.
-/// It is created by its derived classes and is not intended to
-/// be created by the user.
-struct SocketAsync
-{
-  using ReceiveHandler = std::function<void(BufferPtr)>;
-  using ReceiveFromHandler = std::function<void(BufferPtr, Address)>;
-  using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
-  using DisconnectHandler = std::function<void(Address)>;
-
-  /// Get the local (bound-to) address of the socket.
-  /// @throws  If the address lookup fails.
-  Address LocalAddress() const;
-
-  /// Determine the maximum size of data the socket may receive,
-  /// i.e. the size the OS has allocated for its receive buffer.
-  /// This might be much more than the ~1500 bytes expected.
-  /// @throws  If getting the socket parameter fails.
-  size_t ReceiveBufferSize() const;
-
-public: // for internal use
-  /// Pimpl to hide away the OS-specifics.
-  struct SocketAsyncPriv;
-  std::unique_ptr<SocketAsyncPriv> priv;
-
-  struct Handlers
-  {
-    ReceiveHandler receive;
-    ReceiveFromHandler receiveFrom;
-    ConnectHandler connect;
-    DisconnectHandler disconnect;
-  };
-
-  SocketAsync(Socket &&sock,
-              SocketDriver &driver,
-              Handlers handlers);
-  SocketAsync(SocketBuffered &&buff,
-              SocketDriver &driver,
-              Handlers handlers);
-  SocketAsync(SocketAsync const &other) = delete;
-  SocketAsync(SocketAsync &&other) noexcept;
-  virtual ~SocketAsync();
-  SocketAsync &operator=(SocketAsync const &other) = delete;
-  SocketAsync &operator=(SocketAsync &&other) noexcept;
-};
+struct SocketAsyncPriv;
+using ReceiveHandler = std::function<void(BufferPtr)>;
+using ReceiveFromHandler = std::function<void(BufferPtr, Address)>;
+using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
+using DisconnectHandler = std::function<void(Address)>;
 
 /// UDP (unreliable communication) socket class that adds an interface for
 /// an external socket driver to the buffered UDP class.
-struct SocketUdpAsync : public SocketAsync
+struct SocketUdpAsync
 {
   /// Create a UDP socket driven by given socket driver.
   /// @param  buff  Buffered UDP socket to augment.
@@ -118,12 +74,6 @@ struct SocketUdpAsync : public SocketAsync
                  SocketDriver &driver,
                  ReceiveFromHandler handleReceiveFrom);
 
-  SocketUdpAsync(SocketUdpAsync const &other) = delete;
-  SocketUdpAsync(SocketUdpAsync &&other) noexcept;
-  ~SocketUdpAsync() override;
-  SocketUdpAsync &operator=(SocketUdpAsync const &other) = delete;
-  SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
-
   /// Enqueue data to unreliably send to address.
   /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
   ///                 Create using your own BufferPool.
@@ -132,11 +82,30 @@ struct SocketUdpAsync : public SocketAsync
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> SendTo(BufferPtr &&buffer,
                            Address const &dstAddress);
+
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketUdpAsync(SocketUdpAsync const &other) = delete;
+  SocketUdpAsync(SocketUdpAsync &&other) noexcept;
+  ~SocketUdpAsync();
+  SocketUdpAsync &operator=(SocketUdpAsync const &other) = delete;
+  SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketAsyncPriv> priv;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
 /// an external socket driver to the buffered TCP client class.
-struct SocketTcpAsyncClient : public SocketAsync
+struct SocketTcpAsyncClient
 {
   /// Create a TCP client socket driven by given socket driver.
   /// @param  buff  Buffered TCP client socket to augment.
@@ -151,26 +120,39 @@ struct SocketTcpAsyncClient : public SocketAsync
                        ReceiveHandler handleReceive,
                        DisconnectHandler handleDisconnect);
 
-  SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
-  ~SocketTcpAsyncClient() override;
-  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
-
   /// Enqueue data to reliably send to connected peer.
   /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
   ///                 Create using your own BufferPool.
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> Send(BufferPtr &&buffer);
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
   Address PeerAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
+  SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
+  ~SocketTcpAsyncClient();
+  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient const &other) = delete;
+  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketAsyncPriv> priv;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
 /// an external socket driver to the regular TCP server class.
-struct SocketTcpAsyncServer : public SocketAsync
+struct SocketTcpAsyncServer
 {
   /// Create a TCP server socket driven by given socket driver.
   /// @param  sock  TCP server socket to augment.
@@ -181,11 +163,18 @@ struct SocketTcpAsyncServer : public SocketAsync
                        SocketDriver &driver,
                        ConnectHandler handleConnect);
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
   SocketTcpAsyncServer(SocketTcpAsyncServer const &other) = delete;
   SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept;
-  ~SocketTcpAsyncServer() override;
+  ~SocketTcpAsyncServer();
   SocketTcpAsyncServer &operator=(SocketTcpAsyncServer const &other) = delete;
   SocketTcpAsyncServer &operator=(SocketTcpAsyncServer &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketAsyncPriv> priv;
 };
 
 } // namespace sockpuppet

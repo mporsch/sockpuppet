@@ -24,11 +24,6 @@ BufferPool::BufferPool(size_t maxSize)
   }
 }
 
-BufferPool::~BufferPool()
-{
-  assert(m_busy.empty()); // buffers still pending -> will segfault later
-}
-
 BufferPool::BufferPtr BufferPool::Get()
 {
   std::lock_guard<std::mutex> lock(m_mtx);
@@ -58,6 +53,11 @@ BufferPool::BufferPtr BufferPool::Get()
   }
 }
 
+BufferPool::~BufferPool()
+{
+  assert(m_busy.empty()); // buffers still pending -> will segfault later
+}
+
 void BufferPool::Recycle(Buffer *buf)
 {
   std::lock_guard<std::mutex> lock(m_mtx);
@@ -76,41 +76,14 @@ void BufferPool::Recycle(Buffer *buf)
 }
 
 
-Address SocketBuffered::LocalAddress() const
-{
-  return Address(priv->GetSockName());
-}
-
-size_t SocketBuffered::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
-}
-
-SocketBuffered::SocketBuffered(Socket &&sock,
-    size_t rxBufCount, size_t rxBufSize)
-  : priv(std::make_unique<SocketBufferedPriv>(
-      std::move(*sock.priv), rxBufCount, rxBufSize))
-{
-}
-
-SocketBuffered::SocketBuffered(SocketBuffered &&other) noexcept = default;
-
-SocketBuffered::~SocketBuffered() = default;
-
-SocketBuffered &SocketBuffered::operator=(SocketBuffered &&other) noexcept = default;
-
-
 SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : SocketBuffered(std::move(sock), rxBufCount, rxBufSize)
+  : priv(std::make_unique<SocketBufferedPriv>(
+      std::move(*sock.priv),
+      rxBufCount,
+      rxBufSize))
 {
 }
-
-SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
-
-SocketUdpBuffered::~SocketUdpBuffered() = default;
-
-SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept = default;
 
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
@@ -129,18 +102,31 @@ SocketUdpBuffered::ReceiveFrom(Duration timeout)
   return priv->ReceiveFrom(timeout);
 }
 
+Address SocketUdpBuffered::LocalAddress() const
+{
+  return Address(priv->GetSockName());
+}
+
+size_t SocketUdpBuffered::ReceiveBufferSize() const
+{
+  return priv->GetSockOptRcvBuf();
+}
+
+SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
+
+SocketUdpBuffered::~SocketUdpBuffered() = default;
+
+SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept = default;
+
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : SocketBuffered(std::move(sock), rxBufCount, rxBufSize)
+  : priv(std::make_unique<SocketBufferedPriv>(
+      std::move(*sock.priv),
+      rxBufCount,
+      rxBufSize))
 {
 }
-
-SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;
-
-SocketTcpBuffered::~SocketTcpBuffered() = default;
-
-SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexcept = default;
 
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
@@ -153,9 +139,25 @@ BufferPtr SocketTcpBuffered::Receive(Duration timeout)
   return priv->Receive(timeout);
 }
 
+Address SocketTcpBuffered::LocalAddress() const
+{
+  return Address(priv->GetSockName());
+}
+
 Address SocketTcpBuffered::PeerAddress() const
 {
   return Address(priv->GetPeerName());
 }
+
+size_t SocketTcpBuffered::ReceiveBufferSize() const
+{
+  return priv->GetSockOptRcvBuf();
+}
+
+SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;
+
+SocketTcpBuffered::~SocketTcpBuffered() = default;
+
+SocketTcpBuffered &SocketTcpBuffered::operator=(SocketTcpBuffered &&other) noexcept = default;
 
 } // namespace sockpuppet

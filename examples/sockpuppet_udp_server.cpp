@@ -21,7 +21,7 @@ void Server(Address bindAddress)
   // receive and print until Ctrl-C
   for(;;) {
     char buffer[256];
-    static Socket::Duration const noTimeout(-1);
+    static Duration const noTimeout(-1);
 
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt

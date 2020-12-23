@@ -30,7 +30,7 @@ void Client(Address remoteAddress)
     if(line.empty()) {
       break;
     } else {
-      static Socket::Duration const noTimeout(-1);
+      static Duration const noTimeout(-1);
 
       // send the given string data to the connected peer
       // negative timeout -> blocking until sent

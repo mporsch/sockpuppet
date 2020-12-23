@@ -18,7 +18,7 @@ using SOCKET = int;
 
 namespace sockpuppet {
 
-struct Socket::SocketPriv
+struct SocketPriv
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
   SOCKET fd;  ///< Socket file descriptor

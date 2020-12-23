@@ -77,7 +77,7 @@ struct TestData
 
   inline void Send(SocketUdpBuffered &buff,
                    Address const &dstAddr,
-                   Socket::Duration perPacketTimeout) const
+                   Duration perPacketTimeout) const
   {
     std::cout << "sending reference data from " << to_string(buff.LocalAddress())
               << " to " << to_string(dstAddr) << std::endl;
@@ -89,7 +89,7 @@ struct TestData
   }
 
   inline void Send(SocketTcpBuffered &buff,
-                   SocketBuffered::Duration perPacketTimeout) const
+                   Duration perPacketTimeout) const
   {
     std::cout << "sending reference data from "
               << to_string(buff.LocalAddress())

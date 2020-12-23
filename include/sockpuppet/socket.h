@@ -10,39 +10,12 @@
 
 namespace sockpuppet {
 
-/// The socket base class stores the hidden implementation.
-/// It is created by its derived classes and is not intended
-/// to be created by the user.
-struct Socket
-{
-  using Duration = std::chrono::milliseconds;
-
-  /// Get the local (bound-to) address of the socket.
-  /// @throws  If the address lookup fails.
-  Address LocalAddress() const;
-
-  /// Determine the maximum size of data the socket may receive,
-  /// i.e. the size the OS has allocated for its receive buffer.
-  /// This might be much more than the ~1500 bytes expected.
-  /// @throws  If getting the socket parameter fails.
-  size_t ReceiveBufferSize() const;
-
-public: // for internal use
-  /// Pimpl to hide away the OS-specifics.
-  struct SocketPriv;
-  std::unique_ptr<SocketPriv> priv;
-
-  Socket(std::unique_ptr<SocketPriv> &&other);
-  Socket(Socket const &other) = delete;
-  Socket(Socket &&other) noexcept;
-  virtual ~Socket();
-  Socket &operator=(Socket const &other) = delete;
-  Socket &operator=(Socket &&other) noexcept;
-};
+struct SocketPriv;
+using Duration = std::chrono::milliseconds;
 
 /// UDP (unreliable communication) socket class that is
 /// bound to provided address.
-struct SocketUdp : public Socket
+struct SocketUdp
 {
   /// Create a UDP socket bound to given address.
   /// @param  bindAddress  Local interface address to bind to.
@@ -50,12 +23,6 @@ struct SocketUdp : public Socket
   ///                      binds to an OS-assigned port.
   /// @throws  If binding or configuration fails.
   SocketUdp(Address const &bindAddress);
-
-  SocketUdp(SocketUdp const &other) = delete;
-  SocketUdp(SocketUdp &&other) noexcept;
-  ~SocketUdp() override;
-  SocketUdp &operator=(SocketUdp const &other) = delete;
-  SocketUdp &operator=(SocketUdp &&other) noexcept;
 
   /// Unreliably send data to address.
   /// @param  data  Pointer to data to send.
@@ -95,26 +62,35 @@ struct SocketUdp : public Socket
   std::pair<size_t, Address> ReceiveFrom(char *data,
                                          size_t size,
                                          Duration timeout = Duration(-1));
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketUdp(SocketUdp const &other) = delete;
+  SocketUdp(SocketUdp &&other) noexcept;
+  ~SocketUdp();
+  SocketUdp &operator=(SocketUdp const &other) = delete;
+  SocketUdp &operator=(SocketUdp &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketPriv> priv;
 };
 
 /// TCP (reliable communication) socket class that is either
 /// connected to provided peer address or to a peer accepted
 /// by the TCP server socket.
-struct SocketTcpClient : public Socket
+struct SocketTcpClient
 {
   /// Create a TCP socket connected to given address.
   /// @param  connectAddress  Peer address to connect to.
   /// @throws  If connect fails.
   SocketTcpClient(Address const &connectAddress);
-
-  /// Constructor for internal use.
-  SocketTcpClient(std::unique_ptr<Socket::SocketPriv> &&other);
-
-  SocketTcpClient(SocketTcpClient const &other) = delete;
-  SocketTcpClient(SocketTcpClient &&other) noexcept;
-  ~SocketTcpClient() override;
-  SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
-  SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
@@ -138,16 +114,35 @@ struct SocketTcpClient : public Socket
   size_t Receive(char *data,
                  size_t size,
                  Duration timeout = Duration(-1));
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
 
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
   Address PeerAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketTcpClient(std::unique_ptr<SocketPriv> &&other);
+  SocketTcpClient(SocketTcpClient const &other) = delete;
+  SocketTcpClient(SocketTcpClient &&other) noexcept;
+  ~SocketTcpClient();
+  SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
+  SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketPriv> priv;
 };
 
 /// TCP (reliable communication) socket class that is
 /// bound to provided address and can create client sockets
 /// for incoming peer connections.
-struct SocketTcpServer : public Socket
+struct SocketTcpServer
 {
   /// Create a TCP server socket bound to given address.
   /// @param  bindAddress  Local interface address to bind to.
@@ -156,18 +151,25 @@ struct SocketTcpServer : public Socket
   /// @throws  If binding or configuration fails.
   SocketTcpServer(Address const &bindAddress);
 
-  SocketTcpServer(SocketTcpServer const &other) = delete;
-  SocketTcpServer(SocketTcpServer &&other) noexcept;
-  ~SocketTcpServer() override;
-  SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
-  SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
-
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,
   ///                  a negative value allows unlimited blocking.
   /// @return  Connected client and its address.
   /// @throws  If listen or accept fails or timeout occurs.
   std::pair<SocketTcpClient, Address> Listen(Duration timeout = Duration(-1));
+
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
+  SocketTcpServer(SocketTcpServer const &other) = delete;
+  SocketTcpServer(SocketTcpServer &&other) noexcept;
+  ~SocketTcpServer();
+  SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
+  SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketPriv> priv;
 };
 
 } // namespace sockpuppet

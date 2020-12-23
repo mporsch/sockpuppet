@@ -47,7 +47,7 @@ try {
   success = false;
 }
 
-void Client(Address serverAddress, SocketBuffered::Duration perPacketSendTimeout)
+void Client(Address serverAddress, Duration perPacketSendTimeout)
 try {
   SocketTcpBuffered client(serverAddress);
 
@@ -63,7 +63,7 @@ try {
   success = false;
 }
 
-void Test(SocketBuffered::Duration perPacketSendTimeout)
+void Test(Duration perPacketSendTimeout)
 {
   // start client and server threads
   Address serverAddr("localhost:8554");
@@ -86,13 +86,13 @@ void Test(SocketBuffered::Duration perPacketSendTimeout)
 int main(int, char **)
 {
   std::cout << "test case #1: unlimited send timeout" << std::endl;
-  Test(SocketBuffered::Duration(-1));
+  Test(Duration(-1));
 
   std::cout << "test case #2: limited send timeout" << std::endl;
   Test(std::chrono::milliseconds(1));
 
   std::cout << "test case #3: non-blocking send" << std::endl;
-  Test(SocketBuffered::Duration(0));
+  Test(Duration(0));
 
   return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 }

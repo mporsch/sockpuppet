@@ -2,7 +2,7 @@
 #define SOCKPUPPET_SOCKET_BUFFERED_H
 
 #include "sockpuppet/address.h" // for Address
-#include "sockpuppet/socket.h" // for Socket
+#include "sockpuppet/socket.h" // for Duration
 
 #include <cstddef> // for size_t
 #include <deque> // for std::deque
@@ -35,18 +35,18 @@ struct BufferPool
   /// @param  maxSize  Maximum number of buffers to maintain (0 -> unlimited).
   BufferPool(size_t maxSize = 0U);
 
-  BufferPool(BufferPool const &other) = delete;
-  BufferPool(BufferPool &&other) = delete;
-  ~BufferPool();
-  BufferPool &operator=(BufferPool const &other) = delete;
-  BufferPool &operator=(BufferPool &&other) = delete;
-
   /// Obtain an idle buffer.
   /// @return  Pointer to borrowed buffer still owned by
   ///          the pool; the user must not change the pointer.
   /// @throws  If more buffers are obtained than initially agreed upon.
   /// @note  Mind that all buffers must be released before destroying the pool.
   BufferPtr Get();
+
+  BufferPool(BufferPool const &other) = delete;
+  BufferPool(BufferPool &&other) = delete;
+  ~BufferPool();
+  BufferPool &operator=(BufferPool const &other) = delete;
+  BufferPool &operator=(BufferPool &&other) = delete;
 
 private:
   void Recycle(Buffer *buf);
@@ -60,43 +60,12 @@ private:
   std::deque<BufferStorage> m_busy;
 };
 
+struct SocketBufferedPriv;
 using BufferPtr = BufferPool::BufferPtr;
-
-/// The buffered socket base class stores the receive buffer pool.
-/// It is created by its derived classes and is not intended to
-/// be created by the user.
-struct SocketBuffered
-{
-  using Duration = Socket::Duration;
-
-  /// Get the local (bound-to) address of the socket.
-  /// @throws  If the address lookup fails.
-  Address LocalAddress() const;
-
-  /// Determine the maximum size of data the socket may receive,
-  /// i.e. the size the OS has allocated for its receive buffer.
-  /// This might be much more than the ~1500 bytes expected.
-  /// @throws  If getting the socket parameter fails.
-  size_t ReceiveBufferSize() const;
-
-public: // for internal use
-  /// Pimpl to hide away the OS-specifics.
-  struct SocketBufferedPriv;
-  std::unique_ptr<SocketBufferedPriv> priv;
-
-  SocketBuffered(Socket &&sock,
-                 size_t rxBufCount,
-                 size_t rxBufSize);
-  SocketBuffered(SocketBuffered const &other) = delete;
-  SocketBuffered(SocketBuffered &&other) noexcept;
-  virtual ~SocketBuffered();
-  SocketBuffered &operator=(SocketBuffered const &other) = delete;
-  SocketBuffered &operator=(SocketBuffered &&other) noexcept;
-};
 
 /// UDP (unreliable communication) socket class that adds an internal
 /// receive buffer pool to the regular UDP socket class.
-struct SocketUdpBuffered : public SocketBuffered
+struct SocketUdpBuffered
 {
   /// Create a UDP socket with additional internal buffer pool.
   /// @param  sock  UDP socket to augment.
@@ -110,12 +79,6 @@ struct SocketUdpBuffered : public SocketBuffered
   SocketUdpBuffered(SocketUdp &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
-
-  SocketUdpBuffered(SocketUdpBuffered const &other) = delete;
-  SocketUdpBuffered(SocketUdpBuffered &&other) noexcept;
-  ~SocketUdpBuffered() override;
-  SocketUdpBuffered &operator=(SocketUdpBuffered const &other) = delete;
-  SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
 
   /// Unreliably send data to address.
   /// @param  data  Pointer to data to send.
@@ -147,11 +110,30 @@ struct SocketUdpBuffered : public SocketBuffered
   ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   std::pair<BufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
+
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketUdpBuffered(SocketUdpBuffered const &other) = delete;
+  SocketUdpBuffered(SocketUdpBuffered &&other) noexcept;
+  ~SocketUdpBuffered();
+  SocketUdpBuffered &operator=(SocketUdpBuffered const &other) = delete;
+  SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketBufferedPriv> priv;
 };
 
 /// TCP (reliable communication) socket class that adds an internal
 /// receive buffer pool to the regular TCP client socket class.
-struct SocketTcpBuffered : public SocketBuffered
+struct SocketTcpBuffered
 {
   /// Create a TCP socket with additional internal buffer pool.
   /// @param  sock  TCP client socket to augment.
@@ -165,12 +147,6 @@ struct SocketTcpBuffered : public SocketBuffered
   SocketTcpBuffered(SocketTcpClient &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
-
-  SocketTcpBuffered(SocketTcpBuffered const &other) = delete;
-  SocketTcpBuffered(SocketTcpBuffered &&other) noexcept;
-  ~SocketTcpBuffered() override;
-  SocketTcpBuffered &operator=(SocketTcpBuffered const &other) = delete;
-  SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
@@ -192,9 +168,28 @@ struct SocketTcpBuffered : public SocketBuffered
   ///          the peer closes the connection.
   BufferPtr Receive(Duration timeout = Duration(-1));
 
+  /// Get the local (bound-to) address of the socket.
+  /// @throws  If the address lookup fails.
+  Address LocalAddress() const;
+
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
   Address PeerAddress() const;
+
+  /// Determine the maximum size of data the socket may receive,
+  /// i.e. the size the OS has allocated for its receive buffer.
+  /// This might be much more than the ~1500 bytes expected.
+  /// @throws  If getting the socket parameter fails.
+  size_t ReceiveBufferSize() const;
+
+  SocketTcpBuffered(SocketTcpBuffered const &other) = delete;
+  SocketTcpBuffered(SocketTcpBuffered &&other) noexcept;
+  ~SocketTcpBuffered();
+  SocketTcpBuffered &operator=(SocketTcpBuffered const &other) = delete;
+  SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
+
+  /// Bridge to hide away the OS-specifics.
+  std::unique_ptr<SocketBufferedPriv> priv;
 };
 
 } // namespace sockpuppet

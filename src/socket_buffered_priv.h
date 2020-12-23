@@ -10,7 +10,7 @@
 
 namespace sockpuppet {
 
-struct SocketBuffered::SocketBufferedPriv : public Socket::SocketPriv
+struct SocketBufferedPriv : public SocketPriv
 {
   std::unique_ptr<BufferPool> pool;
   size_t rxBufSize;

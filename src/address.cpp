@@ -19,16 +19,6 @@ Address::Address(uint16_t port)
 {
 }
 
-Address::Address(Address const &other) = default;
-
-Address::Address(Address &&other) noexcept = default;
-
-Address::~Address() = default;
-
-Address &Address::operator=(Address const &other) = default;
-
-Address &Address::operator=(Address &&other) noexcept = default;
-
 bool Address::operator<(Address const &other) const
 {
   return (*priv < *other.priv);
@@ -73,6 +63,16 @@ Address::Address(std::shared_ptr<AddressPriv> other)
   : priv(std::move(other))
 {
 }
+
+Address::Address(Address const &other) = default;
+
+Address::Address(Address &&other) noexcept = default;
+
+Address::~Address() = default;
+
+Address &Address::operator=(Address const &other) = default;
+
+Address &Address::operator=(Address &&other) noexcept = default;
 
 
 std::string to_string(Address const &addr)

@@ -32,7 +32,7 @@ void SignalHandler(int)
   driver.Stop();
 }
 
-void ConnectHandler(SocketTcpClient clientSock, Address clientAddr)
+void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
 try {
   // here we intentionally misuse the connect handler; instead of
   // only storing the client connection we do the whole HTTP handling and
@@ -81,7 +81,7 @@ try {
         servers.emplace_back(
               SocketTcpAsyncServer({addr},
                                    driver,
-                                   ConnectHandler));
+                                   HandleConnect));
       } catch(std::exception const &e) {
         // if binding one server fails, just go on
         std::cerr << e.what() << std::endl;

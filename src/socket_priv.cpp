@@ -35,7 +35,7 @@ namespace {
 #endif // _WIN32
   }
 
-  int Poll(pollfd pfd, Socket::Duration timeout)
+  int Poll(pollfd pfd, Duration timeout)
   {
     using namespace std::chrono;
 
@@ -65,10 +65,10 @@ namespace {
 
   struct Deadline
   {
-    Socket::Duration remaining;
+    Duration remaining;
     std::chrono::time_point<std::chrono::steady_clock> lastStart;
 
-    Deadline(Socket::Duration timeout)
+    Deadline(Duration timeout)
       : remaining(timeout)
     {
       if(remaining.count() >= 0) {
@@ -81,7 +81,7 @@ namespace {
       if(remaining.count() >= 0) {
         auto const now = std::chrono::steady_clock::now();
 
-        remaining -= std::chrono::duration_cast<Socket::Duration>(now - lastStart);
+        remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
         lastStart = now;
 
         return (remaining.count() > 0);
@@ -91,7 +91,7 @@ namespace {
   };
 } // unnamed namespace
 
-Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
+SocketPriv::SocketPriv(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
   , isBlocking(true)
@@ -101,7 +101,7 @@ Socket::SocketPriv::SocketPriv(int family, int type, int protocol)
   }
 }
 
-Socket::SocketPriv::SocketPriv(SOCKET fd)
+SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
   , isBlocking(true)
 {
@@ -110,21 +110,21 @@ Socket::SocketPriv::SocketPriv(SOCKET fd)
   }
 }
 
-Socket::SocketPriv::SocketPriv(SocketPriv &&other) noexcept
+SocketPriv::SocketPriv(SocketPriv &&other) noexcept
   : fd(other.fd)
   , isBlocking(other.isBlocking)
 {
   other.fd = fdInvalid;
 }
 
-Socket::SocketPriv::~SocketPriv()
+SocketPriv::~SocketPriv()
 {
   if(fd != fdInvalid) {
     CloseSocket(fd);
   }
 }
 
-size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
+size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
   if(NeedsPoll(timeout)) {
     if(auto const result = PollRead(timeout)) {
@@ -150,7 +150,7 @@ size_t Socket::SocketPriv::Receive(char *data, size_t size, Duration timeout)
 }
 
 std::pair<size_t, std::shared_ptr<SockAddrStorage>>
-Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
+SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(NeedsPoll(timeout)) {
     if(auto const result = PollRead(timeout)) {
@@ -177,7 +177,7 @@ Socket::SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   return {static_cast<size_t>(received), std::move(sas)};
 }
 
-size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
+size_t SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
   size_t sent = 0U;
   Deadline deadline(timeout);
@@ -189,7 +189,7 @@ size_t Socket::SocketPriv::Send(char const *data, size_t size, Duration timeout)
   return sent;
 }
 
-size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration timeout)
+size_t SocketPriv::SendIteration(char const *data, size_t size, Duration timeout)
 {
   // TCP send will block regularly, if:
   //   the user enqueues faster than the NIC can send or the peer can process
@@ -218,7 +218,7 @@ size_t Socket::SocketPriv::SendIteration(char const *data, size_t size, Duration
   return static_cast<size_t>(sent);
 }
 
-size_t Socket::SocketPriv::SendTo(char const *data, size_t size,
+size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
   // UDP send will block only rarely,
@@ -251,7 +251,7 @@ size_t Socket::SocketPriv::SendTo(char const *data, size_t size,
   return static_cast<size_t>(sent);
 }
 
-void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
+void SocketPriv::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
     auto const error = SocketError(); // cache before calling to_string
@@ -260,7 +260,7 @@ void Socket::SocketPriv::Connect(SockAddrView const &connectAddr)
   }
 }
 
-void Socket::SocketPriv::Bind(SockAddrView const &bindAddr)
+void SocketPriv::Bind(SockAddrView const &bindAddr)
 {
   if(::bind(fd, bindAddr.addr, bindAddr.addrLen)) {
     auto const error = SocketError(); // cache before calling to_string
@@ -269,7 +269,7 @@ void Socket::SocketPriv::Bind(SockAddrView const &bindAddr)
   }
 }
 
-void Socket::SocketPriv::Listen()
+void SocketPriv::Listen()
 {
   static int const backlog = 128;
   if(::listen(fd, backlog)) {
@@ -277,8 +277,8 @@ void Socket::SocketPriv::Listen()
   }
 }
 
-std::pair<std::unique_ptr<Socket::SocketPriv>, std::shared_ptr<SockAddrStorage>>
-Socket::SocketPriv::Accept(Duration timeout)
+std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+SocketPriv::Accept(Duration timeout)
 {
   if(timeout.count() >= 0) {
     if(auto const result = PollRead(timeout)) {
@@ -298,7 +298,7 @@ Socket::SocketPriv::Accept(Duration timeout)
   return {std::move(client), std::move(sas)};
 }
 
-void Socket::SocketPriv::SetSockOptNonBlocking()
+void SocketPriv::SetSockOptNonBlocking()
 {
   if(SetNonBlocking(fd)) {
     throw std::system_error(SocketError(),
@@ -306,24 +306,24 @@ void Socket::SocketPriv::SetSockOptNonBlocking()
   }
 }
 
-void Socket::SocketPriv::SetSockOptReuseAddr()
+void SocketPriv::SetSockOptReuseAddr()
 {
   SetSockOpt(SO_REUSEADDR, 1, "failed to set socket option address reuse");
 }
 
-void Socket::SocketPriv::SetSockOptBroadcast()
+void SocketPriv::SetSockOptBroadcast()
 {
   SetSockOpt(SO_BROADCAST, 1, "failed to set socket option broadcast");
 }
 
-void Socket::SocketPriv::SetSockOptNoSigPipe()
+void SocketPriv::SetSockOptNoSigPipe()
 {
 #ifdef SO_NOSIGPIPE
   SetSockOpt(SO_NOSIGPIPE, 1, "failed to set socket option non-SIGPIPE");
 #endif // SO_NOSIGPIPE
 }
 
-void Socket::SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)
+void SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)
 {
   if(::setsockopt(fd, SOL_SOCKET, id,
                   reinterpret_cast<char const *>(&value), sizeof(value))) {
@@ -331,7 +331,7 @@ void Socket::SocketPriv::SetSockOpt(int id, int value, char const *errorMessage)
   }
 }
 
-size_t Socket::SocketPriv::GetSockOptRcvBuf() const
+size_t SocketPriv::GetSockOptRcvBuf() const
 {
   int value;
   {
@@ -349,7 +349,7 @@ size_t Socket::SocketPriv::GetSockOptRcvBuf() const
   return static_cast<size_t>(value);
 }
 
-std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
+std::shared_ptr<SockAddrStorage> SocketPriv::GetSockName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 
@@ -360,7 +360,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetSockName() const
   return sas;
 }
 
-std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
+std::shared_ptr<SockAddrStorage> SocketPriv::GetPeerName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
 
@@ -371,7 +371,7 @@ std::shared_ptr<SockAddrStorage> Socket::SocketPriv::GetPeerName() const
   return sas;
 }
 
-bool Socket::SocketPriv::NeedsPoll(Duration timeout)
+bool SocketPriv::NeedsPoll(Duration timeout)
 {
   if(isBlocking && (timeout.count() >= 0)) {
     SetSockOptNonBlocking();
@@ -380,12 +380,12 @@ bool Socket::SocketPriv::NeedsPoll(Duration timeout)
   return !isBlocking;
 }
 
-int Socket::SocketPriv::PollRead(Duration timeout) const
+int SocketPriv::PollRead(Duration timeout) const
 {
   return Poll(pollfd{fd, POLLIN, 0}, timeout);
 }
 
-int Socket::SocketPriv::PollWrite(Duration timeout) const
+int SocketPriv::PollWrite(Duration timeout) const
 {
   return Poll(pollfd{fd, POLLOUT, 0}, timeout);
 }

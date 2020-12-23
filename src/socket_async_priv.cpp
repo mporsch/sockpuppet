@@ -7,9 +7,9 @@
 namespace sockpuppet {
 
 namespace {
-  auto const noTimeout = Socket::Duration(-1);
+  auto const noTimeout = Duration(-1);
 
-  int Poll(std::vector<pollfd> &polls, SocketDriver::Duration timeout)
+  int Poll(std::vector<pollfd> &polls, Duration timeout)
   {
     using namespace std::chrono;
 
@@ -30,7 +30,7 @@ namespace {
   {
     SOCKET fd;
 
-    bool operator()(SocketAsync::SocketAsyncPriv const &async) const
+    bool operator()(SocketAsyncPriv const &async) const
     {
       return (async.fd == fd);
     }
@@ -136,7 +136,7 @@ void SocketDriver::SocketDriverPriv::Stop()
 }
 
 void SocketDriver::SocketDriverPriv::AsyncRegister(
-    SocketAsync::SocketAsyncPriv &sock)
+    SocketAsyncPriv &sock)
 {
   PauseGuard lock(*this);
 
@@ -219,7 +219,7 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
 }
 
 
-SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock,
+SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock,
     std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
                     driver,
@@ -227,7 +227,7 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock,
 {
 }
 
-SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
+SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
     std::shared_ptr<SocketDriver::SocketDriverPriv> &driver, Handlers handlers)
   : SocketBufferedPriv(std::move(buff))
   , driver(driver)
@@ -241,26 +241,26 @@ SocketAsync::SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff,
   }
 }
 
-SocketAsync::SocketAsyncPriv::~SocketAsyncPriv()
+SocketAsyncPriv::~SocketAsyncPriv()
 {
   if(auto const ptr = driver.lock()) {
     ptr->AsyncUnregister(this->fd);
   }
 }
 
-std::future<void> SocketAsync::SocketAsyncPriv::Send(BufferPtr &&buffer)
+std::future<void> SocketAsyncPriv::Send(BufferPtr &&buffer)
 {
   return DoSend(sendQ, std::move(buffer));
 }
 
-std::future<void> SocketAsync::SocketAsyncPriv::SendTo(
+std::future<void> SocketAsyncPriv::SendTo(
     BufferPtr &&buffer, Address const &dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), dstAddr);
 }
 
 template<typename QueueElement, typename... Args>
-std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
+std::future<void> SocketAsyncPriv::DoSend(
     std::queue<QueueElement> &q, Args&&... args)
 {
   std::promise<void> promise;
@@ -284,7 +284,7 @@ std::future<void> SocketAsync::SocketAsyncPriv::DoSend(
   return ret;
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoFdTaskReadable()
+void SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
     auto t = this->Accept(noTimeout);
@@ -307,7 +307,7 @@ try {
   DriverDoFdTaskError();
 }
 
-bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
+bool SocketAsyncPriv::DriverDoFdTaskWritable()
 {
   // hold the lock during send/sendto
   // as we already checked that the socket will not block and
@@ -332,7 +332,7 @@ bool SocketAsync::SocketAsyncPriv::DriverDoFdTaskWritable()
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQElement &t)
+void SocketAsyncPriv::DriverDoSend(SendQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
@@ -346,7 +346,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoSend(SendQElement &t)
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
+void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
@@ -362,7 +362,7 @@ void SocketAsync::SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
   }
 }
 
-void SocketAsync::SocketAsyncPriv::DriverDoFdTaskError()
+void SocketAsyncPriv::DriverDoFdTaskError()
 {
   if(handlers.disconnect) {
     handlers.disconnect(Address(peerAddr));

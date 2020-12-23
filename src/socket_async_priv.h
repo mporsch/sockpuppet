@@ -22,7 +22,7 @@ namespace sockpuppet {
 
 struct SocketDriver::SocketDriverPriv
 {
-  using SocketRef = std::reference_wrapper<SocketAsync::SocketAsyncPriv>;
+  using SocketRef = std::reference_wrapper<SocketAsyncPriv>;
 
   // StepGuard and StopGuard perform a handshake to obtain stepMtx
   // with pauseMtx used to force Step() to yield
@@ -54,8 +54,8 @@ struct SocketDriver::SocketDriverPriv
 
   /// internal signalling pipe for cancelling Step()
   std::shared_ptr<Address::AddressPriv> pipeToAddr;
-  Socket::SocketPriv pipeFrom;
-  Socket::SocketPriv pipeTo;
+  SocketPriv pipeFrom;
+  SocketPriv pipeTo;
 
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
@@ -77,7 +77,7 @@ struct SocketDriver::SocketDriverPriv
   void Stop();
 
   // interface for SocketAsyncPriv
-  void AsyncRegister(SocketAsync::SocketAsyncPriv &sock);
+  void AsyncRegister(SocketAsyncPriv &sock);
   void AsyncUnregister(SOCKET fd);
   void AsyncWantSend(SOCKET fd);
 
@@ -87,8 +87,15 @@ struct SocketDriver::SocketDriverPriv
   void DoOneFdTask();
 };
 
-struct SocketAsync::SocketAsyncPriv : public SocketBuffered::SocketBufferedPriv
+struct SocketAsyncPriv : public SocketBufferedPriv
 {
+  struct Handlers
+  {
+    ReceiveHandler receive;
+    ReceiveFromHandler receiveFrom;
+    ConnectHandler connect;
+    DisconnectHandler disconnect;
+  };
   using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
   using SendQ = std::queue<SendQElement>;
   using SendToQElement = std::tuple<std::promise<void>, BufferPtr, Address>;

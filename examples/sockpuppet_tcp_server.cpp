@@ -21,7 +21,7 @@ try {
   // receive and print until Ctrl-C or client disconnect
   for(;;) {
     char buffer[256];
-    static Socket::Duration const noTimeout(-1);
+    static Duration const noTimeout(-1);
 
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
@@ -44,7 +44,7 @@ void Server(Address bindAddress)
 
   // listen for and accept incoming connections until Ctrl-C
   for(;;) {
-    static Socket::Duration const noTimeout(-1);
+    static Duration const noTimeout(-1);
 
     // print the bound TCP socket address
     // (might have OS-assigned port number if

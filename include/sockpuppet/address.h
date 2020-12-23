@@ -34,15 +34,6 @@ struct Address
   /// @throws  If parsing fails.
   Address(uint16_t port = 0U);
 
-  Address(Address const &other);
-  Address(Address &&other) noexcept;
-  ~Address();
-  Address &operator=(Address const &other);
-  Address &operator=(Address &&other) noexcept;
-  bool operator<(Address const &other) const;
-  bool operator==(Address const &other) const;
-  bool operator!=(Address const &other) const;
-
   /// Retrieve the host name of the address.
   std::string Host() const;
 
@@ -58,12 +49,19 @@ struct Address
   /// Return a list of the OS's network interface addresses.
   static std::vector<Address> LocalAddresses();
 
-public: // for internal use
-  /// Pimpl to hide away the OS-specifics.
   struct AddressPriv;
-  std::shared_ptr<AddressPriv> priv;
-
   Address(std::shared_ptr<AddressPriv> other);
+  Address(Address const &other);
+  Address(Address &&other) noexcept;
+  ~Address();
+  Address &operator=(Address const &other);
+  Address &operator=(Address &&other) noexcept;
+  bool operator<(Address const &other) const;
+  bool operator==(Address const &other) const;
+  bool operator!=(Address const &other) const;
+
+  /// Bridge to hide away the OS-specifics.
+  std::shared_ptr<AddressPriv> priv;
 };
 
 /// String format address as "host:port"
