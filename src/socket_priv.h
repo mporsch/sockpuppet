@@ -30,7 +30,7 @@ struct SocketPriv
   SocketPriv(SOCKET fd);
   SocketPriv(SocketPriv const &) = delete;
   SocketPriv(SocketPriv &&other) noexcept;
-  virtual ~SocketPriv();
+  ~SocketPriv();
 
   size_t Receive(char *data,
                  size_t size,

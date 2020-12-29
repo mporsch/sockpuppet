@@ -20,7 +20,7 @@ struct SocketBufferedPriv : public SocketPriv
                      size_t rxBufSize);
   SocketBufferedPriv(SocketBufferedPriv const &) = delete;
   SocketBufferedPriv(SocketBufferedPriv &&other) noexcept;
-  ~SocketBufferedPriv() override;
+  ~SocketBufferedPriv();
 
   BufferPtr GetBuffer();
 

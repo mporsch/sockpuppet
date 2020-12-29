@@ -116,7 +116,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
                   Handlers handlers);
   SocketAsyncPriv(SocketAsyncPriv const &) = delete;
   SocketAsyncPriv(SocketAsyncPriv &&) = delete;
-  ~SocketAsyncPriv() override;
+  ~SocketAsyncPriv();
   SocketAsyncPriv &operator=(SocketAsyncPriv const &) = delete;
   SocketAsyncPriv &operator=(SocketAsyncPriv &&) = delete;
 
