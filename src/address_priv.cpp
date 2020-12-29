@@ -258,6 +258,8 @@ SockAddrInfo::SockAddrInfo(uint16_t port)
 {
 }
 
+SockAddrInfo::~SockAddrInfo() = default;
+
 addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 {
   // windows does not explicitly set socktype/protocol, unix does
@@ -323,6 +325,8 @@ SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
 {
   std::memcpy(&storage, addr, addrLen);
 }
+
+SockAddrStorage::~SockAddrStorage() = default;
 
 sockaddr *SockAddrStorage::Addr()
 {

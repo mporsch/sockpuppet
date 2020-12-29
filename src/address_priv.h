@@ -86,6 +86,7 @@ struct SockAddrInfo : public Address::AddressPriv
   SockAddrInfo(std::string const &uri);
   SockAddrInfo(std::string const &host, std::string const &serv);
   SockAddrInfo(uint16_t port);
+  ~SockAddrInfo() override;
 
   addrinfo const *Find(int type, int protocol) const;
 
@@ -102,6 +103,7 @@ struct SockAddrStorage : public Address::AddressPriv
 
   SockAddrStorage();
   SockAddrStorage(sockaddr const *addr, size_t addrLen);
+  ~SockAddrStorage() override;
 
   sockaddr *Addr();
   socklen_t *AddrLen();
