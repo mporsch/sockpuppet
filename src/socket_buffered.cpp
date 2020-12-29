@@ -9,9 +9,9 @@ namespace sockpuppet {
 
 void BufferPool::Recycler::operator()(Buffer *buf)
 {
+  assert(pool);
   assert(buf);
-
-  pool.get().Recycle(buf);
+  pool->Recycle(buf);
 }
 
 
@@ -35,7 +35,7 @@ BufferPool::BufferPtr BufferPool::Get()
         std::make_unique<Buffer>());
 
       // bind to recycler and return
-      return {m_busy.front().get(), Recycler{*this}};
+      return {m_busy.front().get(), Recycler{this}};
     } else {
       throw std::runtime_error("out of buffers");
     }
@@ -49,7 +49,7 @@ BufferPool::BufferPtr BufferPool::Get()
     buf->clear();
 
     // bind to recycler and return
-    return {buf.get(), Recycler{*this}};
+    return {buf.get(), Recycler{this}};
   }
 }
 

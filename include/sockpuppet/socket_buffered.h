@@ -6,7 +6,6 @@
 
 #include <cstddef> // for size_t
 #include <deque> // for std::deque
-#include <functional> // for std::reference_wrapper
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <stack> // for std::stack
@@ -25,7 +24,7 @@ struct BufferPool
   using Buffer = std::string;
   struct Recycler
   {
-    std::reference_wrapper<BufferPool> pool;
+    BufferPool *pool;
 
     void operator()(Buffer *buf);
   };
