@@ -107,11 +107,6 @@ Address SocketUdpBuffered::LocalAddress() const
   return Address(priv->GetSockName());
 }
 
-size_t SocketUdpBuffered::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
-}
-
 SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
 
 SocketUdpBuffered::~SocketUdpBuffered() = default;
@@ -147,11 +142,6 @@ Address SocketTcpBuffered::LocalAddress() const
 Address SocketTcpBuffered::PeerAddress() const
 {
   return Address(priv->GetPeerName());
-}
-
-size_t SocketTcpBuffered::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
 }
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;

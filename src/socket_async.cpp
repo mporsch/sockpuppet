@@ -83,11 +83,6 @@ Address SocketUdpAsync::LocalAddress() const
   return Address(priv->GetSockName());
 }
 
-size_t SocketUdpAsync::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
-}
-
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept = default;
 
 SocketUdpAsync::~SocketUdpAsync() = default;
@@ -123,11 +118,6 @@ Address SocketTcpAsyncClient::LocalAddress() const
 Address SocketTcpAsyncClient::PeerAddress() const
 {
   return Address(priv->GetPeerName());
-}
-
-size_t SocketTcpAsyncClient::ReceiveBufferSize() const
-{
-  return priv->GetSockOptRcvBuf();
 }
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept = default;

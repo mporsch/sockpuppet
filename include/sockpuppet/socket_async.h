@@ -87,12 +87,6 @@ struct SocketUdpAsync
   /// @throws  If the address lookup fails.
   Address LocalAddress() const;
 
-  /// Determine the maximum size of data the socket may receive,
-  /// i.e. the size the OS has allocated for its receive buffer.
-  /// This might be much more than the ~1500 bytes expected.
-  /// @throws  If getting the socket parameter fails.
-  size_t ReceiveBufferSize() const;
-
   SocketUdpAsync(SocketUdpAsync const &other) = delete;
   SocketUdpAsync(SocketUdpAsync &&other) noexcept;
   ~SocketUdpAsync();
@@ -133,12 +127,6 @@ struct SocketTcpAsyncClient
   /// Get the remote peer address of the socket.
   /// @throws  If the address lookup fails.
   Address PeerAddress() const;
-
-  /// Determine the maximum size of data the socket may receive,
-  /// i.e. the size the OS has allocated for its receive buffer.
-  /// This might be much more than the ~1500 bytes expected.
-  /// @throws  If getting the socket parameter fails.
-  size_t ReceiveBufferSize() const;
 
   SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
   SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
