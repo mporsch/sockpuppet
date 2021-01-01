@@ -1,8 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 #define SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 
-#include "sockpuppet/socket_buffered.h" // for SocketBuffered
-#include "socket_priv.h" // for Socket::SocketPriv
+#include "address_priv.h" // for SockAddrStorage
+#include "socket_priv.h" // for SocketPriv
+#include "sockpuppet/socket_buffered.h" // for BufferPool
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
@@ -25,7 +26,9 @@ struct SocketBufferedPriv : public SocketPriv
   BufferPtr GetBuffer();
 
   BufferPtr Receive(Duration timeout);
-  std::pair<BufferPtr, Address> ReceiveFrom(Duration timeout);
+
+  std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+  ReceiveFrom(Duration timeout);
 };
 
 } // namespace sockpuppet

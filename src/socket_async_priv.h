@@ -1,9 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 #define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
-#include "address_priv.h" // for Address::AddressPriv
+#include "address_priv.h" // for SockAddrInfo
+#include "socket_buffered_priv.h" // for SocketBufferedPriv
 #include "sockpuppet/socket_async.h" // for SocketAsync
-#include "socket_buffered_priv.h" // for SocketBuffered::SocketBufferedPriv
 
 #ifdef _WIN32
 # include <winsock2.h> // for pollfd
@@ -96,9 +96,16 @@ struct SocketAsyncPriv : public SocketBufferedPriv
     ConnectHandler connect;
     DisconnectHandler disconnect;
   };
-  using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
+  using SendQElement = std::tuple<
+    std::promise<void>
+  , BufferPtr
+  >;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<std::promise<void>, BufferPtr, Address>;
+  using SendToQElement = std::tuple<
+    std::promise<void>
+  , BufferPtr
+  , std::shared_ptr<Address::AddressPriv>
+  >;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -106,7 +113,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
   std::mutex sendQMtx;
   SendQ sendQ;
   SendToQ sendToQ;
-  std::shared_ptr<Address::AddressPriv> peerAddr;
+  std::shared_ptr<SockAddrStorage> peerAddr;
 
   SocketAsyncPriv(SocketPriv &&sock,
                   std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
@@ -122,7 +129,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
 
   std::future<void> Send(BufferPtr &&buffer);
   std::future<void> SendTo(BufferPtr &&buffer,
-                           Address const &dstAddr);
+                           std::shared_ptr<Address::AddressPriv> dstAddr);
   template<typename QueueElement, typename... Args>
   std::future<void> DoSend(std::queue<QueueElement> &q,
                            Args&&... args);

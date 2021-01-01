@@ -1,4 +1,5 @@
 #include "sockpuppet/socket_buffered.h"
+#include "address_priv.h" // for Address::AddressPriv
 #include "socket_buffered_priv.h" // for SocketBufferedPriv
 
 #include <algorithm> // for std::find_if
@@ -99,7 +100,8 @@ BufferPtr SocketUdpBuffered::Receive(Duration timeout)
 std::pair<BufferPtr, Address>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
-  return priv->ReceiveFrom(timeout);
+  auto p = priv->ReceiveFrom(timeout);
+  return {std::move(p.first), Address(std::move(p.second))};
 }
 
 Address SocketUdpBuffered::LocalAddress() const

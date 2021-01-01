@@ -44,8 +44,8 @@ namespace {
         }
       } else {
         posServ = uri.find("]:");
-        if(posServ != std::string::npos
-        && uri.size() > posServ + 2U) {
+        if(posServ != std::string::npos &&
+           uri.size() > posServ + 2U) {
           // uri of type [IPv6-host]:serv/path
           serv = uri.substr(posServ + 2U);
           isNumericServ = true;
@@ -54,8 +54,8 @@ namespace {
           isNumericHost = true;
         } else {
           posServ = uri.find_last_of(':');
-          if(posServ != std::string::npos
-          && uri.size() > posServ + 1U) {
+          if(posServ != std::string::npos &&
+             uri.size() > posServ + 1U) {
             if(uri.find(':') == posServ) {
               // uri of type IPv4-host:serv/path
               serv = uri.substr(posServ + 1U);
@@ -151,18 +151,14 @@ bool SockAddrView::operator<(SockAddrView const &other) const
     return true;
   } else if(addrLen > other.addrLen) {
     return false;
-  } else {
-    auto const cmp = std::memcmp(addr, other.addr,
-      static_cast<size_t>(addrLen));
-    return (cmp < 0);
   }
+  return (0 > std::memcmp(addr, other.addr, static_cast<size_t>(addrLen)));
 }
 
 bool SockAddrView::operator==(SockAddrView const &other) const
 {
   return ((addrLen == other.addrLen) &&
-          (0 == std::memcmp(addr, other.addr,
-                            static_cast<size_t>(addrLen))));
+          (0 == std::memcmp(addr, other.addr, static_cast<size_t>(addrLen))));
 }
 
 bool SockAddrView::operator!=(SockAddrView const &other) const
@@ -281,9 +277,8 @@ SockAddrView SockAddrInfo::ForTcp() const
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
     };
-  } else {
-    throw std::logic_error("address is not valid for TCP");
   }
+  throw std::logic_error("address is not valid for TCP");
 }
 
 SockAddrView SockAddrInfo::ForUdp() const
@@ -293,9 +288,8 @@ SockAddrView SockAddrInfo::ForUdp() const
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
     };
-  } else {
-    throw std::logic_error("address is not valid for UDP");
   }
+  throw std::logic_error("address is not valid for UDP");
 }
 
 SockAddrView SockAddrInfo::ForAny() const

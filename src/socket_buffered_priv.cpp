@@ -36,7 +36,7 @@ BufferPtr SocketBufferedPriv::Receive(Duration timeout)
   return buffer;
 }
 
-std::pair<BufferPtr, Address>
+std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
 SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();
@@ -47,7 +47,7 @@ SocketBufferedPriv::ReceiveFrom(Duration timeout)
         timeout);
   buffer->resize(p.first);
 
-  return {std::move(buffer), Address(std::move(p.second))};
+  return {std::move(buffer), std::move(p.second)};
 }
 
 } // namespace sockpuppet

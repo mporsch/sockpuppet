@@ -82,7 +82,6 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pfds(1U, pollfd{pipeTo.fd, POLLIN, 0})
-  , shouldStop(false)
 {
   // bind to system-assigned port number and update address accordingly
   pipeTo.Bind(pipeToAddr->ForUdp());
@@ -123,10 +122,10 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 
 void SocketDriver::SocketDriverPriv::Run()
 {
+  shouldStop = false;
   while(!shouldStop) {
     Step(noTimeout);
   }
-  shouldStop = false;
 }
 
 void SocketDriver::SocketDriverPriv::Stop()
@@ -213,8 +212,6 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
       return;
     }
   }
-
-  // TODO are spurious wakeups to be expected?
   throw std::logic_error("unhandled poll event");
 }
 
@@ -253,10 +250,10 @@ std::future<void> SocketAsyncPriv::Send(BufferPtr &&buffer)
   return DoSend(sendQ, std::move(buffer));
 }
 
-std::future<void> SocketAsyncPriv::SendTo(
-    BufferPtr &&buffer, Address const &dstAddr)
+std::future<void> SocketAsyncPriv::SendTo(BufferPtr &&buffer,
+    std::shared_ptr<Address::AddressPriv> dstAddr)
 {
-  return DoSend(sendToQ, std::move(buffer), dstAddr);
+  return DoSend(sendToQ, std::move(buffer), std::move(dstAddr));
 }
 
 template<typename QueueElement, typename... Args>
@@ -287,19 +284,19 @@ std::future<void> SocketAsyncPriv::DoSend(
 void SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
-    auto t = this->Accept(noTimeout);
+    auto p = this->Accept(noTimeout);
     this->Listen();
 
     handlers.connect(
-          SocketTcpClient(std::move(std::get<0>(t))),
-          Address(std::move(std::get<1>(t))));
+          std::move(p.first),
+          Address(std::move(p.second)));
   } else if(handlers.receive) {
     handlers.receive(this->Receive(noTimeout));
   } else if(handlers.receiveFrom) {
-    auto t = this->ReceiveFrom(noTimeout);
+    auto p = this->ReceiveFrom(noTimeout);
     handlers.receiveFrom(
-          std::move(std::get<0>(t)),
-          std::move(std::get<1>(t)));
+          std::move(p.first),
+          Address(std::move(p.second)));
   } else {
     assert(false);
   }
@@ -326,10 +323,9 @@ bool SocketAsyncPriv::DriverDoFdTaskWritable()
     DriverDoSendTo(sendToQ.front());
     sendToQ.pop();
     return (sendToQSize == 1U);
-  } else {
-    assert(false);
-    return true;
   }
+  assert(false); // queue emptied unexpectedly
+  return true;
 }
 
 void SocketAsyncPriv::DriverDoSend(SendQElement &t)
@@ -353,7 +349,7 @@ void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
     auto &&buffer = std::get<1>(t);
     auto &&addr = std::get<2>(t);
     auto const sent = SocketPriv::SendTo(buffer->data(), buffer->size(),
-                                         addr.priv->ForUdp(),
+                                         addr->ForUdp(),
                                          noTimeout);
     assert(sent == buffer->size());
     promise.set_value();

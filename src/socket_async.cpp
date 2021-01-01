@@ -1,5 +1,4 @@
 #include "sockpuppet/socket_async.h"
-#include "address_priv.h" // for Address::AddressPriv
 #include "socket_async_priv.h" // for SocketAsyncPriv
 
 #include <stdexcept> // for std::logic_error
@@ -75,7 +74,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
     Address const &dstAddress)
 {
-  return priv->SendTo(std::move(buffer), dstAddress);
+  return priv->SendTo(std::move(buffer), dstAddress.priv);
 }
 
 Address SocketUdpAsync::LocalAddress() const

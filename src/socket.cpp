@@ -1,6 +1,6 @@
 #include "sockpuppet/socket.h"
 #include "address_priv.h" // for Address::AddressPriv
-#include "socket_priv.h" // for Socket::SocketPriv
+#include "socket_priv.h" // for SocketPriv
 
 #ifdef _WIN32
 # include <winsock2.h> // for IPPROTO_UDP
