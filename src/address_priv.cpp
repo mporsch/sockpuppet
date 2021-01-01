@@ -1,6 +1,5 @@
 #include "address_priv.h"
 #include "error_code.h" // for AddressError
-#include "winsock_guard.h" // for WinSockGuard
 
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
@@ -84,8 +83,6 @@ namespace {
 
     addrinfo *info;
     {
-      WinSockGuard guard;
-
       addrinfo hints{};
       hints.ai_family = AF_UNSPEC;
       hints.ai_flags = AI_PASSIVE |
@@ -112,8 +109,6 @@ namespace {
 
     addrinfo *info;
     {
-      WinSockGuard guard;
-
       addrinfo hints{};
       hints.ai_family = AF_UNSPEC;
       hints.ai_flags = AI_PASSIVE;
@@ -129,8 +124,6 @@ namespace {
 
   SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
   {
-    WinSockGuard guard;
-
     addrinfo hints{};
     hints.ai_family = AF_INET; // force IPv4 here
     hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
@@ -167,12 +160,12 @@ bool SockAddrView::operator!=(SockAddrView const &other) const
 }
 
 
+Address::AddressPriv::AddressPriv() = default;
+
 Address::AddressPriv::~AddressPriv() = default;
 
 std::string Address::AddressPriv::Host() const
 {
-  WinSockGuard guard;
-
   auto const sockAddr = ForAny();
 
   std::string host(NI_MAXHOST, '\0');
@@ -190,8 +183,6 @@ std::string Address::AddressPriv::Host() const
 
 std::string Address::AddressPriv::Service() const
 {
-  WinSockGuard guard;
-
   auto const sockAddr = ForAny();
 
   std::string service(NI_MAXSERV, '\0');
@@ -241,18 +232,21 @@ bool Address::AddressPriv::operator!=(
 
 
 SockAddrInfo::SockAddrInfo(std::string const &uri)
-  : info(ParseUri(uri))
+  : AddressPriv()
+  , info(ParseUri(uri))
 {
 }
 
 SockAddrInfo::SockAddrInfo(std::string const &host,
     std::string const &serv)
-  : info(ParseHostServ(host, serv))
+  : AddressPriv()
+  , info(ParseHostServ(host, serv))
 {
 }
 
 SockAddrInfo::SockAddrInfo(uint16_t port)
-  : info(ParsePort(std::to_string(port)))
+  : AddressPriv()
+  , info(ParsePort(std::to_string(port)))
 {
 }
 
@@ -310,13 +304,15 @@ int SockAddrInfo::Family() const
 
 
 SockAddrStorage::SockAddrStorage()
-  : storage{}
+  : AddressPriv()
+  , storage{}
   , size(sizeof(storage))
 {
 }
 
 SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
-  : storage{}
+  : AddressPriv()
+  , storage{}
   , size(static_cast<socklen_t>(addrLen))
 {
   std::memcpy(&storage, addr, addrLen);
@@ -365,8 +361,6 @@ std::string to_string(Address::AddressPriv const &sockAddr)
 
 std::string to_string(SockAddrView const &sockAddr)
 {
-  WinSockGuard guard;
-
   // buffer for format [host]:serv
   std::string str(NI_MAXHOST + NI_MAXSERV + 3, '\0');
   size_t host = 0;

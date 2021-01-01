@@ -2,6 +2,7 @@
 #define SOCKPUPPET_ADDRESS_PRIV_H
 
 #include "sockpuppet/address.h" // for Address
+#include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
 # pragma push_macro("NOMINMAX")
@@ -58,6 +59,9 @@ struct SockAddrView
 
 struct Address::AddressPriv
 {
+  WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
+
+  AddressPriv();
   virtual ~AddressPriv();
 
   virtual SockAddrView ForTcp() const = 0;
