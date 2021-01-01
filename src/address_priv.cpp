@@ -179,16 +179,17 @@ std::string Address::AddressPriv::Host() const
 
   auto const sockAddr = ForAny();
 
-  char host[NI_MAXHOST];
+  std::string host(NI_MAXHOST, '\0');
   if(auto const result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
-      host, sizeof(host),
+      const_cast<char *>(host.data()), NI_MAXHOST,
       nullptr, 0,
       NI_NUMERICHOST)) {
     throw std::system_error(AddressError(result), "failed to print host");
   }
+  host.erase(host.find('\0'));
 
-  return std::string(host);
+  return host;
 }
 
 std::string Address::AddressPriv::Service() const
@@ -197,16 +198,17 @@ std::string Address::AddressPriv::Service() const
 
   auto const sockAddr = ForAny();
 
-  char service[NI_MAXSERV];
+  std::string service(NI_MAXSERV, '\0');
   if(auto const result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       nullptr, 0,
-      service, sizeof(service),
+      const_cast<char *>(service.data()), NI_MAXSERV,
       NI_NUMERICSERV)) {
     throw std::system_error(AddressError(result), "failed to print service");
   }
+  service.erase(service.find('\0'));
 
-  return std::string(service);
+  return service;
 }
 
 uint16_t Address::AddressPriv::Port() const
@@ -371,19 +373,33 @@ std::string to_string(SockAddrView const &sockAddr)
 {
   WinSockGuard guard;
 
-  char host[NI_MAXHOST];
-  char service[NI_MAXSERV];
+  // buffer for format [host]:serv
+  std::string str(NI_MAXHOST + NI_MAXSERV + 3, '\0');
+  size_t host = 0;
+  size_t serv = NI_MAXHOST + 1;
+  bool const isV6 = (sockAddr.addr->sa_family != AF_INET);
+  if(isV6) {
+    str[host++] = '[';
+    serv += 2;
+  }
+
   if(auto const result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
-      host, sizeof(host),
-      service, sizeof(service),
+      &str[host], NI_MAXHOST,
+      &str[serv], NI_MAXSERV,
       NI_NUMERICHOST | NI_NUMERICSERV)) {
     throw std::system_error(AddressError(result), "failed to print address");
   }
 
-  return (sockAddr.addr->sa_family == AF_INET ?
-    std::string(host) + ":" + service :
-    std::string("[") + host + "]" + ":" + service);
+  str.erase(str.find('\0', serv));
+  str[--serv] = ':';
+  if(isV6) {
+    str[--serv] = ']';
+  }
+  host = str.find('\0', host);
+  str.erase(host, serv - host);
+
+  return str;
 }
 
 } // namespace sockpuppet

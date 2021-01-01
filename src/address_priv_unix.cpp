@@ -23,11 +23,16 @@ namespace {
 std::vector<Address>
 Address::AddressPriv::LocalAddresses()
 {
-  std::vector<Address> ret;
-
   // get a list of local machine interface addresses
   auto const ifAddrs = GetIfAddrs();
 
+  size_t count = 0U;
+  for(auto it = ifAddrs.get(); it != nullptr; it = it->ifa_next) {
+    ++count;
+  }
+
+  std::vector<Address> ret;
+  ret.reserve(count);
   for(auto it = ifAddrs.get(); it != nullptr; it = it->ifa_next) {
     if((it->ifa_addr != nullptr) &&
        (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
@@ -39,7 +44,6 @@ Address::AddressPriv::LocalAddresses()
                            sizeof(sockaddr_in6)));
     }
   }
-
   return ret;
 }
 
