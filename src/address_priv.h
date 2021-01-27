@@ -22,7 +22,7 @@
 
 namespace sockpuppet {
 
-template <typename T>
+template<typename T>
 struct CDeleter
 {
   using DeleterFn = void(*)(T*);
@@ -34,13 +34,13 @@ struct CDeleter
   {
   }
 
-  void operator()(T *ptr)
+  void operator()(T *ptr) const
   {
     fn(ptr);
   }
 };
 
-template <typename T>
+template<typename T>
 std::unique_ptr<T, CDeleter<T>> make_unique(T *ptr,
     typename CDeleter<T>::DeleterFn fn)
 {

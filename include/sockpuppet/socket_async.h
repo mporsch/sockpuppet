@@ -19,6 +19,10 @@ struct SocketDriver
   /// @throws  If creating the internal event signalling fails.
   SocketDriver();
 
+  uint64_t Schedule(Duration delay, std::function<void()> what);
+  void Unschedule(uint64_t id);
+  void Reschedule(uint64_t id, Duration delay);
+
   /// Run one iteration on the attached sockets.
   /// @param  timeout  Timeout to use; non-null allows blocking if
   ///                  all attached sockets are idle,

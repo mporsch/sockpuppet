@@ -21,6 +21,22 @@ SocketDriver::SocketDriver()
 {
 }
 
+
+uint64_t SocketDriver::Schedule(Duration delay, std::function<void()> what)
+{
+  return priv->Schedule(delay, std::move(what));
+}
+
+void SocketDriver::Unschedule(uint64_t id)
+{
+  priv->Unschedule(id);
+}
+
+void SocketDriver::Reschedule(uint64_t id, Duration delay)
+{
+  priv->Reschedule(id, delay);
+}
+
 void SocketDriver::Step(Duration timeout)
 {
   priv->Step(timeout);

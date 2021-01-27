@@ -64,6 +64,15 @@ struct SocketDriver::SocketDriverPriv
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
+  struct ToDo
+  {
+    uint64_t id;
+    std::chrono::time_point<std::chrono::steady_clock> when;
+    std::function<void()> what;
+  };
+  std::deque<ToDo> todos;
+  uint64_t nextId;
+
   SocketDriverPriv();
   SocketDriverPriv(SocketDriverPriv const &) = delete;
   SocketDriverPriv(SocketDriverPriv &&) = delete;
@@ -72,9 +81,15 @@ struct SocketDriver::SocketDriverPriv
   SocketDriverPriv &operator=(SocketDriverPriv &&) = delete;
 
   void Step(Duration timeout);
+  Duration StepTodos(Duration timeout);
+  void StepFds(Duration timeout);
 
   void Run();
   void Stop();
+
+  uint64_t Schedule(Duration delay, std::function<void()> what);
+  void Unschedule(uint64_t id);
+  void Reschedule(uint64_t id, Duration delay);
 
   // interface for SocketAsyncPriv
   void AsyncRegister(SocketAsyncPriv &sock);

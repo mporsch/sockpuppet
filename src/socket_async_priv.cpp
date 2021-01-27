@@ -40,6 +40,48 @@ namespace {
       return (pfd.fd == fd);
     }
   };
+
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = std::chrono::time_point<Clock>;
+
+  struct Deadline
+  {
+    Duration timeout;
+    TimePoint deadline;
+
+    Deadline(TimePoint now,
+             Duration timeout)
+      : timeout(timeout)
+      , deadline(now + timeout)
+    {
+    }
+
+    bool TimeLeft(TimePoint now) const
+    {
+      if(timeout.count() >= 0)
+        return (now <= deadline);
+      return true;
+    }
+
+    Duration Remaining(TimePoint now) const
+    {
+      if(timeout.count() >= 0)
+        return Difference(now, deadline);
+      return timeout;
+    }
+
+    Duration Remaining(TimePoint now, TimePoint until) const
+    {
+      if(timeout.count() >= 0)
+        return Difference(now, std::min(until, deadline));
+      return Difference(now, until);
+    }
+
+    static Duration Difference(TimePoint now, TimePoint then)
+    {
+      return std::chrono::duration_cast<Duration>(then - now);
+    }
+  };
 } // unnamed namespace
 
 SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
@@ -82,6 +124,7 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pfds(1U, pollfd{pipeTo.fd, POLLIN, 0})
+  , nextId(0)
 {
   // bind to system-assigned port number and update address accordingly
   pipeTo.Bind(pipeToAddr->ForUdp());
@@ -100,6 +143,42 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 {
   StepGuard lock(*this);
 
+  if(todos.empty()) {
+    StepFds(timeout);
+  } else {
+    // execute due ToDos while keeping track of the time
+    auto remaining = StepTodos(timeout);
+    assert((timeout.count() < 0) || (remaining.count() >= 0));
+
+    // run sockets with remaining time
+    StepFds(remaining);
+  }
+}
+
+Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
+{
+  auto now = Clock::now();
+  Deadline deadline(now, timeout);
+  auto todo = std::begin(todos);
+
+  for(; (todo != std::end(todos)) && (todo->when <= now); todo = std::begin(todos)) {
+    auto task = std::move(todo->what);
+    todos.erase(todo);
+    task();
+
+    // check how much time passed and if there is any left
+    now = Clock::now();
+    if(!deadline.TimeLeft(now))
+      return Duration(0);
+  }
+
+  if(todo != std::end(todos))
+    return deadline.Remaining(now, todo->when);
+  return deadline.Remaining(now);
+}
+
+void SocketDriver::SocketDriverPriv::StepFds(Duration timeout)
+{
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
       throw std::system_error(SocketError(), "failed to poll");
@@ -132,6 +211,63 @@ void SocketDriver::SocketDriverPriv::Stop()
 {
   shouldStop = true;
   Bump();
+}
+
+uint64_t SocketDriver::SocketDriverPriv::Schedule(
+    Duration delay, std::function<void()> what)
+{
+  PauseGuard lock(*this);
+
+  auto when = std::chrono::steady_clock::now() + delay;
+  auto where = std::find_if(
+        std::begin(todos), std::end(todos),
+        [&](ToDo const &todo) -> bool {
+          return (when < todo.when);
+        });
+  todos.emplace(where,
+      ToDo{
+        nextId
+      , when
+      , std::move(what)
+      });
+
+  return nextId++;
+}
+
+void SocketDriver::SocketDriverPriv::Unschedule(uint64_t id)
+{
+  PauseGuard lock(*this);
+
+  todos.erase(std::find_if(
+      std::begin(todos), std::end(todos),
+      [id](ToDo const &todo) -> bool {
+        return (todo.id == id);
+      }));
+}
+
+void SocketDriver::SocketDriverPriv::Reschedule(uint64_t id, Duration delay)
+{
+  PauseGuard lock(*this);
+
+  auto from = std::find_if(
+        std::begin(todos), std::end(todos),
+        [id](ToDo const &todo) -> bool {
+          return (todo.id == id);
+        });
+  if(from == std::end(todos)) {
+    throw std::logic_error("");
+  }
+  auto todo = std::move(*from);
+  todos.erase(from);
+
+  auto when = std::chrono::steady_clock::now() + delay;
+  todo.when = when;
+  auto to = std::find_if(
+        std::begin(todos), std::end(todos),
+        [when](ToDo const &todo) -> bool {
+          return (when < todo.when);
+        });
+  todos.emplace(to, std::move(todo));
 }
 
 void SocketDriver::SocketDriverPriv::AsyncRegister(
