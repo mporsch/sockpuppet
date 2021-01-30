@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 #define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
-#include "address_priv.h" // for SockAddrInfo
+#include "address_priv.h" // for AddressPriv
 #include "socket_buffered_priv.h" // for SocketBufferedPriv
 #include "sockpuppet/socket_async.h" // for SocketAsync
 
@@ -20,13 +20,18 @@
 
 namespace sockpuppet {
 
-struct ToDos : public std::deque<std::shared_ptr<ToDo::ToDoPriv>>
+using AddressShared = std::shared_ptr<Address::AddressPriv>;
+using DriverShared = std::shared_ptr<SocketDriver::SocketDriverPriv>;
+using ToDoShared = std::shared_ptr<ToDo::ToDoPriv>;
+
+struct ToDos : public std::deque<ToDoShared>
 {
-  void Insert(std::shared_ptr<ToDo::ToDoPriv> todo);
+  void Insert(ToDoShared todo);
   void Remove(ToDo::ToDoPriv *todo);
-  void Move(std::shared_ptr<ToDo::ToDoPriv> todo, TimePoint when);
+  void Move(ToDoShared todo, TimePoint when);
+
   template<typename Pred>
-  std::deque<std::shared_ptr<ToDo::ToDoPriv>>::iterator Find(Pred);
+  std::deque<ToDoShared>::iterator Find(Pred);
 };
 
 struct SocketDriver::SocketDriverPriv
@@ -62,7 +67,7 @@ struct SocketDriver::SocketDriverPriv
   };
 
   /// internal signalling pipe for cancelling Step()
-  std::shared_ptr<Address::AddressPriv> pipeToAddr;
+  AddressShared pipeToAddr;
   SocketPriv pipeFrom;
   SocketPriv pipeTo;
 
@@ -90,9 +95,9 @@ struct SocketDriver::SocketDriverPriv
   void Stop();
 
   // interface for ToDoPriv
-  void ToDoInsert(std::shared_ptr<ToDo::ToDoPriv> todo);
+  void ToDoInsert(ToDoShared todo);
   void ToDoRemove(ToDo::ToDoPriv *todo);
-  void ToDoMove(std::shared_ptr<ToDo::ToDoPriv> todo, TimePoint when);
+  void ToDoMove(ToDoShared todo, TimePoint when);
 
   // interface for SocketAsyncPriv
   void AsyncRegister(SocketAsyncPriv &sock);
@@ -111,9 +116,7 @@ struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
   std::function<void()> what;
   TimePoint when;
 
-  ToDoPriv(std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
-           std::function<void()> what,
-           TimePoint when);
+  ToDoPriv(DriverShared &driv, std::function<void()> what, TimePoint when);
   ToDoPriv(ToDoPriv const &) = delete;
   ToDoPriv(ToDoPriv &&) = delete;
   ~ToDoPriv();
@@ -121,14 +124,8 @@ struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
   ToDoPriv &operator=(ToDoPriv &&) = delete;
 
   // init function because shared_from_this() cannot be called in constructor
-  static std::shared_ptr<ToDoPriv> Create(
-      std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
-      std::function<void()> what,
-      TimePoint when);
-  static std::shared_ptr<ToDoPriv> Create(
-      std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
-      std::function<void()> what,
-      Duration delay);
+  static ToDoShared Create(DriverShared &driv, std::function<void()> what, TimePoint when);
+  static ToDoShared Create(DriverShared &driv, std::function<void()> what, Duration delay);
 
   void Cancel();
 
@@ -145,16 +142,9 @@ struct SocketAsyncPriv : public SocketBufferedPriv
     ConnectHandler connect;
     DisconnectHandler disconnect;
   };
-  using SendQElement = std::tuple<
-    std::promise<void>
-  , BufferPtr
-  >;
+  using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<
-    std::promise<void>
-  , BufferPtr
-  , std::shared_ptr<Address::AddressPriv>
-  >;
+  using SendToQElement = std::tuple<std::promise<void>, BufferPtr, AddressShared>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
@@ -164,12 +154,8 @@ struct SocketAsyncPriv : public SocketBufferedPriv
   SendToQ sendToQ;
   std::shared_ptr<SockAddrStorage> peerAddr;
 
-  SocketAsyncPriv(SocketPriv &&sock,
-                  std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
-                  Handlers handlers);
-  SocketAsyncPriv(SocketBufferedPriv &&buff,
-                  std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
-                  Handlers handlers);
+  SocketAsyncPriv(SocketPriv &&sock, DriverShared &driver, Handlers handlers);
+  SocketAsyncPriv(SocketBufferedPriv &&buff, DriverShared &driver, Handlers handlers);
   SocketAsyncPriv(SocketAsyncPriv const &) = delete;
   SocketAsyncPriv(SocketAsyncPriv &&) = delete;
   ~SocketAsyncPriv();
@@ -177,11 +163,10 @@ struct SocketAsyncPriv : public SocketBufferedPriv
   SocketAsyncPriv &operator=(SocketAsyncPriv &&) = delete;
 
   std::future<void> Send(BufferPtr &&buffer);
-  std::future<void> SendTo(BufferPtr &&buffer,
-                           std::shared_ptr<Address::AddressPriv> dstAddr);
-  template<typename QueueElement, typename... Args>
-  std::future<void> DoSend(std::queue<QueueElement> &q,
-                           Args&&... args);
+  std::future<void> SendTo(BufferPtr &&buffer, AddressShared dstAddr);
+
+  template<typename Queue, typename... Args>
+  std::future<void> DoSend(Queue &q, Args&&... args);
 
   // in thread context of SocketDriverPriv
   void DriverDoFdTaskReadable();
