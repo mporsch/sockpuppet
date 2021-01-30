@@ -47,6 +47,58 @@ std::unique_ptr<T, CDeleter<T>> make_unique(T *ptr,
   return std::unique_ptr<T, CDeleter<T>>(ptr, fn);
 }
 
+template<typename T>
+struct ForwardListIterator : public std::iterator<
+      std::forward_iterator_tag
+    , T
+    , size_t
+    , T const *
+    , T const &
+    >
+{
+  using AdvanceFn = T const *(*)(T const *);
+
+  T const *ptr;
+  AdvanceFn fn;
+
+  ForwardListIterator()
+    : ptr(nullptr)
+    , fn(nullptr)
+  {
+  }
+
+  ForwardListIterator(T const *ptr, AdvanceFn fn)
+    : ptr(ptr)
+    , fn(fn)
+  {
+  }
+
+  T const &operator*() const
+  {
+    return *ptr;
+  }
+
+  ForwardListIterator &operator++()
+  {
+    ptr = fn(ptr);
+    return *this;
+  }
+
+  bool operator!=(ForwardListIterator const &other) const
+  {
+    return (ptr != other.ptr);
+  }
+};
+
+inline ForwardListIterator<addrinfo> make_ai_iterator(addrinfo const *ai)
+{
+  return ForwardListIterator<addrinfo>(
+      ai,
+      [](addrinfo const *ai) -> addrinfo const * {
+        return ai->ai_next;
+      });
+}
+
 struct SockAddrView
 {
   sockaddr const *addr;

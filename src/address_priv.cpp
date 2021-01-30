@@ -254,14 +254,14 @@ SockAddrInfo::~SockAddrInfo() = default;
 
 addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 {
-  // windows does not explicitly set socktype/protocol, unix does
-  for(auto it = info.get(); it != nullptr; it = it->ai_next) {
-    if((it->ai_socktype == 0 || it->ai_socktype == type) &&
-       (it->ai_protocol == 0 || it->ai_protocol == protocol)) {
-      return it;
-    }
-  }
-  return nullptr;
+  return std::find_if(
+      make_ai_iterator(info.get()),
+      make_ai_iterator(nullptr),
+      [&](addrinfo const &ai) -> bool {
+        // windows does not explicitly set socktype/protocol, unix does
+        return (ai.ai_socktype == 0 || ai.ai_socktype == type) &&
+               (ai.ai_protocol == 0 || ai.ai_protocol == protocol);
+      }).ptr;
 }
 
 SockAddrView SockAddrInfo::ForTcp() const
