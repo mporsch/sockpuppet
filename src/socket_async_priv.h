@@ -20,6 +20,15 @@
 
 namespace sockpuppet {
 
+struct ToDos : public std::deque<std::shared_ptr<ToDo::ToDoPriv>>
+{
+  void Insert(std::shared_ptr<ToDo::ToDoPriv> todo);
+  void Remove(ToDo::ToDoPriv *todo);
+  void Move(std::shared_ptr<ToDo::ToDoPriv> todo, TimePoint when);
+  template<typename Pred>
+  std::deque<std::shared_ptr<ToDo::ToDoPriv>>::iterator Find(Pred);
+};
+
 struct SocketDriver::SocketDriverPriv
 {
   using SocketRef = std::reference_wrapper<SocketAsyncPriv>;
@@ -64,14 +73,7 @@ struct SocketDriver::SocketDriverPriv
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
-  struct ToDo
-  {
-    uint64_t id;
-    std::chrono::time_point<std::chrono::steady_clock> when;
-    std::function<void()> what;
-  };
-  std::deque<ToDo> todos;
-  uint64_t nextId;
+  ToDos todos;
 
   SocketDriverPriv();
   SocketDriverPriv(SocketDriverPriv const &) = delete;
@@ -87,9 +89,10 @@ struct SocketDriver::SocketDriverPriv
   void Run();
   void Stop();
 
-  uint64_t Schedule(Duration delay, std::function<void()> what);
-  void Unschedule(uint64_t id);
-  void Reschedule(uint64_t id, Duration delay);
+  // interface for ToDoPriv
+  void ToDoInsert(std::shared_ptr<ToDo::ToDoPriv> todo);
+  void ToDoRemove(ToDo::ToDoPriv *todo);
+  void ToDoMove(std::shared_ptr<ToDo::ToDoPriv> todo, TimePoint when);
 
   // interface for SocketAsyncPriv
   void AsyncRegister(SocketAsyncPriv &sock);
@@ -100,6 +103,37 @@ struct SocketDriver::SocketDriverPriv
   void Unbump();
 
   void DoOneFdTask();
+};
+
+struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
+{
+  std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
+  std::function<void()> what;
+  TimePoint when;
+
+  ToDoPriv(std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
+           std::function<void()> what,
+           TimePoint when);
+  ToDoPriv(ToDoPriv const &) = delete;
+  ToDoPriv(ToDoPriv &&) = delete;
+  ~ToDoPriv();
+  ToDoPriv &operator=(ToDoPriv const &) = delete;
+  ToDoPriv &operator=(ToDoPriv &&) = delete;
+
+  // init function because shared_from_this() cannot be called in constructor
+  static std::shared_ptr<ToDoPriv> Create(
+      std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
+      std::function<void()> what,
+      TimePoint when);
+  static std::shared_ptr<ToDoPriv> Create(
+      std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
+      std::function<void()> what,
+      Duration delay);
+
+  void Cancel();
+
+  void Shift(TimePoint when);
+  void Shift(Duration delay);
 };
 
 struct SocketAsyncPriv : public SocketBufferedPriv

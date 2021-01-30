@@ -27,12 +27,12 @@ void RepeatedTellTime(Duration period,
 {
   TellTime(expected);
 
-  driver.Schedule(
-      period,
-      std::bind(
-          RepeatedTellTime,
-          period,
-          std::chrono::steady_clock::now() + period));
+  ToDo(driver,
+       std::bind(
+         RepeatedTellTime,
+         period,
+         std::chrono::steady_clock::now() + period),
+       period);
 }
 
 void ShutdownTellTime(std::chrono::steady_clock::time_point expected)
@@ -44,14 +44,14 @@ void ShutdownTellTime(std::chrono::steady_clock::time_point expected)
 int main(int, char **)
 try {
   auto now = std::chrono::steady_clock::now();
-  driver.Schedule(Duration(50), std::bind(TellTime, now + Duration(50)));
-  driver.Schedule(Duration(100), std::bind(RepeatedTellTime, Duration(100), now + Duration(100)));
+  ToDo(driver, std::bind(TellTime, now + Duration(50)), Duration(50));
+  ToDo(driver, std::bind(RepeatedTellTime, Duration(100), now + Duration(100)), now + Duration(100));
 
   driver.Step(Duration(150));
   now = std::chrono::steady_clock::now();
   TellTime(now);
 
-  driver.Schedule(Duration(2000), std::bind(ShutdownTellTime, now + Duration(2000)));
+  ToDo(driver, std::bind(ShutdownTellTime, now + Duration(2000)), Duration(2000));
   driver.Run();
 
   return EXIT_SUCCESS;

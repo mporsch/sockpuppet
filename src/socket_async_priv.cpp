@@ -41,8 +41,25 @@ namespace {
     }
   };
 
-  using Clock = std::chrono::steady_clock;
-  using TimePoint = std::chrono::time_point<Clock>;
+  struct WhenBefore
+  {
+    TimePoint when;
+
+    bool operator()(std::shared_ptr<ToDo::ToDoPriv> const &todo) const
+    {
+      return (when < todo->when);
+    }
+  };
+
+  struct IsSame
+  {
+    ToDo::ToDoPriv *ptr;
+
+    bool operator()(std::shared_ptr<ToDo::ToDoPriv> const &todo) const
+    {
+      return (todo.get() == ptr);
+    }
+  };
 
   struct Deadline
   {
@@ -84,6 +101,34 @@ namespace {
   };
 } // unnamed namespace
 
+void ToDos::Insert(std::shared_ptr<ToDo::ToDoPriv> todo)
+{
+  auto where = Find(WhenBefore{todo->when});
+  (void)emplace(where, std::move(todo));
+}
+
+void ToDos::Remove(ToDo::ToDoPriv *todo)
+{
+  (void)erase(Find(IsSame{todo})); // may have already been removed
+}
+
+void ToDos::Move(std::shared_ptr<ToDo::ToDoPriv> todo, TimePoint when)
+{
+  Remove(todo.get());
+
+  todo->when = when;
+
+  Insert(std::move(todo));
+}
+
+template<typename Pred>
+std::deque<std::shared_ptr<ToDo::ToDoPriv>>::iterator
+ToDos::Find(Pred pred)
+{
+  return std::find_if(begin(), end(), pred);
+}
+
+
 SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
   : stepLock(priv.stepMtx)
   , pauseLock(priv.pauseMtx, std::defer_lock)
@@ -124,7 +169,6 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pfds(1U, pollfd{pipeTo.fd, POLLIN, 0})
-  , nextId(0)
 {
   // bind to system-assigned port number and update address accordingly
   pipeTo.Bind(pipeToAddr->ForUdp());
@@ -161,8 +205,8 @@ Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
   Deadline deadline(now, timeout);
   auto todo = std::begin(todos);
 
-  for(; (todo != std::end(todos)) && (todo->when <= now); todo = std::begin(todos)) {
-    auto task = std::move(todo->what);
+  for(; (todo != std::end(todos)) && ((*todo)->when <= now); todo = std::begin(todos)) {
+    auto task = std::move((*todo)->what);
     todos.erase(todo);
     task();
 
@@ -173,7 +217,7 @@ Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
   }
 
   if(todo != std::end(todos))
-    return deadline.Remaining(now, todo->when);
+    return deadline.Remaining(now, (*todo)->when);
   return deadline.Remaining(now);
 }
 
@@ -213,61 +257,23 @@ void SocketDriver::SocketDriverPriv::Stop()
   Bump();
 }
 
-uint64_t SocketDriver::SocketDriverPriv::Schedule(
-    Duration delay, std::function<void()> what)
+void SocketDriver::SocketDriverPriv::ToDoInsert(std::shared_ptr<ToDo::ToDoPriv> todo)
 {
   PauseGuard lock(*this);
-
-  auto when = std::chrono::steady_clock::now() + delay;
-  auto where = std::find_if(
-        std::begin(todos), std::end(todos),
-        [&](ToDo const &todo) -> bool {
-          return (when < todo.when);
-        });
-  todos.emplace(where,
-      ToDo{
-        nextId
-      , when
-      , std::move(what)
-      });
-
-  return nextId++;
+  todos.Insert(std::move(todo));
 }
 
-void SocketDriver::SocketDriverPriv::Unschedule(uint64_t id)
+void SocketDriver::SocketDriverPriv::ToDoRemove(ToDo::ToDoPriv *todo)
 {
   PauseGuard lock(*this);
-
-  todos.erase(std::find_if(
-      std::begin(todos), std::end(todos),
-      [id](ToDo const &todo) -> bool {
-        return (todo.id == id);
-      }));
+  todos.Remove(todo);
 }
 
-void SocketDriver::SocketDriverPriv::Reschedule(uint64_t id, Duration delay)
+void SocketDriver::SocketDriverPriv::ToDoMove(std::shared_ptr<ToDo::ToDoPriv> todo,
+    TimePoint when)
 {
   PauseGuard lock(*this);
-
-  auto from = std::find_if(
-        std::begin(todos), std::end(todos),
-        [id](ToDo const &todo) -> bool {
-          return (todo.id == id);
-        });
-  if(from == std::end(todos)) {
-    throw std::logic_error("");
-  }
-  auto todo = std::move(*from);
-  todos.erase(from);
-
-  auto when = std::chrono::steady_clock::now() + delay;
-  todo.when = when;
-  auto to = std::find_if(
-        std::begin(todos), std::end(todos),
-        [when](ToDo const &todo) -> bool {
-          return (when < todo.when);
-        });
-  todos.emplace(to, std::move(todo));
+  todos.Move(std::move(todo), when);
 }
 
 void SocketDriver::SocketDriverPriv::AsyncRegister(
@@ -349,6 +355,56 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
     }
   }
   throw std::logic_error("unhandled poll event");
+}
+
+
+ToDo::ToDoPriv::ToDoPriv(
+    std::shared_ptr<SocketDriver::SocketDriverPriv> &driv,
+     std::function<void()> what,
+     TimePoint when)
+  : driver(driv)
+  , what(std::move(what))
+  , when(when)
+{
+}
+
+ToDo::ToDoPriv::~ToDoPriv() = default;
+
+std::shared_ptr<ToDo::ToDoPriv>
+ToDo::ToDoPriv::Create(std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
+    std::function<void()> what, TimePoint when)
+{
+  auto instance = std::make_shared<ToDoPriv>(driver, std::move(what), when);
+  driver->ToDoInsert(instance);
+  return instance;
+}
+
+std::shared_ptr<ToDo::ToDoPriv>
+ToDo::ToDoPriv::Create(std::shared_ptr<SocketDriver::SocketDriverPriv> &driver,
+    std::function<void()> what, Duration delay)
+{
+  return Create(driver, std::move(what), Clock::now() + delay);
+}
+
+void ToDo::ToDoPriv::Cancel()
+{
+  if(auto const ptr = driver.lock()) {
+    ptr->ToDoRemove(this);
+  }
+}
+
+void ToDo::ToDoPriv::Shift(TimePoint when)
+{
+  if(auto const ptr = driver.lock()) {
+    ptr->ToDoMove(shared_from_this(), when);
+  }
+}
+
+void ToDo::ToDoPriv::Shift(Duration delay)
+{
+  if(auto const ptr = driver.lock()) {
+    ptr->todos.Move(shared_from_this(), Clock::now() + delay);
+  }
 }
 
 

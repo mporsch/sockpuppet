@@ -11,6 +11,9 @@
 
 namespace sockpuppet {
 
+using Clock = std::chrono::steady_clock;
+using TimePoint = Clock::time_point;
+
 /// Socket driver that runs one or multiple attached socket classes and
 /// may be driven by a dedicated thread or stepped iteratively.
 struct SocketDriver
@@ -18,10 +21,6 @@ struct SocketDriver
   /// Create a socket driver that can be passed to sockets to attach to.
   /// @throws  If creating the internal event signalling fails.
   SocketDriver();
-
-  uint64_t Schedule(Duration delay, std::function<void()> what);
-  void Unschedule(uint64_t id);
-  void Reschedule(uint64_t id, Duration delay);
 
   /// Run one iteration on the attached sockets.
   /// @param  timeout  Timeout to use; non-null allows blocking if
@@ -48,6 +47,31 @@ struct SocketDriver
   /// Bridge to hide away the OS-specifics.
   struct SocketDriverPriv;
   std::shared_ptr<SocketDriverPriv> priv;
+};
+
+struct ToDo
+{
+  ToDo(SocketDriver &driver,
+       std::function<void()> what,
+       TimePoint when);
+  ToDo(SocketDriver &driver,
+       std::function<void()> what,
+       Duration delay);
+
+  void Cancel();
+
+  void Shift(TimePoint when);
+  void Shift(Duration delay);
+
+  ToDo(ToDo const &) = delete;
+  ToDo(ToDo &&other) noexcept;
+  ~ToDo();
+  ToDo &operator=(ToDo const &) = delete;
+  ToDo &operator=(ToDo &&other) noexcept;
+
+  /// Bridge to hide away the internals.
+  struct ToDoPriv;
+  std::shared_ptr<ToDoPriv> priv;
 };
 
 struct SocketAsyncPriv;

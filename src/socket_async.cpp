@@ -21,22 +21,6 @@ SocketDriver::SocketDriver()
 {
 }
 
-
-uint64_t SocketDriver::Schedule(Duration delay, std::function<void()> what)
-{
-  return priv->Schedule(delay, std::move(what));
-}
-
-void SocketDriver::Unschedule(uint64_t id)
-{
-  priv->Unschedule(id);
-}
-
-void SocketDriver::Reschedule(uint64_t id, Duration delay)
-{
-  priv->Reschedule(id, delay);
-}
-
 void SocketDriver::Step(Duration timeout)
 {
   priv->Step(timeout);
@@ -57,6 +41,38 @@ SocketDriver::SocketDriver(SocketDriver &&other) noexcept = default;
 SocketDriver::~SocketDriver() = default;
 
 SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept = default;
+
+
+ToDo::ToDo(SocketDriver &driver, std::function<void()> what, TimePoint when)
+  : priv(ToDoPriv::Create(driver.priv, std::move(what), when))
+{
+}
+
+ToDo::ToDo(SocketDriver &driver, std::function<void()> what, Duration delay)
+  : priv(ToDoPriv::Create(driver.priv, std::move(what), delay))
+{
+}
+
+void ToDo::Cancel()
+{
+  priv->Cancel();
+}
+
+void ToDo::Shift(TimePoint when)
+{
+  priv->Shift(when);
+}
+
+void ToDo::Shift(Duration delay)
+{
+  priv->Shift(delay);
+}
+
+ToDo::ToDo(ToDo &&other) noexcept = default;
+
+ToDo::~ToDo() = default;
+
+ToDo &ToDo::operator=(ToDo &&other) noexcept = default;
 
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
