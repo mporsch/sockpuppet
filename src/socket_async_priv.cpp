@@ -26,7 +26,7 @@ namespace {
 #endif // _WIN32
   }
 
-  struct CompareFd
+  struct FdEqual
   {
     SOCKET fd;
 
@@ -292,14 +292,14 @@ void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
   auto const itSocket = std::find_if(
         std::begin(sockets),
         std::end(sockets),
-        CompareFd{fd});
+        FdEqual{fd});
   assert(itSocket != std::end(sockets));
   sockets.erase(itSocket);
 
   auto const itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
-        CompareFd{fd});
+        FdEqual{fd});
   assert(itPfd != std::end(pfds));
   pfds.erase(itPfd);
 }
@@ -311,7 +311,7 @@ void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
   auto const itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
-        CompareFd{fd});
+        FdEqual{fd});
   assert(itPfd != std::end(pfds));
   itPfd->events |= POLLOUT;
 }
