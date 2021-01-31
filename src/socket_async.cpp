@@ -72,7 +72,7 @@ void ToDo::Shift(TimePoint when)
 
 void ToDo::Shift(Duration delay)
 {
-  priv->Shift(delay);
+  priv->Shift(Clock::now() + delay);
 }
 
 ToDo::ToDo(ToDo &&other) noexcept = default;

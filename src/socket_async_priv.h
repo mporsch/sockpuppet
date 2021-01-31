@@ -127,7 +127,6 @@ struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
   void Cancel();
 
   void Shift(TimePoint when);
-  void Shift(Duration delay);
 };
 
 struct SocketAsyncPriv : public SocketBufferedPriv

@@ -392,14 +392,6 @@ void ToDo::ToDoPriv::Shift(TimePoint when)
   }
 }
 
-void ToDo::ToDoPriv::Shift(Duration delay)
-{
-  if(auto const ptr = driver.lock()) {
-    ptr->todos.Move(shared_from_this(), Clock::now() + delay);
-  }
-}
-
-
 SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock, DriverShared &driver, Handlers handlers)
   : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
                     driver,
