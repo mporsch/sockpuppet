@@ -196,7 +196,7 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
   } else {
     // execute due ToDos while keeping track of the time
     auto remaining = StepTodos(timeout);
-    assert((timeout.count() < 0) || (remaining.count() >= 0));
+    assert((timeout.count() < 0) || (remaining.count() >= 0)); // must not turn timeout >=0 into <0
 
     // run sockets with remaining time
     StepFds(remaining);
@@ -206,13 +206,13 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
 {
   auto now = Clock::now();
-  Deadline deadline(now, timeout);
-  auto todo = std::begin(todos);
+  Deadline const deadline(now, timeout);
 
-  for(; (todo != std::end(todos)) && ((*todo)->when <= now); todo = std::begin(todos)) {
-    auto pending = std::move(*todo);
-    (void)todos.erase(todo);
-    pending->what(); // user task invalidate all iterators
+  while(!todos.empty() && (todos.front()->when <= now)) {
+    // take pending task from list and execute it
+    auto pending = std::move(todos.front());
+    todos.pop_front();
+    pending->what(); // user task may invalidate iterators
 
     // check how much time passed and if there is any left
     now = Clock::now();
@@ -221,8 +221,8 @@ Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
     }
   }
 
-  if(todo != std::end(todos)) {
-    return deadline.Remaining(now, (*todo)->when);
+  if(!todos.empty()) {
+    return deadline.Remaining(now, todos.front()->when);
   }
   return deadline.Remaining(now);
 }

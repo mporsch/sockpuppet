@@ -12,6 +12,7 @@
 #endif // _WIN32
 
 #include <atomic> // for std::atomic
+#include <deque> // for std::deque
 #include <future> // for std::future
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
@@ -74,7 +75,7 @@ struct SocketDriver::SocketDriverPriv
 
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
-  ToDos todos;
+  ToDos todos; // guarded by stepMtx
   std::vector<SocketRef> sockets; // guarded by stepMtx
   std::vector<pollfd> pfds; // front element belongs to internal signalling pipe; guarded by stepMtx
 
