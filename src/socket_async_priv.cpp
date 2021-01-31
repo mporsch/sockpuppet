@@ -112,7 +112,10 @@ void ToDos::Insert(ToDoShared todo)
 
 void ToDos::Remove(ToDo::ToDoPriv *todo)
 {
-  (void)erase(Find(IsSame{todo})); // may have already been removed
+  auto it = Find(IsSame{todo});
+  if(it != end()) { // may have already been removed
+    (void)erase(it);
+  }
 }
 
 void ToDos::Move(ToDoShared todo, TimePoint when)
@@ -120,7 +123,6 @@ void ToDos::Move(ToDoShared todo, TimePoint when)
   Remove(todo.get());
 
   todo->when = when;
-
   Insert(std::move(todo));
 }
 
@@ -208,9 +210,9 @@ Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
   auto todo = std::begin(todos);
 
   for(; (todo != std::end(todos)) && ((*todo)->when <= now); todo = std::begin(todos)) {
-    auto task = std::move((*todo)->what);
-    todos.erase(todo);
-    task();
+    auto pending = std::move(*todo);
+    (void)todos.erase(todo);
+    pending->what(); // user task invalidate all iterators
 
     // check how much time passed and if there is any left
     now = Clock::now();

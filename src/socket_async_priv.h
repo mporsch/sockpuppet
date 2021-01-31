@@ -24,6 +24,7 @@ using AddressShared = std::shared_ptr<Address::AddressPriv>;
 using DriverShared = std::shared_ptr<SocketDriver::SocketDriverPriv>;
 using ToDoShared = std::shared_ptr<ToDo::ToDoPriv>;
 
+// list of ToDo elements sorted by scheduled time
 struct ToDos : public std::deque<ToDoShared>
 {
   void Insert(ToDoShared todo);
@@ -73,12 +74,11 @@ struct SocketDriver::SocketDriverPriv
 
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
+  ToDos todos;
   std::vector<SocketRef> sockets; // guarded by stepMtx
   std::vector<pollfd> pfds; // front element belongs to internal signalling pipe; guarded by stepMtx
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
-
-  ToDos todos;
 
   SocketDriverPriv();
   SocketDriverPriv(SocketDriverPriv const &) = delete;
