@@ -16,6 +16,8 @@ using TimePoint = Clock::time_point;
 
 /// Socket driver that runs one or multiple attached socket classes and
 /// may be driven by a dedicated thread or stepped iteratively.
+/// @note  Thread-safe with respect to connected tasks and sockets; these
+///        can safely be managed irrespective of concurrent socket driver state.
 struct SocketDriver
 {
   /// Create a socket driver that can be passed to sockets to attach to.
@@ -23,10 +25,12 @@ struct SocketDriver
   SocketDriver();
 
   /// Run one iteration on the attached sockets.
-  /// @param  timeout  Timeout to use; non-null allows blocking if
-  ///                  all attached sockets are idle,
+  /// @param  timeout  Maximum allowed time to use; non-null allows
+  ///                  blocking if all attached sockets are idle,
   ///                  a negative value allows unlimited blocking.
   /// @throws  If the internal event handling fails.
+  /// @note  Does not provide an accurate time source to wait for;
+  ///        use \ref ToDo instead.
   void Step(Duration timeout = Duration(-1));
 
   /// Continuously run the attached sockets.
@@ -49,22 +53,52 @@ struct SocketDriver
   std::shared_ptr<SocketDriverPriv> priv;
 };
 
+/// Scheduled task to be executed later.
+/// May be cancelled or shifted to (re)run at a different time.
 struct ToDo
 {
+  /// Create a task to be scheduled later.
+  /// @param  driver  Socket driver to run the task.
+  /// @param  task  Task to execute after being scheduled.
   ToDo(SocketDriver &driver,
        std::function<void()> task);
 
+  /// Create and schedule a task to be executed later.
+  /// @param  driver  Socket driver to run the task.
+  /// @param  task  Task to execute on time given by \ref when.
+  /// @param  when  Point in time when to execute the task. If the time
+  ///               has already passed, the task will be executed asap.
+  /// @note  The object does not need to be kept if no
+  ///        subsequent \ref Cancel or \ref Shift is intended.
   ToDo(SocketDriver &driver,
        std::function<void()> task,
        TimePoint when);
 
+  /// Create and schedule a task to be executed later.
+  /// @param  driver  Socket driver to run the task.
+  /// @param  task  Task to execute on time given by \ref delay.
+  /// @param  delay  Point in time from now when to execute the task. If the delay
+  ///         is less or equal zero, the task will be executed asap.
+  /// @note  The object does not need to be kept if no
+  ///        subsequent \ref Cancel or \ref Shift is intended.
   ToDo(SocketDriver &driver,
        std::function<void()> task,
        Duration delay);
 
+  /// Cancel a pending task.
+  /// @note  Cancelling an already executed task has no effect.
+  /// @note  A scheduled task is not cancelled on object destruction;
+  ///        manual cancel is required to fully release a not-yet executed task.
   void Cancel();
 
+  /// Shift task execution to (re)run at a different time.
+  /// @param  when  Point in time when to execute the task. If the time
+  ///               has already passed, the task will be executed asap.
   void Shift(TimePoint when);
+
+  /// Shift task execution to (re)run at a different time.
+  /// @param  delay  Point in time from now when to execute the task. If the delay
+  ///         is less or equal zero, the task will be executed asap.
   void Shift(Duration delay);
 
   ToDo(ToDo const &) = delete;
@@ -73,7 +107,7 @@ struct ToDo
   ToDo &operator=(ToDo const &) = delete;
   ToDo &operator=(ToDo &&other) noexcept;
 
-  /// Bridge to hide away the internals.
+  /// Bridge to implementation instance shared with socket driver.
   struct ToDoPriv;
   std::shared_ptr<ToDoPriv> priv;
 };
