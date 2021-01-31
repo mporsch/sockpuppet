@@ -116,16 +116,13 @@ struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
   std::function<void()> what;
   TimePoint when;
 
-  ToDoPriv(DriverShared &driv, std::function<void()> what, TimePoint when);
+  ToDoPriv(DriverShared &driver, std::function<void()> what);
+  ToDoPriv(DriverShared &driver, std::function<void()> what, TimePoint when);
   ToDoPriv(ToDoPriv const &) = delete;
   ToDoPriv(ToDoPriv &&) = delete;
   ~ToDoPriv();
   ToDoPriv &operator=(ToDoPriv const &) = delete;
   ToDoPriv &operator=(ToDoPriv &&) = delete;
-
-  // init function because shared_from_this() cannot be called in constructor
-  static ToDoShared Create(DriverShared &driv, std::function<void()> what, TimePoint when);
-  static ToDoShared Create(DriverShared &driv, std::function<void()> what, Duration delay);
 
   void Cancel();
 

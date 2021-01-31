@@ -43,14 +43,21 @@ SocketDriver::~SocketDriver() = default;
 SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept = default;
 
 
-ToDo::ToDo(SocketDriver &driver, std::function<void()> what, TimePoint when)
-  : priv(ToDoPriv::Create(driver.priv, std::move(what), when))
+ToDo::ToDo(SocketDriver &driver, std::function<void()> task)
+  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task)))
 {
 }
 
-ToDo::ToDo(SocketDriver &driver, std::function<void()> what, Duration delay)
-  : priv(ToDoPriv::Create(driver.priv, std::move(what), delay))
+ToDo::ToDo(SocketDriver &driver, std::function<void()> task, TimePoint when)
+  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), when))
 {
+  driver.priv->ToDoInsert(priv);
+}
+
+ToDo::ToDo(SocketDriver &driver, std::function<void()> task, Duration delay)
+  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), Clock::now() + delay))
+{
+  driver.priv->ToDoInsert(priv);
 }
 
 void ToDo::Cancel()

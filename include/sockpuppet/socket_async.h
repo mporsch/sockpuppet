@@ -52,10 +52,14 @@ struct SocketDriver
 struct ToDo
 {
   ToDo(SocketDriver &driver,
-       std::function<void()> what,
-       TimePoint when);
+       std::function<void()> task);
+
   ToDo(SocketDriver &driver,
-       std::function<void()> what,
+       std::function<void()> task,
+       TimePoint when);
+
+  ToDo(SocketDriver &driver,
+       std::function<void()> task,
        Duration delay);
 
   void Cancel();

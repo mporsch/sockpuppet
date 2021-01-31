@@ -363,26 +363,20 @@ void SocketDriver::SocketDriverPriv::DoOneFdTask()
 }
 
 
-ToDo::ToDoPriv::ToDoPriv(DriverShared &driv, std::function<void()> what, TimePoint when)
-  : driver(driv)
+ToDo::ToDoPriv::ToDoPriv(DriverShared &driver, std::function<void()> what)
+  : driver(driver)
+  , what(std::move(what))
+{
+}
+
+ToDo::ToDoPriv::ToDoPriv(DriverShared &driver, std::function<void()> what, TimePoint when)
+  : driver(driver)
   , what(std::move(what))
   , when(when)
 {
 }
 
 ToDo::ToDoPriv::~ToDoPriv() = default;
-
-ToDoShared ToDo::ToDoPriv::Create(DriverShared &driver, std::function<void()> what, TimePoint when)
-{
-  auto instance = std::make_shared<ToDoPriv>(driver, std::move(what), when);
-  driver->ToDoInsert(instance);
-  return instance;
-}
-
-ToDoShared ToDo::ToDoPriv::Create(DriverShared &driver, std::function<void()> what, Duration delay)
-{
-  return Create(driver, std::move(what), Clock::now() + delay);
-}
 
 void ToDo::ToDoPriv::Cancel()
 {
