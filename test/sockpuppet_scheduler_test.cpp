@@ -2,56 +2,84 @@
 
 #include <chrono> // for std::chrono::steady_clock
 #include <cstdlib> // for EXIT_SUCCESS
+#include <iomanip> // for std::setw
 #include <iostream> // for std::cout
 
 using namespace sockpuppet;
 
-static auto startup = std::chrono::steady_clock::now();
+static auto startTime = Clock::now();
 static SocketDriver driver;
 
-std::ostream &operator<<(std::ostream &os, std::chrono::steady_clock::time_point tp)
+std::ostream &operator<<(std::ostream &os, TimePoint tp)
 {
-  os << (tp - startup).count() / 1000000 << "ms";
+  os << std::setw(4) << (tp - startTime).count() / 1000000 << "ms";
   return os;
 }
 
-void TellTime(std::chrono::steady_clock::time_point expected)
+void ScheduledPrint(char const *what, TimePoint expected)
 {
-  std::cout << "Now is " << std::chrono::steady_clock::now()
+  std::cout << std::setw(10) << what
+            << "; now is " << Clock::now()
             << "; was scheduled for " << expected
             << std::endl;
 }
 
-void RepeatedTellTime(Duration period,
-    std::chrono::steady_clock::time_point expected)
+struct Repeatable
 {
-  TellTime(expected);
+  ToDo todo;
+  Duration period;
+  TimePoint next;
 
-  ToDo(driver,
-       std::bind(
-         RepeatedTellTime,
-         period,
-         std::chrono::steady_clock::now() + period),
-       period);
-}
+  Repeatable(Duration period, TimePoint until)
+    : todo(driver, std::bind(&Repeatable::OnTime, this), period)
+    , period(period)
+    , next(Clock::now() + period)
+  {
+    ToDo(driver, std::bind(&Repeatable::Cancel, this), until);
+  }
 
-void ShutdownTellTime(std::chrono::steady_clock::time_point expected)
+  void OnTime()
+  {
+    auto now = next;
+    next += period;
+
+    todo.Shift(period);
+
+    ScheduledPrint("repeating", now);
+  }
+
+  void Cancel()
+  {
+    todo.Cancel();
+  }
+};
+
+void Shutdown(TimePoint expected)
 {
-  TellTime(expected);
+  ScheduledPrint("shutdown", expected);
   driver.Stop();
 }
 
 int main(int, char **)
 try {
-  auto now = std::chrono::steady_clock::now();
-  ToDo(driver, std::bind(TellTime, now + Duration(50)), Duration(50));
-  ToDo(driver, std::bind(RepeatedTellTime, Duration(100), now + Duration(100)), now + Duration(100));
+  auto now = Clock::now();
+
+  // schedule-and-forget task
+  ToDo(driver, std::bind(ScheduledPrint, "once", now + Duration(50)), Duration(50));
+
+  // rescheduling task that cancels itself eventually
+  Repeatable repeating(Duration(200), now + Duration(1500));
+
+  // task that is scheduled conditionally
+  ToDo maybe(driver, std::bind(ScheduledPrint, "maybe", now + Duration(150)));
+  if(true) {
+    maybe.Shift(now + Duration(150));
+  }
 
   driver.Step(Duration(150));
-  now = std::chrono::steady_clock::now();
-  TellTime(now);
+  driver.Step(Duration(150));
 
-  ToDo(driver, std::bind(ShutdownTellTime, now + Duration(2000)), Duration(2000));
+  ToDo(driver, std::bind(Shutdown, now + Duration(2000)), Duration(2000));
   driver.Run();
 
   return EXIT_SUCCESS;
