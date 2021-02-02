@@ -19,8 +19,8 @@ std::ostream &operator<<(std::ostream &os, TimePoint tp)
 void ScheduledPrint(char const *what, TimePoint expected)
 {
   std::cout << std::setw(10) << what
-            << "; now is " << Clock::now()
             << "; was scheduled for " << expected
+            << "; now is " << Clock::now()
             << std::endl;
 }
 
@@ -76,8 +76,9 @@ try {
     maybe.Shift(now + Duration(150));
   }
 
+  driver.Step(Duration(0));
   driver.Step(Duration(150));
-  driver.Step(Duration(150));
+  driver.Step(Duration(-1));
 
   ToDo(driver, std::bind(Shutdown, now + Duration(2000)), Duration(2000));
   driver.Run();
