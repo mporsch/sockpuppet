@@ -64,16 +64,22 @@ namespace {
   struct Deadline
   {
     Duration timeout;
+    TimePoint now;
     TimePoint deadline;
 
-    Deadline(TimePoint now,
-             Duration timeout)
+    Deadline(Duration timeout)
       : timeout(timeout)
+      , now(Clock::now())
       , deadline(now + timeout)
     {
     }
 
-    bool TimeLeft(TimePoint now) const
+    void Tick()
+    {
+      now = Clock::now();
+    }
+
+    bool TimeLeft() const
     {
       if(timeout.count() >= 0) {
         return (now <= deadline);
@@ -81,7 +87,7 @@ namespace {
       return true;
     }
 
-    Duration Remaining(TimePoint now) const
+    Duration Remaining() const
     {
       if(timeout.count() >= 0) {
         return Difference(now, deadline);
@@ -89,7 +95,7 @@ namespace {
       return timeout;
     }
 
-    Duration Remaining(TimePoint now, TimePoint until) const
+    Duration Remaining(TimePoint until) const
     {
       if(timeout.count() >= 0) {
         return Difference(now, std::min(until, deadline));
@@ -205,26 +211,28 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 
 Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
 {
-  auto now = Clock::now();
-  Deadline const deadline(now, timeout);
+  Deadline deadline(timeout);
+  do {
+    assert(!todos.empty());
+    auto &front = todos.front();
 
-  while(!todos.empty() && (todos.front()->when <= now)) {
-    // take pending task from list and execute it
-    auto pending = std::move(todos.front());
-    todos.pop_front();
-    pending->what(); // user task may invalidate iterators
-
-    // check how much time passed and if there is any left
-    now = Clock::now();
-    if(!deadline.TimeLeft(now)) {
-      return Duration(0);
+    // check if pending task is due, if not return time until it is
+    if(front->when > deadline.now) {
+      return deadline.Remaining(front->when);
     }
-  }
 
-  if(!todos.empty()) {
-    return deadline.Remaining(now, todos.front()->when);
-  }
-  return deadline.Remaining(now);
+    // take task from list and execute it
+    auto task = std::move(front);
+    todos.pop_front();
+    task->what(); // user task may invalidate todo iterators/references
+
+    // check if pending tasks or time remain
+    deadline.Tick();
+    if(todos.empty()) {
+      return deadline.Remaining();
+    }
+  } while(deadline.TimeLeft());
+  return Duration(0);
 }
 
 void SocketDriver::SocketDriverPriv::StepFds(Duration timeout)
