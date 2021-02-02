@@ -89,7 +89,8 @@ struct SocketDriver::SocketDriverPriv
   SocketDriverPriv &operator=(SocketDriverPriv &&) = delete;
 
   void Step(Duration timeout);
-  Duration StepTodos(Duration timeout);
+  template<typename Deadline>
+  Duration StepTodos(Deadline);
   void StepFds(Duration timeout);
 
   void Run();

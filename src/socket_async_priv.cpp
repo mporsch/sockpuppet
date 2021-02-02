@@ -61,16 +61,14 @@ namespace {
     }
   };
 
-  struct Deadline
+  struct DeadlineUnlimited
   {
-    Duration timeout;
+    Duration remaining;
     TimePoint now;
-    TimePoint deadline;
 
-    Deadline(Duration timeout)
-      : timeout(timeout)
+    DeadlineUnlimited(Duration timeout)
+      : remaining(timeout)
       , now(Clock::now())
-      , deadline(now + timeout)
     {
     }
 
@@ -81,31 +79,43 @@ namespace {
 
     bool TimeLeft() const
     {
-      if(timeout.count() >= 0) {
-        return (now <= deadline);
-      }
       return true;
     }
 
     Duration Remaining() const
     {
-      if(timeout.count() >= 0) {
-        return Difference(now, deadline);
-      }
-      return timeout;
+      return remaining;
     }
 
     Duration Remaining(TimePoint until) const
     {
-      if(timeout.count() >= 0) {
-        return Difference(now, std::min(until, deadline));
-      }
-      return Difference(now, until);
+      return std::chrono::duration_cast<Duration>(until - now);
+    }
+  };
+
+  struct DeadlineLimited : public DeadlineUnlimited
+  {
+    TimePoint deadline;
+
+    DeadlineLimited(Duration timeout)
+      : DeadlineUnlimited(timeout)
+      , deadline(now + timeout)
+    {
     }
 
-    static Duration Difference(TimePoint now, TimePoint then)
+    bool TimeLeft() const
     {
-      return std::chrono::duration_cast<Duration>(then - now);
+      return (now <= deadline);
+    }
+
+    Duration Remaining() const
+    {
+      return DeadlineUnlimited::Remaining(deadline);
+    }
+
+    Duration Remaining(TimePoint until) const
+    {
+      return DeadlineUnlimited::Remaining(std::min(until, deadline));
     }
   };
 } // unnamed namespace
@@ -201,17 +211,21 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
     StepFds(timeout);
   } else {
     // execute due ToDos while keeping track of the time
-    auto remaining = StepTodos(timeout);
-    assert((timeout.count() < 0) || (remaining.count() >= 0)); // must not turn timeout >=0 into <0
+    auto remaining = (timeout.count() >= 0 ?
+        StepTodos(DeadlineLimited(timeout)) :
+        StepTodos(DeadlineUnlimited(timeout)));
+
+    // must not turn timeout >=0 into <0
+    assert((timeout.count() < 0) || (remaining.count() >= 0));
 
     // run sockets with remaining time
     StepFds(remaining);
   }
 }
 
-Duration SocketDriver::SocketDriverPriv::StepTodos(Duration timeout)
+template<typename Deadline>
+Duration SocketDriver::SocketDriverPriv::StepTodos(Deadline deadline)
 {
-  Deadline deadline(timeout);
   do {
     assert(!todos.empty());
     auto &front = todos.front();
