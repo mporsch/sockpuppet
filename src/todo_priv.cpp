@@ -6,25 +6,27 @@
 namespace sockpuppet {
 
 namespace {
-  struct WhenBefore
+
+struct WhenBefore
+{
+  TimePoint when;
+
+  bool operator()(ToDoShared const &todo) const
   {
-    TimePoint when;
+    return (when < todo->when);
+  }
+};
 
-    bool operator()(ToDoShared const &todo) const
-    {
-      return (when < todo->when);
-    }
-  };
+struct IsSame
+{
+  ToDo::ToDoPriv *ptr;
 
-  struct IsSame
+  bool operator()(ToDoShared const &todo) const
   {
-    ToDo::ToDoPriv *ptr;
+    return (todo.get() == ptr);
+  }
+};
 
-    bool operator()(ToDoShared const &todo) const
-    {
-      return (todo.get() == ptr);
-    }
-  };
 } // unnamed namespace
 
 void ToDos::Insert(ToDoShared todo)

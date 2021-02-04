@@ -9,97 +9,99 @@
 namespace sockpuppet {
 
 namespace {
-  auto const noTimeout = Duration(-1);
 
-  int Poll(std::vector<pollfd> &polls, Duration timeout)
-  {
-    using namespace std::chrono;
+auto const noTimeout = Duration(-1);
 
-    auto const timeoutMs = static_cast<int>(duration_cast<milliseconds>(timeout).count());
+int Poll(std::vector<pollfd> &polls, Duration timeout)
+{
+  using namespace std::chrono;
+
+  auto const timeoutMs = static_cast<int>(duration_cast<milliseconds>(timeout).count());
 
 #ifdef _WIN32
-    return ::WSAPoll(polls.data(),
-                     static_cast<ULONG>(polls.size()),
-                     timeoutMs);
+  return ::WSAPoll(polls.data(),
+                   static_cast<ULONG>(polls.size()),
+                   timeoutMs);
 #else
-    return ::poll(polls.data(),
-                  static_cast<nfds_t>(polls.size()),
-                  timeoutMs);
+  return ::poll(polls.data(),
+                static_cast<nfds_t>(polls.size()),
+                timeoutMs);
 #endif // _WIN32
+}
+
+struct FdEqual
+{
+  SOCKET fd;
+
+  bool operator()(SocketAsyncPriv const &async) const
+  {
+    return (async.fd == fd);
   }
 
-  struct FdEqual
+  bool operator()(pollfd const &pfd) const
   {
-    SOCKET fd;
+    return (pfd.fd == fd);
+  }
+};
 
-    bool operator()(SocketAsyncPriv const &async) const
-    {
-      return (async.fd == fd);
-    }
+struct DeadlineUnlimited
+{
+  Duration remaining;
+  TimePoint now;
 
-    bool operator()(pollfd const &pfd) const
-    {
-      return (pfd.fd == fd);
-    }
-  };
-
-  struct DeadlineUnlimited
+  DeadlineUnlimited(Duration timeout)
+    : remaining(timeout)
+    , now(Clock::now())
   {
-    Duration remaining;
-    TimePoint now;
+  }
 
-    DeadlineUnlimited(Duration timeout)
-      : remaining(timeout)
-      , now(Clock::now())
-    {
-    }
-
-    void Tick()
-    {
-      now = Clock::now();
-    }
-
-    bool TimeLeft() const
-    {
-      return true;
-    }
-
-    Duration Remaining() const
-    {
-      return remaining;
-    }
-
-    Duration Remaining(TimePoint until) const
-    {
-      return std::chrono::duration_cast<Duration>(until - now);
-    }
-  };
-
-  struct DeadlineLimited : public DeadlineUnlimited
+  void Tick()
   {
-    TimePoint deadline;
+    now = Clock::now();
+  }
 
-    DeadlineLimited(Duration timeout)
-      : DeadlineUnlimited(timeout)
-      , deadline(now + timeout)
-    {
-    }
+  bool TimeLeft() const
+  {
+    return true;
+  }
 
-    bool TimeLeft() const
-    {
-      return (now <= deadline);
-    }
+  Duration Remaining() const
+  {
+    return remaining;
+  }
 
-    Duration Remaining() const
-    {
-      return DeadlineUnlimited::Remaining(deadline);
-    }
+  Duration Remaining(TimePoint until) const
+  {
+    return std::chrono::duration_cast<Duration>(until - now);
+  }
+};
 
-    Duration Remaining(TimePoint until) const
-    {
-      return DeadlineUnlimited::Remaining(std::min(until, deadline));
-    }
-  };
+struct DeadlineLimited : public DeadlineUnlimited
+{
+  TimePoint deadline;
+
+  DeadlineLimited(Duration timeout)
+    : DeadlineUnlimited(timeout)
+    , deadline(now + timeout)
+  {
+  }
+
+  bool TimeLeft() const
+  {
+    return (now <= deadline);
+  }
+
+  Duration Remaining() const
+  {
+    return DeadlineUnlimited::Remaining(deadline);
+  }
+
+  Duration Remaining(TimePoint until) const
+  {
+    return DeadlineUnlimited::Remaining(std::min(until, deadline));
+  }
+};
+
 } // unnamed namespace
 
 SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
