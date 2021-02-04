@@ -79,7 +79,7 @@ void Sing(Duration time, std::string text)
             << std::endl;
 }
 
-void ParseAndSchedule(std::ifstream &ifs)
+void ParseAndSchedule(std::ifstream ifs)
 {
   std::regex const lrcLineRegex(R"(\[([0-9]+):([0-9.]+)\](.*))");
 
@@ -104,13 +104,13 @@ void ParseAndSchedule(std::ifstream &ifs)
       // as we don't intend to shift or cancel it
       (void)ToDo(driver, std::bind(Sing, time, text), time);
 
-      // delay the shutdown tas to after the last line
+      // delay the shutdown task to after the last line print
       finale.Shift(time);
     }
   }
 }
 
-void Run(std::ifstream &ifs)
+void Run(std::ifstream ifs)
 {
   // set up the handler for Ctrl-C
   if(std::signal(SIGINT, Shutdown) == SIG_ERR) {
@@ -118,7 +118,7 @@ void Run(std::ifstream &ifs)
   }
 
   // read LRC lines and schedule printouts
-  ParseAndSchedule(ifs);
+  ParseAndSchedule(std::move(ifs));
 
   // start driver/timer loop
   driver.Run();
@@ -131,7 +131,7 @@ try {
   if(argc == 2) {
     std::ifstream ifs(argv[1]);
     if(ifs.is_open()) {
-      Run(ifs);
+      Run(std::move(ifs));
       return EXIT_SUCCESS;
     } else {
       std::cerr << "File not found \"" << argv[1] << "\"\n\n";
