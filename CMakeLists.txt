@@ -46,8 +46,12 @@ add_library(sockpuppet
   src/socket_buffered.cpp
   src/socket_buffered_priv.cpp
   src/socket_buffered_priv.h
+  src/socket_driver_priv.cpp
+  src/socket_driver_priv.h
   src/socket_priv.cpp
   src/socket_priv.h
+  src/todo_priv.cpp
+  src/todo_priv.h
   src/winsock_guard.cpp
   src/winsock_guard.h
   ${SOCKPUPPET_PUBLIC_HEADERS}

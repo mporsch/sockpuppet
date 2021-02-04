@@ -1,5 +1,7 @@
 #include "sockpuppet/socket_async.h"
 #include "socket_async_priv.h" // for SocketAsyncPriv
+#include "socket_driver_priv.h" // for SocketDriverPriv
+#include "todo_priv.h" // for ToDoPriv
 
 #include <stdexcept> // for std::logic_error
 
