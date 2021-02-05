@@ -155,7 +155,10 @@ Driver::DriverPriv::DriverPriv()
 
 Driver::DriverPriv::~DriverPriv()
 {
-  Stop();
+  shouldStop = true;
+
+  // block until Step/Run has returned
+  PauseGuard lock(*this);
 }
 
 void Driver::DriverPriv::Step(Duration timeout)
