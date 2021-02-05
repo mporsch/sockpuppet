@@ -9,10 +9,11 @@ So you want to have network communication in your little program but boost seems
 - [x] IPv6 and IPv4 address handling (lookup using *getaddrinfo* and storage using *sockaddr_storage*)
 - [x] multi-interface-aware (list local host interface addresses before selecting one to bind to)
 - [x] UDP and TCP socket classes
-- [X] UDP broadcast (but not automatically on multiple network interfaces)
+- [x] UDP broadcast (but not automatically on multiple network interfaces)
 - [x] basic sockets with blocking and non-blocking IO using optional timeout parameter
 - [x] extended sockets with configurable internal resource pool eliminating the need for pre-allocated buffers
-- [x] extended sockets for asynchronous operation using trigger thread interface (event handling using *poll*)
+- [x] extended sockets for asynchronous operation using driver thread interface (event handling using *poll*)
+- [x] scheduled tasks to be run at given point in time by driver thread
 - [x] exceptions with meaningful system-provided error messages
 - [x] library includes do not pull any system headers
 - [x] static and dynamic library build targets
@@ -34,7 +35,9 @@ The `Address` class represents localhost or remote UDP/TCP addresses and is used
 The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide different levels of convenience around the raw OS socket representation:
 * `SocketUdp`, `SocketTcpClient` and `SocketTcpServer` allow basic functions like connect, send and receive
 * `SocketUdpBuffered` and `SocketTcpBuffered` add an internal receive buffer pool
-* `SocketUdpAsync`, `SocketTcpAsyncClient` and `SocketTcpAsyncServer` are driven by a `SocketDriver` (i.e. a thread) providing asynchronous operation to one or multiple sockets
+* `SocketUdpAsync`, `SocketTcpAsyncClient` and `SocketTcpAsyncServer` are driven by a `Driver` (i.e. a thread) providing asynchronous operation to one or multiple sockets
+
+The `ToDo` class is used for scheduling tasks to run at a given point in time, e.g. periodic heartbeat packet transmissions.
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
