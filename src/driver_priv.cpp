@@ -1,4 +1,4 @@
-#include "socket_driver_priv.h"
+#include "driver_priv.h"
 #include "address_priv.h" // for AddressPriv
 #include "error_code.h" // for SocketError
 #include "socket_async_priv.h" // for SocketAsyncPriv
@@ -104,7 +104,7 @@ struct DeadlineLimited : public DeadlineUnlimited
 
 } // unnamed namespace
 
-SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
+Driver::DriverPriv::StepGuard::StepGuard(DriverPriv &priv)
   : stepLock(priv.stepMtx)
   , pauseLock(priv.pauseMtx, std::defer_lock)
 {
@@ -112,7 +112,7 @@ SocketDriver::SocketDriverPriv::StepGuard::StepGuard(SocketDriverPriv &priv)
   // do not acquire pause mutex yet
 }
 
-SocketDriver::SocketDriverPriv::StepGuard::~StepGuard()
+Driver::DriverPriv::StepGuard::~StepGuard()
 {
   // release step mutex
   stepLock.unlock();
@@ -123,7 +123,7 @@ SocketDriver::SocketDriverPriv::StepGuard::~StepGuard()
 }
 
 
-SocketDriver::SocketDriverPriv::PauseGuard::PauseGuard(SocketDriverPriv &priv)
+Driver::DriverPriv::PauseGuard::PauseGuard(DriverPriv &priv)
   : stepLock(priv.stepMtx, std::defer_lock)
 {
   // try to acquire step mutex
@@ -136,10 +136,10 @@ SocketDriver::SocketDriverPriv::PauseGuard::PauseGuard(SocketDriverPriv &priv)
   }
 }
 
-SocketDriver::SocketDriverPriv::PauseGuard::~PauseGuard() = default;
+Driver::DriverPriv::PauseGuard::~PauseGuard() = default;
 
 
-SocketDriver::SocketDriverPriv::SocketDriverPriv()
+Driver::DriverPriv::DriverPriv()
   : pipeToAddr(std::make_shared<SockAddrInfo>(0U))
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
@@ -153,12 +153,12 @@ SocketDriver::SocketDriverPriv::SocketDriverPriv()
   pipeFrom.Bind(pipeFromAddr.ForUdp());
 }
 
-SocketDriver::SocketDriverPriv::~SocketDriverPriv()
+Driver::DriverPriv::~DriverPriv()
 {
   Stop();
 }
 
-void SocketDriver::SocketDriverPriv::Step(Duration timeout)
+void Driver::DriverPriv::Step(Duration timeout)
 {
   StepGuard lock(*this);
 
@@ -179,7 +179,7 @@ void SocketDriver::SocketDriverPriv::Step(Duration timeout)
 }
 
 template<typename Deadline>
-Duration SocketDriver::SocketDriverPriv::StepTodos(Deadline deadline)
+Duration Driver::DriverPriv::StepTodos(Deadline deadline)
 {
   do {
     assert(!todos.empty());
@@ -204,7 +204,7 @@ Duration SocketDriver::SocketDriverPriv::StepTodos(Deadline deadline)
   return Duration(0);
 }
 
-void SocketDriver::SocketDriverPriv::StepFds(Duration timeout)
+void Driver::DriverPriv::StepFds(Duration timeout)
 {
   if(auto const result = Poll(pfds, timeout)) {
     if(result < 0) {
@@ -226,7 +226,7 @@ void SocketDriver::SocketDriverPriv::StepFds(Duration timeout)
   }
 }
 
-void SocketDriver::SocketDriverPriv::Run()
+void Driver::DriverPriv::Run()
 {
   shouldStop = false;
   while(!shouldStop) {
@@ -234,31 +234,31 @@ void SocketDriver::SocketDriverPriv::Run()
   }
 }
 
-void SocketDriver::SocketDriverPriv::Stop()
+void Driver::DriverPriv::Stop()
 {
   shouldStop = true;
   Bump();
 }
 
-void SocketDriver::SocketDriverPriv::ToDoInsert(ToDoShared todo)
+void Driver::DriverPriv::ToDoInsert(ToDoShared todo)
 {
   PauseGuard lock(*this);
   todos.Insert(std::move(todo));
 }
 
-void SocketDriver::SocketDriverPriv::ToDoRemove(ToDo::ToDoPriv *todo)
+void Driver::DriverPriv::ToDoRemove(ToDo::ToDoPriv *todo)
 {
   PauseGuard lock(*this);
   todos.Remove(todo);
 }
 
-void SocketDriver::SocketDriverPriv::ToDoMove(ToDoShared todo, TimePoint when)
+void Driver::DriverPriv::ToDoMove(ToDoShared todo, TimePoint when)
 {
   PauseGuard lock(*this);
   todos.Move(std::move(todo), when);
 }
 
-void SocketDriver::SocketDriverPriv::AsyncRegister(
+void Driver::DriverPriv::AsyncRegister(
     SocketAsyncPriv &sock)
 {
   PauseGuard lock(*this);
@@ -267,7 +267,7 @@ void SocketDriver::SocketDriverPriv::AsyncRegister(
   pfds.emplace_back(pollfd{sock.fd, POLLIN, 0});
 }
 
-void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
+void Driver::DriverPriv::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
@@ -286,7 +286,7 @@ void SocketDriver::SocketDriverPriv::AsyncUnregister(SOCKET fd)
   pfds.erase(itPfd);
 }
 
-void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
+void Driver::DriverPriv::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
@@ -298,7 +298,7 @@ void SocketDriver::SocketDriverPriv::AsyncWantSend(SOCKET fd)
   itPfd->events |= POLLOUT;
 }
 
-void SocketDriver::SocketDriverPriv::Bump()
+void Driver::DriverPriv::Bump()
 {
   static char const one = '1';
   auto const sent = pipeFrom.SendTo(&one, sizeof(one),
@@ -307,13 +307,13 @@ void SocketDriver::SocketDriverPriv::Bump()
   assert(sent == sizeof(one));
 }
 
-void SocketDriver::SocketDriverPriv::Unbump()
+void Driver::DriverPriv::Unbump()
 {
   char dump[256U];
   (void)pipeTo.Receive(dump, sizeof(dump), noTimeout);
 }
 
-void SocketDriver::SocketDriverPriv::DoOneFdTask()
+void Driver::DriverPriv::DoOneFdTask()
 {
   assert(sockets.size() + 1U == pfds.size());
 

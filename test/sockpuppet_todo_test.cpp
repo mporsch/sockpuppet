@@ -7,7 +7,7 @@
 
 using namespace sockpuppet;
 
-static SocketDriver driver;
+static Driver driver;
 static auto startTime = Clock::now();
 
 std::ostream &operator<<(std::ostream &os, TimePoint tp)
@@ -103,7 +103,7 @@ try {
                  now + Duration(2000)),
        Duration(2000));
 
-  // use the different socket driver loop methods
+  // use the different driver loop methods
   driver.Step(Duration(0));
   driver.Step(Duration(150));
   driver.Step(Duration(-1));

@@ -1,6 +1,6 @@
 #include "sockpuppet/socket_async.h"
+#include "driver_priv.h" // for DriverPriv
 #include "socket_async_priv.h" // for SocketAsyncPriv
-#include "socket_driver_priv.h" // for SocketDriverPriv
 #include "todo_priv.h" // for ToDoPriv
 
 #include <stdexcept> // for std::logic_error
@@ -18,45 +18,45 @@ namespace {
   }
 } // unnamed namespace
 
-SocketDriver::SocketDriver()
-  : priv(std::make_shared<SocketDriverPriv>())
+Driver::Driver()
+  : priv(std::make_shared<DriverPriv>())
 {
 }
 
-void SocketDriver::Step(Duration timeout)
+void Driver::Step(Duration timeout)
 {
   priv->Step(timeout);
 }
 
-void SocketDriver::Run()
+void Driver::Run()
 {
   priv->Run();
 }
 
-void SocketDriver::Stop()
+void Driver::Stop()
 {
   priv->Stop();
 }
 
-SocketDriver::SocketDriver(SocketDriver &&other) noexcept = default;
+Driver::Driver(Driver &&other) noexcept = default;
 
-SocketDriver::~SocketDriver() = default;
+Driver::~Driver() = default;
 
-SocketDriver &SocketDriver::operator=(SocketDriver &&other) noexcept = default;
+Driver &Driver::operator=(Driver &&other) noexcept = default;
 
 
-ToDo::ToDo(SocketDriver &driver, std::function<void()> task)
+ToDo::ToDo(Driver &driver, std::function<void()> task)
   : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task)))
 {
 }
 
-ToDo::ToDo(SocketDriver &driver, std::function<void()> task, TimePoint when)
+ToDo::ToDo(Driver &driver, std::function<void()> task, TimePoint when)
   : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), when))
 {
   driver.priv->ToDoInsert(priv);
 }
 
-ToDo::ToDo(SocketDriver &driver, std::function<void()> task, Duration delay)
+ToDo::ToDo(Driver &driver, std::function<void()> task, Duration delay)
   : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), Clock::now() + delay))
 {
   driver.priv->ToDoInsert(priv);
@@ -85,7 +85,7 @@ ToDo &ToDo::operator=(ToDo &&other) noexcept = default;
 
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
-    SocketDriver &driver, ReceiveHandler handleReceive)
+    Driver &driver, ReceiveHandler handleReceive)
   : priv(std::make_unique<SocketAsyncPriv>(
       std::move(*buff.priv),
       driver.priv,
@@ -99,7 +99,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
-    SocketDriver &driver, ReceiveFromHandler handleReceiveFrom)
+    Driver &driver, ReceiveFromHandler handleReceiveFrom)
   : priv(std::make_unique<SocketAsyncPriv>(
       std::move(*buff.priv),
       driver.priv,
@@ -131,7 +131,7 @@ SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept = def
 
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(
-    SocketTcpBuffered &&buff, SocketDriver &driver,
+    SocketTcpBuffered &&buff, Driver &driver,
     ReceiveHandler handleReceive, DisconnectHandler handleDisconnect)
   : priv(std::make_unique<SocketAsyncPriv>(
       std::move(*buff.priv),
@@ -168,7 +168,7 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
 
 
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
-    SocketDriver &driver, ConnectHandler handleConnect)
+    Driver &driver, ConnectHandler handleConnect)
   : priv(std::make_unique<SocketAsyncPriv>(
       std::move(*sock.priv),
       driver.priv,

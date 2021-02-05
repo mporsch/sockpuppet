@@ -17,7 +17,7 @@ int main(int argc, char **argv)
   if(argc > 1) {
     addr = Address(argv[1]);
   }
-  SocketDriver driver;
+  Driver driver;
   SocketUdpAsync sock({addr}, driver, HandleReceive);
 
   // the hidden implementation should be acessible after including the internal headers

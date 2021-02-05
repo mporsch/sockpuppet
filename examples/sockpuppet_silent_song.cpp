@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_async.h" // for SocketDriver
+#include "sockpuppet/socket_async.h" // for Driver
 
 #include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
@@ -13,7 +13,7 @@ using namespace sockpuppet;
 
 namespace {
 
-SocketDriver driver;
+Driver driver;
 
 void Shutdown(int)
 {
@@ -83,7 +83,7 @@ void ParseAndSchedule(std::ifstream ifs)
 {
   std::regex const lrcLineRegex(R"(\[([0-9]+):([0-9.]+)\](.*))");
 
-  // schedule a task for stopping the socket driver loop
+  // schedule a task for stopping the driver loop
   // the task will be shifted back according to the LRC timings
   ToDo finale(driver, Fin, Duration(0));
 

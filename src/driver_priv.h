@@ -1,9 +1,9 @@
-#ifndef SOCKPUPPET_SOCKET_DRIVER_PRIV_H
-#define SOCKPUPPET_SOCKET_DRIVER_PRIV_H
+#ifndef SOCKPUPPET_DRIVER_PRIV_H
+#define SOCKPUPPET_DRIVER_PRIV_H
 
 #include "socket_priv.h" // for SocketPriv
 #include "sockpuppet/address.h" // for Address
-#include "sockpuppet/socket_async.h" // for SocketDriver
+#include "sockpuppet/socket_async.h" // for Driver
 #include "todo_priv.h" // for ToDos
 
 #ifdef _WIN32
@@ -20,7 +20,7 @@
 
 namespace sockpuppet {
 
-struct SocketDriver::SocketDriverPriv
+struct Driver::DriverPriv
 {
   using AddressShared = std::shared_ptr<Address::AddressPriv>;
   using SocketRef = std::reference_wrapper<SocketAsyncPriv>;
@@ -33,7 +33,7 @@ struct SocketDriver::SocketDriverPriv
     std::unique_lock<std::recursive_mutex> stepLock;
     std::unique_lock<std::mutex> pauseLock;
 
-    StepGuard(SocketDriverPriv &priv);
+    StepGuard(DriverPriv &priv);
     StepGuard(StepGuard const &) = delete;
     StepGuard(StepGuard &&) = delete;
     ~StepGuard();
@@ -45,7 +45,7 @@ struct SocketDriver::SocketDriverPriv
   {
     std::unique_lock<std::recursive_mutex> stepLock;
 
-    PauseGuard(SocketDriverPriv &priv);
+    PauseGuard(DriverPriv &priv);
     PauseGuard(PauseGuard const &) = delete;
     PauseGuard(PauseGuard &&) = delete;
     ~PauseGuard();
@@ -66,12 +66,12 @@ struct SocketDriver::SocketDriverPriv
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
-  SocketDriverPriv();
-  SocketDriverPriv(SocketDriverPriv const &) = delete;
-  SocketDriverPriv(SocketDriverPriv &&) = delete;
-  ~SocketDriverPriv();
-  SocketDriverPriv &operator=(SocketDriverPriv const &) = delete;
-  SocketDriverPriv &operator=(SocketDriverPriv &&) = delete;
+  DriverPriv();
+  DriverPriv(DriverPriv const &) = delete;
+  DriverPriv(DriverPriv &&) = delete;
+  ~DriverPriv();
+  DriverPriv &operator=(DriverPriv const &) = delete;
+  DriverPriv &operator=(DriverPriv &&) = delete;
 
   void Step(Duration timeout);
   template<typename Deadline>
@@ -99,4 +99,4 @@ struct SocketDriver::SocketDriverPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_SOCKET_DRIVER_PRIV_H
+#endif // SOCKPUPPET_DRIVER_PRIV_H

@@ -25,7 +25,7 @@ std::string const response =
 </html>)";
 
 // socket driver to run multiple servers in one thread
-SocketDriver driver;
+Driver driver;
 
 void SignalHandler(int)
 {

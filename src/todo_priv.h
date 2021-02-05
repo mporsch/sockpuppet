@@ -24,9 +24,9 @@ struct ToDos : public std::deque<ToDoShared>
 
 struct ToDo::ToDoPriv : public std::enable_shared_from_this<ToDoPriv>
 {
-  using DriverShared = std::shared_ptr<SocketDriver::SocketDriverPriv>;
+  using DriverShared = std::shared_ptr<Driver::DriverPriv>;
 
-  std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
+  std::weak_ptr<Driver::DriverPriv> driver;
   std::function<void()> what;
   TimePoint when;
 

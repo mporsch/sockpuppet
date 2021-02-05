@@ -30,8 +30,8 @@ int main(int, char **)
 
   bool success = true;
 
-  SocketDriver driver;
-  auto thread = std::thread(&SocketDriver::Run, &driver);
+  Driver driver;
+  auto thread = std::thread(&Driver::Run, &driver);
 
   {
     Address serverAddress("localhost:8554");

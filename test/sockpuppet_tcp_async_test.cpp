@@ -23,13 +23,13 @@ std::promise<void> promisedServerDisconnect;
 struct Server
 {
   SocketTcpAsyncServer server;
-  SocketDriver &driver;
+  Driver &driver;
   size_t bytesReceived;
   std::map<Address, SocketTcpAsyncClient> serverHandlers;
   std::mutex mtx;
 
   Server(Address bindAddress,
-         SocketDriver &driver)
+         Driver &driver)
     : server({bindAddress},
              driver,
              std::bind(&Server::HandleConnect,
@@ -128,8 +128,8 @@ int main(int, char **)
   auto futureLoneClientConnect = promisedLoneClientConnect.get_future();
   auto futureServerDisconnect = promisedServerDisconnect.get_future();
 
-  SocketDriver driver;
-  auto thread = std::thread(&SocketDriver::Run, &driver);
+  Driver driver;
+  auto thread = std::thread(&Driver::Run, &driver);
 
   Address serverAddress("localhost:8554");
   auto server = std::make_unique<Server>(serverAddress, driver);

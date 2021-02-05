@@ -35,6 +35,8 @@ add_library(sockpuppet
   src/address_priv_unix.cpp
   src/address_priv_win.cpp
   src/address_priv.h
+  src/driver_priv.cpp
+  src/driver_priv.h
   src/error_code.cpp
   src/error_code_unix.cpp
   src/error_code_win.cpp
@@ -46,8 +48,6 @@ add_library(sockpuppet
   src/socket_buffered.cpp
   src/socket_buffered_priv.cpp
   src/socket_buffered_priv.h
-  src/socket_driver_priv.cpp
-  src/socket_driver_priv.h
   src/socket_priv.cpp
   src/socket_priv.h
   src/todo_priv.cpp

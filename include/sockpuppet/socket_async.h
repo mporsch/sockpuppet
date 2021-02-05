@@ -14,15 +14,15 @@ namespace sockpuppet {
 using Clock = std::chrono::steady_clock;
 using TimePoint = Clock::time_point;
 
-/// Socket driver that runs one or multiple attached socket classes and
-/// may be driven by a dedicated thread or stepped iteratively.
+/// Driver (event loop / scheduler / context) that runs multiple attached socket
+/// and ToDo classes and may be driven by a dedicated thread or stepped iteratively.
 /// @note  Thread-safe with respect to connected tasks and sockets; these
-///        can safely be managed irrespective of concurrent socket driver state.
-struct SocketDriver
+///        can safely be managed irrespective of concurrent driver state.
+struct Driver
 {
-  /// Create a socket driver that can be passed to sockets to attach to.
+  /// Create a driver that can be passed to sockets or ToDos to attach to.
   /// @throws  If creating the internal event signalling fails.
-  SocketDriver();
+  Driver();
 
   /// Run one iteration on the attached sockets.
   /// @param  timeout  Maximum allowed time to use; non-null allows
@@ -42,15 +42,15 @@ struct SocketDriver
   /// @throws  If the internal event signalling fails.
   void Stop();
 
-  SocketDriver(SocketDriver const &) = delete;
-  SocketDriver(SocketDriver &&other) noexcept;
-  ~SocketDriver();
-  SocketDriver &operator=(SocketDriver const &) = delete;
-  SocketDriver &operator=(SocketDriver &&other) noexcept;
+  Driver(Driver const &) = delete;
+  Driver(Driver &&other) noexcept;
+  ~Driver();
+  Driver &operator=(Driver const &) = delete;
+  Driver &operator=(Driver &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  struct SocketDriverPriv;
-  std::shared_ptr<SocketDriverPriv> priv;
+  struct DriverPriv;
+  std::shared_ptr<DriverPriv> priv;
 };
 
 /// Scheduled task to be executed later.
@@ -58,30 +58,30 @@ struct SocketDriver
 struct ToDo
 {
   /// Create a task to be scheduled later.
-  /// @param  driver  Socket driver to run the task.
+  /// @param  driver  Driver to run the task.
   /// @param  task  Task to execute after being scheduled.
-  ToDo(SocketDriver &driver,
+  ToDo(Driver &driver,
        std::function<void()> task);
 
   /// Create and schedule a task to be executed later.
-  /// @param  driver  Socket driver to run the task.
+  /// @param  driver  Driver to run the task.
   /// @param  task  Task to execute on time given by \ref when.
   /// @param  when  Point in time when to execute the task. If the time
   ///               has already passed, the task will be executed asap.
   /// @note  The object does not need to be kept if no
   ///        subsequent \ref Cancel or \ref Shift is intended.
-  ToDo(SocketDriver &driver,
+  ToDo(Driver &driver,
        std::function<void()> task,
        TimePoint when);
 
   /// Create and schedule a task to be executed later.
-  /// @param  driver  Socket driver to run the task.
+  /// @param  driver  Driver to run the task.
   /// @param  task  Task to execute on time given by \ref delay.
   /// @param  delay  Point in time from now when to execute the task. If the delay
   ///         is less or equal zero, the task will be executed asap.
   /// @note  The object does not need to be kept if no
   ///        subsequent \ref Cancel or \ref Shift is intended.
-  ToDo(SocketDriver &driver,
+  ToDo(Driver &driver,
        std::function<void()> task,
        Duration delay);
 
@@ -107,7 +107,7 @@ struct ToDo
   ToDo &operator=(ToDo const &) = delete;
   ToDo &operator=(ToDo &&other) noexcept;
 
-  /// Bridge to implementation instance shared with socket driver.
+  /// Bridge to implementation instance shared with driver.
   struct ToDoPriv;
   std::shared_ptr<ToDoPriv> priv;
 };
@@ -128,7 +128,7 @@ struct SocketUdpAsync
   /// @param  handleReceive  (Bound) function to call on receipt.
   /// @throws  If an invalid handler is provided.
   SocketUdpAsync(SocketUdpBuffered &&buff,
-                 SocketDriver &driver,
+                 Driver &driver,
                  ReceiveHandler handleReceive);
 
   /// Create a UDP socket driven by given socket driver.
@@ -137,7 +137,7 @@ struct SocketUdpAsync
   /// @param  handleReceiveFrom  (Bound) function to call on receipt.
   /// @throws  If an invalid handler is provided.
   SocketUdpAsync(SocketUdpBuffered &&buff,
-                 SocketDriver &driver,
+                 Driver &driver,
                  ReceiveFromHandler handleReceiveFrom);
 
   /// Enqueue data to unreliably send to address.
@@ -176,7 +176,7 @@ struct SocketTcpAsyncClient
   ///                           disconnected and has become invalid.
   /// @throws  If an invalid handler is provided.
   SocketTcpAsyncClient(SocketTcpBuffered &&buff,
-                       SocketDriver &driver,
+                       Driver &driver,
                        ReceiveHandler handleReceive,
                        DisconnectHandler handleDisconnect);
 
@@ -214,7 +214,7 @@ struct SocketTcpAsyncServer
   /// @param  handleConnect  (Bound) function to call when a TCP client connects.
   /// @throws  If an invalid handler is provided.
   SocketTcpAsyncServer(SocketTcpServer &&sock,
-                       SocketDriver &driver,
+                       Driver &driver,
                        ConnectHandler handleConnect);
 
   /// Get the local (bound-to) address of the socket.

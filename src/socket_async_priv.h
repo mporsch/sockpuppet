@@ -3,7 +3,7 @@
 
 #include "address_priv.h" // for AddressPriv
 #include "socket_buffered_priv.h" // for SocketBufferedPriv
-#include "sockpuppet/socket_async.h" // for SocketDriver
+#include "sockpuppet/socket_async.h" // for Driver
 
 #include <future> // for std::future
 #include <memory> // for std::shared_ptr
@@ -16,7 +16,7 @@ namespace sockpuppet {
 struct SocketAsyncPriv : public SocketBufferedPriv
 {
   using AddressShared = std::shared_ptr<Address::AddressPriv>;
-  using DriverShared = std::shared_ptr<SocketDriver::SocketDriverPriv>;
+  using DriverShared = std::shared_ptr<Driver::DriverPriv>;
   using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
   using SendQ = std::queue<SendQElement>;
   using SendToQElement = std::tuple<std::promise<void>, BufferPtr, AddressShared>;
@@ -30,7 +30,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
     DisconnectHandler disconnect;
   };
 
-  std::weak_ptr<SocketDriver::SocketDriverPriv> driver;
+  std::weak_ptr<Driver::DriverPriv> driver;
   Handlers handlers;
   std::mutex sendQMtx;
   SendQ sendQ;
@@ -51,7 +51,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
   template<typename Queue, typename... Args>
   std::future<void> DoSend(Queue &q, Args&&... args);
 
-  // in thread context of SocketDriverPriv
+  // in thread context of DriverPriv
   void DriverDoFdTaskReadable();
 
   /// @return  true if there is no more data to send, false otherwise

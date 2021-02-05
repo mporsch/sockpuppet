@@ -41,11 +41,11 @@ struct Server
   };
 
   SocketTcpAsyncServer server;
-  SocketDriver &driver;
+  Driver &driver;
   std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
   Server(Address bindAddress,
-         SocketDriver &driver)
+         Driver &driver)
     : server({bindAddress},
              driver,
              std::bind(&Server::HandleConnect,
@@ -84,7 +84,7 @@ struct Clients
     size_t receivedSize;
     std::vector<BufferPtr> receivedData;
 
-    Client(Clients *parent, SocketTcpClient client, SocketDriver &driver)
+    Client(Clients *parent, SocketTcpClient client, Driver &driver)
       : parent(parent)
       , client({std::move(client)},
                driver,
@@ -125,7 +125,7 @@ struct Clients
   Clients(Clients const &) = delete;
   Clients(Clients &&) = delete;
 
-  void Add(Address serverAddr, SocketDriver &driver)
+  void Add(Address serverAddr, Driver &driver)
   {
     SocketTcpClient client(serverAddr);
     auto clientAddr = client.LocalAddress();
@@ -170,20 +170,20 @@ try {
   auto futureClientsDone = promiseClientsDone.get_future();
 
   // set up a server that echoes all input data on multiple sessions
-  SocketDriver serverDriver;
+  Driver serverDriver;
   Address serverAddr("localhost:8554");
   Server server(serverAddr, serverDriver);
-  auto serverThread = std::thread(&SocketDriver::Run, &serverDriver);
+  auto serverThread = std::thread(&Driver::Run, &serverDriver);
 
   std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
   // set up clients that send to the server and receive the echo
-  SocketDriver clientDriver;
+  Driver clientDriver;
   Clients clients;
   for(size_t i = 0U; i < clientCount; ++i) {
     clients.Add(serverAddr, clientDriver);
   }
-  auto clientThread = std::thread(&SocketDriver::Run, &clientDriver);
+  auto clientThread = std::thread(&Driver::Run, &clientDriver);
 
   // trigger sending from clients to server from multiple threads
   std::thread clientSendThreads[clientCount];
