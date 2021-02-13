@@ -3,6 +3,7 @@
 
 #ifndef _WIN32
 # include <fcntl.h> // for fcntl
+# include <poll.h> // for pollfd
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
@@ -35,7 +36,7 @@ namespace {
 #endif // _WIN32
   }
 
-  int Poll(pollfd pfd, Duration timeout)
+  int DoPoll(Duration timeout, pollfd pfd)
   {
     using namespace std::chrono;
 
@@ -47,6 +48,17 @@ namespace {
 #else
     return ::poll(&pfd, 1U, msec);
 #endif // _WIN32
+  }
+
+  bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
+  {
+    if(auto const result = DoPoll(timeout, pfd)) {
+      if(result < 0) {
+        throw std::system_error(SocketError(), errorMessage);
+      }
+      return true; // read/write ready
+    }
+    return false; // timeout exceeded
   }
 
   int SetNonBlocking(SOCKET fd)
@@ -106,7 +118,7 @@ SocketPriv::SocketPriv(SOCKET fd)
   , isBlocking(true)
 {
   if(fd == fdInvalid) {
-    throw std::system_error(SocketError(), "failed to create socket");
+    throw std::system_error(SocketError(), "failed to accept socket");
   }
 }
 
@@ -124,17 +136,11 @@ SocketPriv::~SocketPriv()
   }
 }
 
+// used for both UDP and TCP
 size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(NeedsPoll(timeout)) {
-    if(auto const result = PollRead(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to receive");
-      }
-    } else {
-      // timeout exceeded
-      return 0U;
-    }
+  if(!PollReadable(timeout)) {
+    return 0U; // timeout exceeded
   }
 
   static int const flags = 0;
@@ -149,18 +155,12 @@ size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
   return static_cast<size_t>(received);
 }
 
+// used for UDP only
 std::pair<size_t, std::shared_ptr<SockAddrStorage>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(NeedsPoll(timeout)) {
-    if(auto const result = PollRead(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to receive");
-      }
-    } else {
-      // timeout exceeded
-      return {0U, nullptr};
-    }
+  if(!PollReadable(timeout)) {
+    return {0U, nullptr}; // timeout exceeded
   }
 
   static int const flags = 0;
@@ -175,34 +175,27 @@ SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   return {static_cast<size_t>(received), std::move(sas)};
 }
 
+// TCP send will block regularly, if:
+//   the user enqueues faster than the NIC can send or the peer can process
+//   network losses/delay causes retransmissions
+// causing the OS send buffer to fill up
 size_t SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
+  // utilize the user-provided timeout to send the max amount of data
   size_t sent = 0U;
   Deadline deadline(timeout);
   do {
-    sent += SendIteration(data + sent, size - sent, deadline.remaining);
+    sent += SendSome(data + sent, size - sent, deadline.remaining);
   } while((sent < size) && deadline.TimeLeft());
 
   assert((sent == size) || (timeout.count() >= 0));
   return sent;
 }
 
-size_t SocketPriv::SendIteration(char const *data, size_t size, Duration timeout)
+size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 {
-  // TCP send will block regularly, if:
-  //   the user enqueues faster than the NIC can send or the peer can process
-  //   network losses/delay causes retransmissions
-  // causing the OS send buffer to fill up
-
-  if(NeedsPoll(timeout)) {
-    if(auto const result = PollWrite(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to send");
-      }
-    } else {
-      // timeout exceeded
-      return 0U;
-    }
+  if(!PollWritable(timeout)) {
+    return 0U; // timeout exceeded
   }
 
   auto const sent = ::send(fd,
@@ -216,22 +209,14 @@ size_t SocketPriv::SendIteration(char const *data, size_t size, Duration timeout
   return static_cast<size_t>(sent);
 }
 
+// UDP send will block only rarely,
+// if the user enqueues faster than the NIC can send
+// causing the OS send buffer to fill up
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  // UDP send will block only rarely,
-  // if the user enqueues faster than the NIC can send
-  // causing the OS send buffer to fill up
-
-  if(NeedsPoll(timeout)) {
-    if(auto const result = PollWrite(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to send");
-      }
-    } else {
-      // timeout exceeded
-      return 0U;
-    }
+  if(!PollWritable(timeout)) {
+    return 0U; // timeout exceeded
   }
 
   static int const flags = 0;
@@ -244,7 +229,7 @@ size_t SocketPriv::SendTo(char const *data, size_t size,
     throw std::system_error(error,
           "failed to send to " + to_string(dstAddr));
   } else if(static_cast<size_t>(sent) != size) {
-    throw std::logic_error("unexpected send result");
+    throw std::logic_error("unexpected UDP send result");
   }
   return static_cast<size_t>(sent);
 }
@@ -278,14 +263,10 @@ void SocketPriv::Listen()
 std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(timeout.count() >= 0) {
-    if(auto const result = PollRead(timeout)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), "failed to accept");
-      }
-    } else {
-      throw std::runtime_error("accept timed out");
-    }
+  if(!Poll(timeout,
+           pollfd{fd, POLLIN, 0},
+           "failed to wait for accept")) {
+    throw std::runtime_error("accept timed out");
   }
 
   auto sas = std::make_shared<SockAddrStorage>();
@@ -369,6 +350,26 @@ std::shared_ptr<SockAddrStorage> SocketPriv::GetPeerName() const
   return sas;
 }
 
+bool SocketPriv::PollReadable(Duration timeout)
+{
+  if(NeedsPoll(timeout)) {
+    return Poll(timeout,
+                pollfd{fd, POLLIN, 0},
+                "failed to wait for socket input");
+  }
+  return true;
+}
+
+bool SocketPriv::PollWritable(Duration timeout)
+{
+  if(NeedsPoll(timeout)) {
+    return Poll(timeout,
+                pollfd{fd, POLLOUT, 0},
+                "failed to wait for socket writable");
+  }
+  return true;
+}
+
 bool SocketPriv::NeedsPoll(Duration timeout)
 {
   if(isBlocking && (timeout.count() >= 0)) {
@@ -376,16 +377,6 @@ bool SocketPriv::NeedsPoll(Duration timeout)
     isBlocking = false;
   }
   return !isBlocking;
-}
-
-int SocketPriv::PollRead(Duration timeout) const
-{
-  return Poll(pollfd{fd, POLLIN, 0}, timeout);
-}
-
-int SocketPriv::PollWrite(Duration timeout) const
-{
-  return Poll(pollfd{fd, POLLOUT, 0}, timeout);
 }
 
 } // namespace sockpuppet

@@ -8,7 +8,6 @@
 #ifdef _WIN32
 # include <winsock2.h> // for SOCKET
 #else
-# include <poll.h> // for pollfd
 using SOCKET = int;
 #endif // _WIN32
 
@@ -42,9 +41,9 @@ struct SocketPriv
   size_t Send(char const *data,
               size_t size,
               Duration timeout);
-  size_t SendIteration(char const *data,
-                       size_t size,
-                       Duration timeout);
+  size_t SendSome(char const *data,
+                  size_t size,
+                  Duration timeout);
 
   size_t SendTo(char const *data,
                 size_t size,
@@ -71,6 +70,10 @@ struct SocketPriv
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 
+  /// @return  false: timed out, true: readable/writable/closed
+  bool PollReadable(Duration timeout);
+  bool PollWritable(Duration timeout);
+
   /// each socket is created in blocking mode:
   ///   no poll is needed before send/receive calls
   ///   TCP send always transmits the whole buffer at once
@@ -79,10 +82,6 @@ struct SocketPriv
   ///   poll is needed before each send/receive call
   ///   TCP send may transmit a buffer partially
   bool NeedsPoll(Duration timeout);
-
-  /// @return  0: timed out, <0: error, >0: readable/writable/closed
-  int PollRead(Duration timeout) const;
-  int PollWrite(Duration timeout) const;
 };
 
 } // namespace sockpuppet
