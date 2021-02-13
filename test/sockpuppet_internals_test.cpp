@@ -7,7 +7,7 @@
 
 using namespace sockpuppet;
 
-void HandleReceive(BufferPtr)
+void HandleReceiveFrom(BufferPtr, Address)
 {
 }
 
@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     addr = Address(argv[1]);
   }
   Driver driver;
-  SocketUdpAsync sock({addr}, driver, HandleReceive);
+  SocketUdpAsync sock({addr}, driver, HandleReceiveFrom);
 
   // the hidden implementation should be acessible after including the internal headers
   std::cout << "Family of address " << to_string(addr) << " is " << addr.priv->Family()

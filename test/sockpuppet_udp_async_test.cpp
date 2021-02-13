@@ -18,7 +18,7 @@ void HandleReceiveFrom(BufferPtr, Address addr)
   }
 }
 
-void ReceiveDummy(BufferPtr)
+void ReceiveFromDummy(BufferPtr, Address)
 {
 }
 
@@ -47,7 +47,7 @@ int main(int, char **)
 
       SocketUdpAsync client({Address("localhost")},
                             driver,
-                            ReceiveDummy);
+                            ReceiveFromDummy);
 
       std::cout << "sending from " << to_string(client.LocalAddress())
                 << " to " << to_string(serverAddress) << std::endl;

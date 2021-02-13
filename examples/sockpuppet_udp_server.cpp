@@ -2,7 +2,7 @@
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
-#include <string> // for std::string
+#include <string_view> // for std::string_view
 
 using namespace sockpuppet;
 
@@ -25,12 +25,14 @@ void Server(Address bindAddress)
 
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
-    size_t received = sock.Receive(buffer,
-                                   sizeof(buffer),
-                                   noTimeout);
+    auto [receiveSize, fromAddr] = sock.ReceiveFrom(
+        buffer, sizeof(buffer),
+        noTimeout);
 
     // print whatever has just been received
-    std::cout << std::string(buffer, received) << std::endl;
+    std::cout << std::string_view(buffer, receiveSize)
+              << " from " << to_string(fromAddr)
+              << std::endl;
   }
 }
 

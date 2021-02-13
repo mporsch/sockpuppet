@@ -33,8 +33,8 @@ try {
   // receive until timeout
   do {
     storage.emplace_back(
-          server.Receive(
-            std::chrono::milliseconds(100)));
+          server.ReceiveFrom(
+            std::chrono::milliseconds(100)).first);
   } while(storage.back()->size() > 0U);
   storage.pop_back();
 

@@ -4,7 +4,7 @@
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 #include <stdexcept> // for std::runtime_error
-#include <string> // for std::string
+#include <string_view> // for std::string_view
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
@@ -19,20 +19,12 @@ try {
             << std::endl;
 
   char buffer[256];
-  auto received = server.Receive(buffer, sizeof(buffer),
-                                 std::chrono::seconds(1));
-  if(received > 0U &&
-     std::string(buffer, received).find("hello") != std::string::npos) {
-    auto const t = server.ReceiveFrom(buffer, sizeof(buffer),
-                                      std::chrono::seconds(1));
-    received = std::get<0>(t);
-    auto &&clientAddr = std::get<1>(t);
-
-    if(received > 0U &&
-       std::string(buffer, received).find("hello") != std::string::npos) {
-      std::cout << "received from " << to_string(clientAddr) << std::endl;
-      return;
-    }
+  auto [receiveSize, clientAddr] = server.ReceiveFrom(
+      buffer, sizeof(buffer),
+      std::chrono::seconds(1));
+  if(std::string_view(buffer, receiveSize).find("hello") != std::string_view::npos) {
+    std::cout << "received from " << to_string(clientAddr) << std::endl;
+    return;
   }
 
   throw std::runtime_error("failed to receive");
@@ -47,8 +39,7 @@ try {
   auto const clientAddr = client.LocalAddress();
 
   char buffer[256];
-  if((client.Receive(buffer, sizeof(buffer), std::chrono::seconds(0)) != 0U) ||
-     (std::get<0>(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0))) != 0U)) {
+  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0)).first != 0U) {
     throw std::runtime_error("unexpected receive");
   }
 
