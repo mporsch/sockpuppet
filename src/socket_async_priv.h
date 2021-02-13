@@ -56,7 +56,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
-  void DriverDoSend(SendQElement &t);
+  bool DriverDoSend(SendQElement &t);
   void DriverDoSendTo(SendToQElement &t);
 
   void DriverDoFdTaskError();

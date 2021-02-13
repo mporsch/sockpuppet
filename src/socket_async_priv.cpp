@@ -102,34 +102,44 @@ bool SocketAsyncPriv::DriverDoFdTaskWritable()
   // the previously empty queue has not been refilled asynchronously
   std::lock_guard<std::mutex> lock(sendQMtx);
 
-  // socket uses either send or sendto but not both
-  assert(sendQ.empty() || sendToQ.empty());
+  // one queue must have data but not both,
+  // as socket uses either send or sendto
+  assert(sendQ.empty() != sendToQ.empty());
 
   if(auto const sendQSize = sendQ.size()) {
-    DriverDoSend(sendQ.front());
-    sendQ.pop();
-    return (sendQSize == 1U);
+    if(DriverDoSend(sendQ.front())) {
+      sendQ.pop();
+      return (sendQSize == 1U);
+    }
   } else if(auto const sendToQSize = sendToQ.size()) {
     DriverDoSendTo(sendToQ.front());
     sendToQ.pop();
     return (sendToQSize == 1U);
   }
-  assert(false); // queue emptied unexpectedly
-  return true;
+  return false;
 }
 
-void SocketAsyncPriv::DriverDoSend(SendQElement &t)
+bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
     auto &&buffer = std::get<1>(t);
-    auto const sent = SocketPriv::Send(buffer->data(), buffer->size(), noTimeout);
-    // as unlimited timeout is set, partially sent data is not expected
-    assert(sent == buffer->size());
-    promise.set_value();
+
+    // allow partial send to avoid starving other
+    // driver's sockets if this one is rate limited
+    auto const sent = SocketPriv::SendSome(buffer->data(), buffer->size(),
+                                           noTimeout);
+    if(sent == buffer->size()) {
+      promise.set_value();
+      return true;
+    } else {
+      assert(sent > 0U);
+      buffer->erase(0, sent);
+    }
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
+  return false;
 }
 
 void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
