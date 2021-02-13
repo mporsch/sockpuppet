@@ -171,8 +171,6 @@ SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
                                    sas->Addr(), sas->AddrLen());
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
-  } else if(received == 0) {
-    throw std::logic_error("unexpected UDP receive result");
   }
   return {static_cast<size_t>(received), std::move(sas)};
 }
