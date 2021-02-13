@@ -16,6 +16,7 @@ jobs:
 
     - name: "Unix GCC static library"
       os: linux
+      dist: bionic
       compiler: gcc
       env:
         - GENERATOR="Unix Makefiles"
@@ -24,6 +25,7 @@ jobs:
 
     - name: "Unix GCC shared library"
       os: linux
+      dist: bionic
       compiler: gcc
       env:
         - GENERATOR="Unix Makefiles"
