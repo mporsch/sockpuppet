@@ -13,94 +13,96 @@
 namespace sockpuppet {
 
 namespace {
-  static auto const fdInvalid =
+
+static auto const fdInvalid =
 #ifdef _WIN32
-      INVALID_SOCKET;
+    INVALID_SOCKET;
 #else
-      SOCKET(-1);
+    SOCKET(-1);
 #endif // _WIN32
 
-  static int const sendFlags =
+static int const sendFlags =
 #ifdef MSG_NOSIGNAL
-      MSG_NOSIGNAL;
+    MSG_NOSIGNAL;
 #else
-      0;
+    0;
 #endif // MSG_NOSIGNAL
 
-  void CloseSocket(SOCKET fd)
-  {
+void CloseSocket(SOCKET fd)
+{
 #ifdef _WIN32
-    (void)::closesocket(fd);
+  (void)::closesocket(fd);
 #else
-    (void)::close(fd);
+  (void)::close(fd);
 #endif // _WIN32
+}
+
+int SetNonBlocking(SOCKET fd)
+{
+#ifdef _WIN32
+  unsigned long enable = 1U;
+  return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
+#else
+  int const flags = ::fcntl(fd, F_GETFL, 0);
+  if (flags == -1) {
+    return flags;
   }
+  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#endif // _WIN32
+}
 
-  int DoPoll(Duration timeout, pollfd pfd)
-  {
-    using namespace std::chrono;
+int DoPoll(Duration timeout, pollfd pfd)
+{
+  using namespace std::chrono;
 
-    auto const msec = static_cast<int>(
-          duration_cast<milliseconds>(timeout).count());
+  auto const msec = static_cast<int>(
+        duration_cast<milliseconds>(timeout).count());
 
 #ifdef _WIN32
-    return ::WSAPoll(&pfd, 1U, msec);
+  return ::WSAPoll(&pfd, 1U, msec);
 #else
-    return ::poll(&pfd, 1U, msec);
+  return ::poll(&pfd, 1U, msec);
 #endif // _WIN32
+}
+
+bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
+{
+  if(auto const result = DoPoll(timeout, pfd)) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), errorMessage);
+    }
+    return true; // read/write ready
+  }
+  return false; // timeout exceeded
+}
+
+struct Deadline
+{
+  Duration remaining;
+  std::chrono::time_point<std::chrono::steady_clock> lastStart;
+
+  Deadline(Duration timeout)
+    : remaining(timeout)
+  {
+    if(remaining.count() >= 0) {
+      lastStart = std::chrono::steady_clock::now();
+    }
   }
 
-  bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
+  bool TimeLeft()
   {
-    if(auto const result = DoPoll(timeout, pfd)) {
-      if(result < 0) {
-        throw std::system_error(SocketError(), errorMessage);
-      }
-      return true; // read/write ready
+    if(remaining.count() >= 0) {
+      auto const now = std::chrono::steady_clock::now();
+
+      remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
+      lastStart = now;
+
+      return (remaining.count() > 0);
     }
-    return false; // timeout exceeded
+    return true;
   }
+};
 
-  int SetNonBlocking(SOCKET fd)
-  {
-#ifdef _WIN32
-    unsigned long enable = 1U;
-    return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
-#else
-    int const flags = ::fcntl(fd, F_GETFL, 0);
-    if (flags == -1) {
-      return flags;
-    }
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#endif // _WIN32
-  }
-
-  struct Deadline
-  {
-    Duration remaining;
-    std::chrono::time_point<std::chrono::steady_clock> lastStart;
-
-    Deadline(Duration timeout)
-      : remaining(timeout)
-    {
-      if(remaining.count() >= 0) {
-        lastStart = std::chrono::steady_clock::now();
-      }
-    }
-
-    bool TimeLeft()
-    {
-      if(remaining.count() >= 0) {
-        auto const now = std::chrono::steady_clock::now();
-
-        remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
-        lastStart = now;
-
-        return (remaining.count() > 0);
-      }
-      return true;
-    }
-  };
 } // unnamed namespace
 
 SocketPriv::SocketPriv(int family, int type, int protocol)
