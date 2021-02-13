@@ -93,14 +93,6 @@ struct SocketUdpBuffered
                 Address const &dstAddress,
                 Duration timeout = Duration(-1));
 
-  /// Unreliably receive data on bound address.
-  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
-  ///                  a negative value allows unlimited blocking.
-  /// @return  Received data buffer borrowed from socket.
-  ///          May return empty buffer only if non-negative \p timeout is specified.
-  /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  BufferPtr Receive(Duration timeout = Duration(-1));
-
   /// Unreliably receive data on bound address and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.

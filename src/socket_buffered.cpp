@@ -92,11 +92,6 @@ size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
   return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
-BufferPtr SocketUdpBuffered::Receive(Duration timeout)
-{
-  return priv->Receive(timeout);
-}
-
 std::pair<BufferPtr, Address>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {

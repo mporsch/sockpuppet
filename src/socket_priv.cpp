@@ -138,7 +138,7 @@ SocketPriv::~SocketPriv()
   }
 }
 
-// used for both UDP and TCP
+// used for TCP only
 size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
   if(!PollReadable(timeout)) {

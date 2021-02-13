@@ -24,11 +24,6 @@ size_t SocketUdp::SendTo(char const *data, size_t size,
   return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
-size_t SocketUdp::Receive(char *data, size_t size, Duration timeout)
-{
-  return priv->Receive(data, size, timeout);
-}
-
 std::pair<size_t, Address> SocketUdp::ReceiveFrom(
     char *data, size_t size, Duration timeout)
 {

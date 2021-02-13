@@ -125,15 +125,6 @@ struct SocketUdpAsync
   /// Create a UDP socket driven by given socket driver.
   /// @param  buff  Buffered UDP socket to augment.
   /// @param  driver  Socket driver to run the socket.
-  /// @param  handleReceive  (Bound) function to call on receipt.
-  /// @throws  If an invalid handler is provided.
-  SocketUdpAsync(SocketUdpBuffered &&buff,
-                 Driver &driver,
-                 ReceiveHandler handleReceive);
-
-  /// Create a UDP socket driven by given socket driver.
-  /// @param  buff  Buffered UDP socket to augment.
-  /// @param  driver  Socket driver to run the socket.
   /// @param  handleReceiveFrom  (Bound) function to call on receipt.
   /// @throws  If an invalid handler is provided.
   SocketUdpAsync(SocketUdpBuffered &&buff,

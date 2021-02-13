@@ -85,20 +85,6 @@ ToDo &ToDo::operator=(ToDo &&other) noexcept = default;
 
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
-    Driver &driver, ReceiveHandler handleReceive)
-  : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*buff.priv),
-      driver.priv,
-      SocketAsyncPriv::Handlers{
-        std::move(checked(handleReceive))
-      , nullptr
-      , nullptr
-      , nullptr
-      }))
-{
-}
-
-SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
     Driver &driver, ReceiveFromHandler handleReceiveFrom)
   : priv(std::make_unique<SocketAsyncPriv>(
       std::move(*buff.priv),

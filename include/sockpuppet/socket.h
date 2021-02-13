@@ -38,18 +38,6 @@ struct SocketUdp
                 Address const &dstAddress,
                 Duration timeout = Duration(-1));
 
-  /// Unreliably receive data on bound address.
-  /// @param  data  Pointer to receive buffer to fill.
-  /// @param  size  Available receive buffer size.
-  /// @param  timeout  Timeout to use; non-null causes blocking receipt,
-  ///                  a negative value allows unlimited blocking.
-  /// @return  Filled receive buffer size. May return 0
-  ///          only if non-negative \p timeout is specified.
-  /// @throws  If receipt fails locally.
-  size_t Receive(char *data,
-                 size_t size,
-                 Duration timeout = Duration(-1));
-
   /// Unreliably receive data on bound address and report the source.
   /// @param  data  Pointer to receive buffer to fill.
   /// @param  size  Available receive buffer size.
