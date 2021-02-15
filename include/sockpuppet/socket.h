@@ -50,6 +50,7 @@ struct SocketUdp
   std::pair<size_t, Address> ReceiveFrom(char *data,
                                          size_t size,
                                          Duration timeout = Duration(-1));
+
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
   Address LocalAddress() const;
@@ -102,6 +103,7 @@ struct SocketTcpClient
   size_t Receive(char *data,
                  size_t size,
                  Duration timeout = Duration(-1));
+
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
   Address LocalAddress() const;

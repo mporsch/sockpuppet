@@ -21,7 +21,6 @@ struct SocketPriv
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
   SOCKET fd;  ///< Socket file descriptor
-  bool isBlocking;  ///< socket blocking/non-blocking status, see NeedsPoll()
 
   SocketPriv(int family,
              int type,
@@ -59,7 +58,6 @@ struct SocketPriv
   std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
   Accept(Duration timeout);
 
-  void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
   void SetSockOptNoSigPipe();
@@ -69,19 +67,6 @@ struct SocketPriv
   size_t GetSockOptRcvBuf() const;
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
-
-  /// @return  false: timed out, true: readable/writable/closed
-  bool PollReadable(Duration timeout);
-  bool PollWritable(Duration timeout);
-
-  /// each socket is created in blocking mode:
-  ///   no poll is needed before send/receive calls
-  ///   TCP send always transmits the whole buffer at once
-  /// if a timeout >=0 is given in any send/receive call,
-  /// the socket permanently switches to non-blocking mode:
-  ///   poll is needed before each send/receive call
-  ///   TCP send may transmit a buffer partially
-  bool NeedsPoll(Duration timeout);
 };
 
 } // namespace sockpuppet

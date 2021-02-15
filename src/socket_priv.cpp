@@ -2,7 +2,6 @@
 #include "error_code.h" // for SocketError
 
 #ifndef _WIN32
-# include <fcntl.h> // for fcntl
 # include <poll.h> // for pollfd
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
@@ -37,20 +36,6 @@ void CloseSocket(SOCKET fd)
 #endif // _WIN32
 }
 
-int SetNonBlocking(SOCKET fd)
-{
-#ifdef _WIN32
-  unsigned long enable = 1U;
-  return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
-#else
-  int const flags = ::fcntl(fd, F_GETFL, 0);
-  if (flags == -1) {
-    return flags;
-  }
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#endif // _WIN32
-}
-
 int DoPoll(Duration timeout, pollfd pfd)
 {
   using namespace std::chrono;
@@ -74,6 +59,22 @@ bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
     return true; // read/write ready
   }
   return false; // timeout exceeded
+}
+
+bool IsReadable(Duration timeout, SOCKET fd)
+{
+  return (timeout.count() < 0) ||
+          Poll(timeout,
+               pollfd{fd, POLLIN, 0},
+               "failed to wait for socket readable");
+}
+
+bool IsWritable(Duration timeout, SOCKET fd)
+{
+  return (timeout.count() < 0) ||
+          Poll(timeout,
+               pollfd{fd, POLLOUT, 0},
+               "failed to wait for socket writable");
 }
 
 struct Deadline
@@ -108,7 +109,6 @@ struct Deadline
 SocketPriv::SocketPriv(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
-  , isBlocking(true)
 {
   if(fd == fdInvalid) {
     throw std::system_error(SocketError(), "failed to create socket");
@@ -117,7 +117,6 @@ SocketPriv::SocketPriv(int family, int type, int protocol)
 
 SocketPriv::SocketPriv(SOCKET fd)
   : fd(fd)
-  , isBlocking(true)
 {
   if(fd == fdInvalid) {
     throw std::system_error(SocketError(), "failed to accept socket");
@@ -126,7 +125,6 @@ SocketPriv::SocketPriv(SOCKET fd)
 
 SocketPriv::SocketPriv(SocketPriv &&other) noexcept
   : fd(other.fd)
-  , isBlocking(other.isBlocking)
 {
   other.fd = fdInvalid;
 }
@@ -141,7 +139,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!PollReadable(timeout)) {
+  if(!IsReadable(timeout, fd)) {
     return 0U; // timeout exceeded
   }
 
@@ -161,7 +159,7 @@ size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 std::pair<size_t, std::shared_ptr<SockAddrStorage>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!PollReadable(timeout)) {
+  if(!IsReadable(timeout, fd)) {
     return {0U, nullptr}; // timeout exceeded
   }
 
@@ -196,7 +194,7 @@ size_t SocketPriv::Send(char const *data, size_t size, Duration timeout)
 
 size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 {
-  if(!PollWritable(timeout)) {
+  if(!IsWritable(timeout, fd)) {
     return 0U; // timeout exceeded
   }
 
@@ -217,7 +215,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!PollWritable(timeout)) {
+  if(!IsWritable(timeout, fd)) {
     return 0U; // timeout exceeded
   }
 
@@ -265,26 +263,15 @@ void SocketPriv::Listen()
 std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(!Poll(timeout,
-           pollfd{fd, POLLIN, 0},
-           "failed to wait for accept")) {
+  if(!IsReadable(timeout, fd)) {
     throw std::runtime_error("accept timed out");
   }
 
   auto sas = std::make_shared<SockAddrStorage>();
-
   auto client = std::make_unique<SocketPriv>(
     ::accept(fd, sas->Addr(), sas->AddrLen()));
 
   return {std::move(client), std::move(sas)};
-}
-
-void SocketPriv::SetSockOptNonBlocking()
-{
-  if(SetNonBlocking(fd)) {
-    throw std::system_error(SocketError(),
-        "failed to set socket option non-blocking");
-  }
 }
 
 void SocketPriv::SetSockOptReuseAddr()
@@ -333,52 +320,19 @@ size_t SocketPriv::GetSockOptRcvBuf() const
 std::shared_ptr<SockAddrStorage> SocketPriv::GetSockName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
-
   if(::getsockname(fd, sas->Addr(), sas->AddrLen())) {
     throw std::system_error(SocketError(), "failed to get socket address");
   }
-
   return sas;
 }
 
 std::shared_ptr<SockAddrStorage> SocketPriv::GetPeerName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
-
   if(::getpeername(fd, sas->Addr(), sas->AddrLen())) {
     throw std::system_error(SocketError(), "failed to get peer address");
   }
-
   return sas;
-}
-
-bool SocketPriv::PollReadable(Duration timeout)
-{
-  if(NeedsPoll(timeout)) {
-    return Poll(timeout,
-                pollfd{fd, POLLIN, 0},
-                "failed to wait for socket input");
-  }
-  return true;
-}
-
-bool SocketPriv::PollWritable(Duration timeout)
-{
-  if(NeedsPoll(timeout)) {
-    return Poll(timeout,
-                pollfd{fd, POLLOUT, 0},
-                "failed to wait for socket writable");
-  }
-  return true;
-}
-
-bool SocketPriv::NeedsPoll(Duration timeout)
-{
-  if(isBlocking && (timeout.count() >= 0)) {
-    SetSockOptNonBlocking();
-    isBlocking = false;
-  }
-  return !isBlocking;
 }
 
 } // namespace sockpuppet
