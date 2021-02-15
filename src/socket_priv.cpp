@@ -22,10 +22,9 @@ static auto const fdInvalid =
 
 static int const sendFlags =
 #ifdef MSG_NOSIGNAL
-    MSG_NOSIGNAL;
-#else
-    0;
+    MSG_NOSIGNAL | // avoid SIGPIPE on connection closed
 #endif // MSG_NOSIGNAL
+    MSG_PARTIAL; // dont block if all cannot be sent at once
 
 void CloseSocket(SOCKET fd)
 {
