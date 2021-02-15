@@ -24,7 +24,13 @@ static int const sendFlags =
 #ifdef MSG_NOSIGNAL
     MSG_NOSIGNAL | // avoid SIGPIPE on connection closed
 #endif // MSG_NOSIGNAL
-    MSG_PARTIAL; // dont block if all cannot be sent at once
+#ifdef MSG_PARTIAL
+    MSG_PARTIAL | // dont block if all cannot be sent at once
+#endif // MSG_PARTIAL
+#ifdef MSG_DONTWAIT
+    MSG_DONTWAIT | // dont block if all cannot be sent at once
+#endif // MSG_DONTWAIT
+    0;
 
 void CloseSocket(SOCKET fd)
 {
