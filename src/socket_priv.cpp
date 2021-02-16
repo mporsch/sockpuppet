@@ -56,23 +56,26 @@ size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
   return static_cast<size_t>(sent);
 }
 
-int DoPoll(Duration timeout, pollfd pfd)
+int ToMsec(Duration timeout)
 {
   using namespace std::chrono;
+  using MilliSeconds = duration<int, std::milli>;
 
-  auto const msec = static_cast<int>(
-        duration_cast<milliseconds>(timeout).count());
+  return duration_cast<MilliSeconds>(timeout).count();
+}
 
+int DoPoll(pollfd pfd, int timeout)
+{
 #ifdef _WIN32
-  return ::WSAPoll(&pfd, 1U, msec);
+  return ::WSAPoll(&pfd, 1U, timeout);
 #else
-  return ::poll(&pfd, 1U, msec);
+  return ::poll(&pfd, 1U, timeout);
 #endif // _WIN32
 }
 
-bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
+bool Poll(pollfd pfd, Duration timeout, char const *errorMessage)
 {
-  if(auto const result = DoPoll(timeout, pfd)) {
+  if(auto const result = DoPoll(pfd, ToMsec(timeout))) {
     if(result < 0) {
       throw std::system_error(SocketError(), errorMessage);
     }
@@ -81,17 +84,17 @@ bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
   return false; // timeout exceeded
 }
 
-bool IsReadable(Duration timeout, SOCKET fd)
+bool IsReadable(SOCKET fd, Duration timeout)
 {
-  return Poll(timeout,
-              pollfd{fd, POLLIN, 0},
+  return Poll(pollfd{fd, POLLIN, 0},
+              timeout,
               "failed to wait for socket readable");
 }
 
-bool IsWritable(Duration timeout, SOCKET fd)
+bool IsWritable(SOCKET fd, Duration timeout)
 {
-  return Poll(timeout,
-              pollfd{fd, POLLOUT, 0},
+  return Poll(pollfd{fd, POLLOUT, 0},
+              timeout,
               "failed to wait for socket writable");
 }
 
@@ -157,7 +160,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(fd, timeout)) {
     return 0U; // timeout exceeded
   }
 
@@ -177,7 +180,7 @@ size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 std::pair<size_t, std::shared_ptr<SockAddrStorage>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(fd, timeout)) {
     return {0U, nullptr}; // timeout exceeded
   }
 
@@ -218,7 +221,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
   size_t sent = 0U;
   Deadline deadline(timeout);
   do {
-    if(!IsWritable(deadline.remaining, fd)) {
+    if(!IsWritable(fd, deadline.remaining)) {
       break; // timeout exceeded
     }
 
@@ -239,7 +242,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if((timeout.count() >= 0) && !IsWritable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsWritable(fd, timeout)) {
     return 0U; // timeout exceeded
   }
 
@@ -287,7 +290,7 @@ void SocketPriv::Listen()
 std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
 SocketPriv::Accept(Duration timeout)
 {
-  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(fd, timeout)) {
     throw std::runtime_error("accept timed out");
   }
 
