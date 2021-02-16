@@ -40,9 +40,13 @@ struct SocketPriv
   size_t Send(char const *data,
               size_t size,
               Duration timeout);
+  size_t SendAll(char const *data,
+                 size_t size);
   size_t SendSome(char const *data,
                   size_t size,
                   Duration timeout);
+  size_t SendSome(char const *data,
+                  size_t size);
 
   size_t SendTo(char const *data,
                 size_t size,

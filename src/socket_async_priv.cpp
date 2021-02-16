@@ -127,8 +127,7 @@ bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
 
     // allow partial send to avoid starving other
     // driver's sockets if this one is rate limited
-    auto const sent = SocketPriv::SendSome(buffer->data(), buffer->size(),
-                                           noTimeout);
+    auto const sent = SocketPriv::SendSome(buffer->data(), buffer->size());
     if(sent == buffer->size()) {
       promise.set_value();
       return true;

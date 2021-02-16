@@ -20,17 +20,19 @@ static auto const fdInvalid =
     SOCKET(-1);
 #endif // _WIN32
 
-static int const sendFlags =
+static int const sendAllFlags =
 #ifdef MSG_NOSIGNAL
     MSG_NOSIGNAL | // avoid SIGPIPE on connection closed
 #endif // MSG_NOSIGNAL
+    0;
+static int const sendSomeFlags =
 #ifdef MSG_PARTIAL
     MSG_PARTIAL | // dont block if all cannot be sent at once
 #endif // MSG_PARTIAL
 #ifdef MSG_DONTWAIT
     MSG_DONTWAIT | // dont block if all cannot be sent at once
 #endif // MSG_DONTWAIT
-    0;
+    sendAllFlags;
 
 void CloseSocket(SOCKET fd)
 {
@@ -39,6 +41,19 @@ void CloseSocket(SOCKET fd)
 #else
   (void)::close(fd);
 #endif // _WIN32
+}
+
+size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
+{
+  auto const sent = ::send(fd,
+                           data, size,
+                           flags);
+  if(sent < 0) {
+    throw std::system_error(SocketError(), "failed to send");
+  } else if((sent == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected send result");
+  }
+  return static_cast<size_t>(sent);
 }
 
 int DoPoll(Duration timeout, pollfd pfd)
@@ -68,44 +83,42 @@ bool Poll(Duration timeout, pollfd pfd, char const *errorMessage)
 
 bool IsReadable(Duration timeout, SOCKET fd)
 {
-  return (timeout.count() < 0) ||
-          Poll(timeout,
-               pollfd{fd, POLLIN, 0},
-               "failed to wait for socket readable");
+  return Poll(timeout,
+              pollfd{fd, POLLIN, 0},
+              "failed to wait for socket readable");
 }
 
 bool IsWritable(Duration timeout, SOCKET fd)
 {
-  return (timeout.count() < 0) ||
-          Poll(timeout,
-               pollfd{fd, POLLOUT, 0},
-               "failed to wait for socket writable");
+  return Poll(timeout,
+              pollfd{fd, POLLOUT, 0},
+              "failed to wait for socket writable");
 }
 
 struct Deadline
 {
+  using Clock = std::chrono::steady_clock;
+  using TimePoint = Clock::time_point;
+
   Duration remaining;
-  std::chrono::time_point<std::chrono::steady_clock> lastStart;
+  TimePoint lastStart;
 
   Deadline(Duration timeout)
     : remaining(timeout)
   {
-    if(remaining.count() >= 0) {
-      lastStart = std::chrono::steady_clock::now();
-    }
+    lastStart = Clock::now();
   }
 
   bool TimeLeft()
   {
-    if(remaining.count() >= 0) {
-      auto const now = std::chrono::steady_clock::now();
+    assert(remaining.count() >= 0);
 
-      remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
-      lastStart = now;
+    auto const now = Clock::now();
 
-      return (remaining.count() > 0);
-    }
-    return true;
+    remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
+    lastStart = now;
+
+    return (remaining.count() > 0);
   }
 };
 
@@ -144,7 +157,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
     return 0U; // timeout exceeded
   }
 
@@ -164,7 +177,7 @@ size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 std::pair<size_t, std::shared_ptr<SockAddrStorage>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
     return {0U, nullptr}; // timeout exceeded
   }
 
@@ -186,32 +199,38 @@ SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 // causing the OS send buffer to fill up
 size_t SocketPriv::Send(char const *data, size_t size, Duration timeout)
 {
-  // utilize the user-provided timeout to send the max amount of data
-  size_t sent = 0U;
-  Deadline deadline(timeout);
-  do {
-    sent += SendSome(data + sent, size - sent, deadline.remaining);
-  } while((sent < size) && deadline.TimeLeft());
+  return (timeout.count() < 0 ?
+            SendAll(data, size) :
+            SendSome(data, size, timeout));
+}
 
-  assert((sent == size) || (timeout.count() >= 0));
+size_t SocketPriv::SendAll(char const *data, size_t size)
+{
+  // set flags to block until everything is sent
+  auto const sent = DoSend(fd, data, size, sendAllFlags);
+  assert(sent == size);
   return sent;
 }
 
+// send the max amount of data within the user-provided timeout
 size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 {
-  if(!IsWritable(timeout, fd)) {
-    return 0U; // timeout exceeded
-  }
+  size_t sent = 0U;
+  Deadline deadline(timeout);
+  do {
+    if(!IsWritable(deadline.remaining, fd)) {
+      break; // timeout exceeded
+    }
 
-  auto const sent = ::send(fd,
-                           data, size,
-                           sendFlags);
-  if(sent < 0) {
-    throw std::system_error(SocketError(), "failed to send");
-  } else if((sent == 0) && (size > 0U)) {
-    throw std::logic_error("unexpected send result");
-  }
-  return static_cast<size_t>(sent);
+    sent += SendSome(data + sent, size - sent);
+  } while((sent < size) && deadline.TimeLeft());
+  return sent;
+}
+
+size_t SocketPriv::SendSome(char const *data, size_t size)
+{
+  // set flags to send only what can be sent without blocking
+  return DoSend(fd, data, size, sendSomeFlags);
 }
 
 // UDP send will block only rarely,
@@ -220,7 +239,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!IsWritable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsWritable(timeout, fd)) {
     return 0U; // timeout exceeded
   }
 
@@ -268,7 +287,7 @@ void SocketPriv::Listen()
 std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(!IsReadable(timeout, fd)) {
+  if((timeout.count() >= 0) && !IsReadable(timeout, fd)) {
     throw std::runtime_error("accept timed out");
   }
 
