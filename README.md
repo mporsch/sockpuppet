@@ -43,6 +43,6 @@ The `ToDo` class is used for scheduling tasks to run at a given point in time, e
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
 * the address class employs *getaddrinfo* when created by user input and *sockaddr_storage* when created by a socket; for users this distinction is transparent
 * while the user-visible socket classes distinguish between UDP/TCP, the socket PIMPL classes provide generic functions that may have redundancies for some use cases
-* all sockets are created in blocking mode internally for minimal system call overhead (i.e. no poll required); once a timeout is given, the socket switches to non-blocking mode, subsequently needing a poll before each IO
+* sockets operate in blocking mode internally; only if a limited timeout is given, *poll* is used prior to socket IO to honor the deadline
 * the augmenting sockets consume pre-constructed basic sockets to avoid aggregating all base socket constructor arguments and funnelling all their exceptions
 * threads are not created internally to avoid messy shared library shutdown on Windows
