@@ -25,7 +25,7 @@ void Server(Address bindAddress)
 
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
-    auto [receiveSize, fromAddr] = sock.ReceiveFrom(
+    auto [receiveSize, fromAddr] = *sock.ReceiveFrom(
         buffer, sizeof(buffer),
         noTimeout);
 

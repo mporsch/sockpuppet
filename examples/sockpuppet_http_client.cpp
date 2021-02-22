@@ -37,14 +37,15 @@ try {
   std::vector<size_t> sizes;
   for(;;) {
     // receive response (fragment)
-    auto response = buff.Receive(std::chrono::seconds(30));
+    auto rx = buff.Receive(std::chrono::seconds(30));
 
     // break on timeout
-    if(response->empty()) {
+    if(!rx) {
       break;
     }
 
     // print and collect statistics
+    auto &&response = *rx;
     std::cout << *response;
     sizes.push_back(response->size());
 

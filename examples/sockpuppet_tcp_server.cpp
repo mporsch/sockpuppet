@@ -25,9 +25,9 @@ try {
 
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
-    size_t received = clientSock.Receive(buffer,
-                                         sizeof(buffer),
-                                         noTimeout);
+    size_t received = *clientSock.Receive(buffer,
+                                          sizeof(buffer),
+                                          noTimeout);
 
     // print whatever has just been received
     std::cout << std::string(buffer, received) << std::endl;
@@ -55,7 +55,7 @@ void Server(Address bindAddress)
 
     // wait for and accept incoming connections
     // negative timeout -> blocking until connection
-    ServerHandler(server.Listen(noTimeout));
+    ServerHandler(*server.Listen(noTimeout));
   }
 }
 
