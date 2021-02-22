@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.8.2)
+cmake_minimum_required(VERSION 3.1.0)
 
 project(sockpuppet CXX)
+set(CMAKE_CXX_STANDARD 17)
 
 if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default
@@ -62,8 +63,6 @@ target_include_directories(sockpuppet PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-
-target_compile_features(sockpuppet PRIVATE cxx_std_14) # C++11 + std::make_unique
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   # link with WinSock
