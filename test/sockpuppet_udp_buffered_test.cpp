@@ -22,21 +22,18 @@ try {
 
   // wait for first receipt
   {
-    auto t = server.ReceiveFrom();
-    storage.emplace_back(std::move(std::get<0>(t)));
+    auto p = server.ReceiveFrom().value();
+    storage.emplace_back(std::move(p.first));
 
     std::cout << "receiving from "
-              << to_string(std::get<1>(t))
+              << to_string(p.second)
               << std::endl;
   }
 
   // receive until timeout
-  do {
-    storage.emplace_back(
-          server.ReceiveFrom(
-            std::chrono::milliseconds(100)).first);
-  } while(storage.back()->size() > 0U);
-  storage.pop_back();
+  while(auto rx = server.ReceiveFrom(std::chrono::milliseconds(100))) {
+    storage.emplace_back(std::move(rx->first));
+  }
 
   if(!testData.Verify(storage)) {
     success = false;

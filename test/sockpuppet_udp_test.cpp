@@ -19,12 +19,12 @@ try {
             << std::endl;
 
   char buffer[256];
-  auto [receiveSize, clientAddr] = server.ReceiveFrom(
-      buffer, sizeof(buffer),
-      std::chrono::seconds(1));
-  if(std::string_view(buffer, receiveSize).find("hello") != std::string_view::npos) {
-    std::cout << "received from " << to_string(clientAddr) << std::endl;
-    return;
+  if(auto rx = server.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(1))) {
+    auto &&[receiveSize, clientAddr] = *rx;
+    if(std::string_view(buffer, receiveSize).find("hello") != std::string_view::npos) {
+      std::cout << "received from " << to_string(clientAddr) << std::endl;
+      return;
+    }
   }
 
   throw std::runtime_error("failed to receive");
@@ -39,7 +39,7 @@ try {
   auto const clientAddr = client.LocalAddress();
 
   char buffer[256];
-  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0)).first != 0U) {
+  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0))) {
     throw std::runtime_error("unexpected receive");
   }
 

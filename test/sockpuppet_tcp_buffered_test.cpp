@@ -11,17 +11,16 @@ using namespace sockpuppet;
 static TestData const testData(10000000U);
 static std::atomic<bool> success(true);
 
-void ServerHandler(std::tuple<SocketTcpClient, Address> t)
+void ServerHandler(std::pair<SocketTcpClient, Address> p)
 {
-  SocketTcpBuffered serverHandler(
-        std::move(std::get<0>(t)), 0U, 1500U);
+  SocketTcpBuffered serverHandler(std::move(p.first), 0U, 1500U);
 
   std::vector<BufferPtr> storage;
 
   // receive until disconnect
   try {
     for(;;) {
-      storage.emplace_back(serverHandler.Receive());
+      storage.emplace_back(serverHandler.Receive().value());
 
       // simulate some processing delay to trigger TCP congestion control
       std::this_thread::sleep_for(std::chrono::microseconds(1));
@@ -41,7 +40,7 @@ try {
   std::cout << "server listening at " << to_string(serverAddress)
             << std::endl;
 
-  ServerHandler(server.Listen());
+  ServerHandler(server.Listen().value());
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;

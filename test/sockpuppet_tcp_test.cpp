@@ -4,7 +4,7 @@
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cerr
 #include <stdexcept> // for std::runtime_error
-#include <string> // for std::string
+#include <string_view> // for std::string_view
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
@@ -20,7 +20,7 @@ try {
   auto &&clientAddr = p.second;
 
   char buffer[256];
-  if(clientSock.Receive(buffer, sizeof(buffer), seconds(0)) != 0U) {
+  if(clientSock.Receive(buffer, sizeof(buffer), seconds(0))) {
     throw std::runtime_error("unexpected receive");
   }
 
@@ -39,14 +39,13 @@ void Server(Address serverAddr)
 try {
   SocketTcpServer server(serverAddr);
 
-  std::cout << "server listening at " << to_string(serverAddr)
-    << std::endl;
+  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
     serverHandler = std::thread(
           ServerHandler,
-          server.Listen(seconds(2)));
+          server.Listen(seconds(2)).value());
   }
 
   for(auto &&serverHandler : serverHandlers) {
@@ -65,25 +64,24 @@ try {
   auto const clientAddr = client.LocalAddress();
 
   std::cout << "client " << to_string(clientAddr)
-    << " connected to server " << to_string(serverAddr)
-    << std::endl;
+            << " connected to server " << to_string(serverAddr)
+            << std::endl;
 
   char buffer[256];
-  auto const received =
-    client.Receive(buffer, sizeof(buffer), seconds(1));
-  if(received > 0U &&
-     std::string(buffer, received).find("hello") != std::string::npos) {
-    std::cout << "client " << to_string(clientAddr)
-      << " received from server" << std::endl;
+  if(auto rx = client.Receive(buffer, sizeof(buffer), seconds(1))) {
+    if(std::string_view(buffer, *rx).find("hello") != std::string::npos) {
+      std::cout << "client " << to_string(clientAddr)
+                << " received from server" << std::endl;
 
-    try {
-      // the server closes the connection after the "hello" message
-      // we expect to get the corresponding exception now
-      (void)client.Receive(buffer, sizeof(buffer), seconds(1));
-      success = false;
-    } catch(std::exception const &e) {
-      std::cout << e.what() << std::endl;
-      return;
+      try {
+        // the server closes the connection after the "hello" message
+        // we expect to get the corresponding exception now
+        (void)client.Receive(buffer, sizeof(buffer), seconds(1));
+        success = false;
+      } catch(std::exception const &e) {
+        std::cout << e.what() << std::endl;
+        return;
+      }
     }
   }
 
