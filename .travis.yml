@@ -34,6 +34,7 @@ jobs:
 
     - name: "OSX clang static library"
       os: osx
+      osx_image: xcode12
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=OFF
@@ -41,6 +42,7 @@ jobs:
 
     - name: "OSX clang shared library"
       os: osx
+      osx_image: xcode12
       env:
         - GENERATOR="Unix Makefiles"
         - SHARED=-DBUILD_SHARED_LIBS:BOOL=ON
