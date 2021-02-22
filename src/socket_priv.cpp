@@ -186,12 +186,16 @@ SocketPriv::~SocketPriv()
 }
 
 // used for TCP only
-size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
+std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(fd, timeout)) {
-    return 0U; // timeout exceeded
+    return {std::nullopt}; // timeout exceeded
   }
+  return {Receive(data, size)};
+}
 
+size_t SocketPriv::Receive(char *data, size_t size)
+{
   static int const flags = 0;
   auto const received = ::recv(fd,
                                data, size,
@@ -205,13 +209,18 @@ size_t SocketPriv::Receive(char *data, size_t size, Duration timeout)
 }
 
 // used for UDP only
-std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+std::optional<std::pair<size_t, std::shared_ptr<SockAddrStorage>>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(fd, timeout)) {
-    return {0U, nullptr}; // timeout exceeded
+    return {std::nullopt}; // timeout exceeded
   }
+  return {ReceiveFrom(data, size)};
+}
 
+std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+SocketPriv::ReceiveFrom(char *data, size_t size)
+{
   static int const flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
   auto const received = ::recvfrom(fd,
@@ -311,13 +320,18 @@ void SocketPriv::Listen()
   }
 }
 
-std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+std::optional<std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>>
 SocketPriv::Accept(Duration timeout)
 {
   if(!WaitReadable(fd, timeout)) {
-    throw std::runtime_error("accept timed out");
+    return {std::nullopt}; // timeout exceeded
   }
+  return Accept();
+}
 
+std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+SocketPriv::Accept()
+{
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd,
                          sas->Addr(), sas->AddrLen());

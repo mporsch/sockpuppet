@@ -25,9 +25,9 @@ struct SocketBufferedPriv : public SocketPriv
 
   BufferPtr GetBuffer();
 
-  BufferPtr Receive(Duration timeout);
+  std::optional<BufferPtr> Receive(Duration timeout);
 
-  std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+  std::optional<std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>>
   ReceiveFrom(Duration timeout);
 };
 

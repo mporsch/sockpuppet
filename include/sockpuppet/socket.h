@@ -6,6 +6,7 @@
 #include <chrono> // for std::chrono
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <optional> // for std::optional
 #include <utility> // for std::pair
 
 namespace sockpuppet {
@@ -47,9 +48,10 @@ struct SocketUdp
   ///          May return 0 size and invalid address only if
   ///          non-negative \p timeout is specified.
   /// @throws  If receipt fails locally.
-  std::pair<size_t, Address> ReceiveFrom(char *data,
-                                         size_t size,
-                                         Duration timeout = Duration(-1));
+  std::optional<std::pair<size_t, Address>>
+  ReceiveFrom(char *data,
+              size_t size,
+              Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
@@ -100,9 +102,9 @@ struct SocketTcpClient
   /// @return  Filled receive buffer size. May return 0
   ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails or the peer closes the connection.
-  size_t Receive(char *data,
-                 size_t size,
-                 Duration timeout = Duration(-1));
+  std::optional<size_t> Receive(char *data,
+                                size_t size,
+                                Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
@@ -146,7 +148,8 @@ struct SocketTcpServer
   ///                  a negative value allows unlimited blocking.
   /// @return  Connected client and its address.
   /// @throws  If listen or accept fails or timeout occurs.
-  std::pair<SocketTcpClient, Address> Listen(Duration timeout = Duration(-1));
+  std::optional<std::pair<SocketTcpClient, Address>>
+  Listen(Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.

@@ -92,11 +92,13 @@ size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
   return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
-std::pair<BufferPtr, Address>
+std::optional<std::pair<BufferPtr, Address>>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
-  auto p = priv->ReceiveFrom(timeout);
-  return {std::move(p.first), Address(std::move(p.second))};
+  if(auto rx = priv->ReceiveFrom(timeout)) {
+    return {{std::move(rx->first), Address(std::move(rx->second))}};
+  }
+  return {std::nullopt};
 }
 
 Address SocketUdpBuffered::LocalAddress() const
@@ -126,7 +128,7 @@ size_t SocketTcpBuffered::Send(char const *data, size_t size,
   return priv->Send(data, size, timeout);
 }
 
-BufferPtr SocketTcpBuffered::Receive(Duration timeout)
+std::optional<BufferPtr> SocketTcpBuffered::Receive(Duration timeout)
 {
   return priv->Receive(timeout);
 }

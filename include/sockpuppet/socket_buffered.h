@@ -8,6 +8,7 @@
 #include <deque> // for std::deque
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
+#include <optional> // for std::optional
 #include <stack> // for std::stack
 #include <string> // for std::string
 #include <utility> // for std::pair
@@ -100,7 +101,8 @@ struct SocketUdpBuffered
   ///          May return empty buffer and invalid address
   ///          only if non-negative \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
-  std::pair<BufferPtr, Address> ReceiveFrom(Duration timeout = Duration(-1));
+  std::optional<std::pair<BufferPtr, Address>>
+  ReceiveFrom(Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
@@ -151,7 +153,7 @@ struct SocketTcpBuffered
   ///          May return empty buffer only if non-negative \p timeout is specified.
   /// @throws  If the number of receive buffers is exceeded, receipt fails or
   ///          the peer closes the connection.
-  BufferPtr Receive(Duration timeout = Duration(-1));
+  std::optional<BufferPtr> Receive(Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.

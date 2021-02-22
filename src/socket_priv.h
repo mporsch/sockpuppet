@@ -30,12 +30,16 @@ struct SocketPriv
   SocketPriv(SocketPriv &&other) noexcept;
   ~SocketPriv();
 
+  std::optional<size_t> Receive(char *data,
+                                size_t size,
+                                Duration timeout);
   size_t Receive(char *data,
-                 size_t size,
-                 Duration timeout);
+                 size_t size);
 
-  std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+  std::optional<std::pair<size_t, std::shared_ptr<SockAddrStorage>>>
   ReceiveFrom(char *data, size_t size, Duration timeout);
+  std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+  ReceiveFrom(char *data, size_t size);
 
   size_t Send(char const *data,
               size_t size,
@@ -59,8 +63,10 @@ struct SocketPriv
 
   void Listen();
 
-  std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+  std::optional<std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>>
   Accept(Duration timeout);
+  std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+  Accept();
 
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();

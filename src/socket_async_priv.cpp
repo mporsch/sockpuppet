@@ -74,16 +74,16 @@ std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
 void SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
-    auto p = this->Accept(noTimeout);
+    auto p = *this->Accept(noTimeout);
     this->Listen();
 
     handlers.connect(
           std::move(p.first),
           Address(std::move(p.second)));
   } else if(handlers.receive) {
-    handlers.receive(this->Receive(noTimeout));
+    handlers.receive(*this->Receive(noTimeout));
   } else if(handlers.receiveFrom) {
-    auto p = this->ReceiveFrom(noTimeout);
+    auto p = *this->ReceiveFrom(noTimeout);
     handlers.receiveFrom(
           std::move(p.first),
           Address(std::move(p.second)));

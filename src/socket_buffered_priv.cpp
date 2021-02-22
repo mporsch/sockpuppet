@@ -23,31 +23,35 @@ BufferPtr SocketBufferedPriv::GetBuffer()
   return buffer;
 }
 
-BufferPtr SocketBufferedPriv::Receive(Duration timeout)
+std::optional<BufferPtr> SocketBufferedPriv::Receive(Duration timeout)
 {
   auto buffer = GetBuffer();
 
-  buffer->resize(
-    SocketPriv::Receive(
-          const_cast<char *>(buffer->data()),
-          buffer->size(),
-          timeout));
+  if(auto const rx = SocketPriv::Receive(
+       const_cast<char *>(buffer->data()),
+       buffer->size(),
+       timeout)) {
+    buffer->resize(*rx);
 
-  return buffer;
+    return {std::move(buffer)};
+  }
+  return {std::nullopt};
 }
 
-std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+std::optional<std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>>
 SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   auto buffer = GetBuffer();
 
-  auto p = SocketPriv::ReceiveFrom(
+  if(auto rx = SocketPriv::ReceiveFrom(
         const_cast<char *>(buffer->data()),
         buffer->size(),
-        timeout);
-  buffer->resize(p.first);
+        timeout)) {
+    buffer->resize(rx->first);
 
-  return {std::move(buffer), std::move(p.second)};
+    return {{std::move(buffer), std::move(rx->second)}};
+  }
+  return {std::nullopt};
 }
 
 } // namespace sockpuppet

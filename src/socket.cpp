@@ -24,11 +24,14 @@ size_t SocketUdp::SendTo(char const *data, size_t size,
   return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
-std::pair<size_t, Address> SocketUdp::ReceiveFrom(
+std::optional<std::pair<size_t, Address>>
+SocketUdp::ReceiveFrom(
     char *data, size_t size, Duration timeout)
 {
-  auto p = priv->ReceiveFrom(data, size, timeout);
-  return {p.first, Address(std::move(p.second))};
+  if(auto rx = priv->ReceiveFrom(data, size, timeout)) {
+    return {{rx->first, Address(std::move(rx->second))}};
+  }
+  return {std::nullopt};
 }
 
 Address SocketUdp::LocalAddress() const
@@ -61,7 +64,7 @@ size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
   return priv->Send(data, size, timeout);
 }
 
-size_t SocketTcpClient::Receive(char *data, size_t size, Duration timeout)
+std::optional<size_t> SocketTcpClient::Receive(char *data, size_t size, Duration timeout)
 {
   return priv->Receive(data, size, timeout);
 }
@@ -102,11 +105,14 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress)
   priv->Bind(bindAddress.priv->ForTcp());
 }
 
-std::pair<SocketTcpClient, Address> SocketTcpServer::Listen(Duration timeout)
+std::optional<std::pair<SocketTcpClient, Address>>
+SocketTcpServer::Listen(Duration timeout)
 {
   priv->Listen();
-  auto p = priv->Accept(timeout);
-  return {std::move(p.first), Address(std::move(p.second))};
+  if(auto rx = priv->Accept(timeout)) {
+    return {{std::move(rx->first), Address(std::move(rx->second))}};
+  }
+  return std::nullopt;
 }
 
 Address SocketTcpServer::LocalAddress() const
