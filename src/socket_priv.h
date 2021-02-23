@@ -56,6 +56,9 @@ struct SocketPriv
                 size_t size,
                 SockAddrView const &dstAddr,
                 Duration timeout);
+  size_t SendTo(char const *data,
+                size_t size,
+                SockAddrView const &dstAddr);
 
   void Bind(SockAddrView const &bindAddr);
 

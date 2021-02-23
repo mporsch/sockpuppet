@@ -269,7 +269,11 @@ size_t SocketPriv::SendTo(char const *data, size_t size,
   if(!WaitWritable(timeout)) {
     return 0U; // timeout exceeded
   }
+  return SendTo(data, size, dstAddr);
+}
 
+size_t SocketPriv::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
+{
   static int const flags = 0;
   auto const sent = ::sendto(fd,
                              data, size,
