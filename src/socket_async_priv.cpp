@@ -6,10 +6,6 @@
 
 namespace sockpuppet {
 
-namespace {
-  auto const noTimeout = Duration(-1);
-} // unnamed namespace
-
 SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock, DriverShared &driver, Handlers handlers)
   : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
                     driver,
@@ -74,19 +70,19 @@ std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
 void SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
-    auto p = *this->Accept(noTimeout);
+    auto [sock, addr] = this->Accept();
     this->Listen();
 
     handlers.connect(
-          std::move(p.first),
-          Address(std::move(p.second)));
+          std::move(sock),
+          Address(std::move(addr)));
   } else if(handlers.receive) {
-    handlers.receive(*this->Receive(noTimeout));
+    handlers.receive(SocketBufferedPriv::Receive());
   } else if(handlers.receiveFrom) {
-    auto p = *this->ReceiveFrom(noTimeout);
+    auto [buff, addr] = SocketBufferedPriv::ReceiveFrom();
     handlers.receiveFrom(
-          std::move(p.first),
-          Address(std::move(p.second)));
+          std::move(buff),
+          Address(std::move(addr)));
   } else {
     assert(false);
   }
@@ -148,8 +144,7 @@ void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
     auto &&buffer = std::get<1>(t);
     auto &&addr = std::get<2>(t);
     auto const sent = SocketPriv::SendTo(buffer->data(), buffer->size(),
-                                         addr->ForUdp(),
-                                         noTimeout);
+                                         addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();
   } catch(std::exception const &e) {
