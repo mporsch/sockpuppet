@@ -110,18 +110,6 @@ int ToMsec(Duration timeout)
   return duration_cast<MilliSeconds>(timeout).count();
 }
 
-bool WaitReadable(SOCKET fd, Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          Poll(fd, POLLIN, ToMsec(timeout)));
-}
-
-bool WaitWritable(SOCKET fd, Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          Poll(fd, POLLOUT, ToMsec(timeout)));
-}
-
 struct Deadline
 {
   using Clock = std::chrono::steady_clock;
@@ -188,7 +176,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {Receive(data, size)};
@@ -212,7 +200,7 @@ size_t SocketPriv::Receive(char *data, size_t size)
 std::optional<std::pair<size_t, std::shared_ptr<SockAddrStorage>>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -278,7 +266,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritable(fd, timeout)) {
+  if(!WaitWritable(timeout)) {
     return 0U; // timeout exceeded
   }
 
@@ -323,7 +311,7 @@ void SocketPriv::Listen()
 std::optional<std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(!WaitReadable(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
@@ -336,6 +324,18 @@ SocketPriv::Accept()
   auto client = ::accept(fd,
                          sas->Addr(), sas->AddrLen());
   return {std::make_unique<SocketPriv>(client), std::move(sas)};
+}
+
+bool SocketPriv::WaitReadable(Duration timeout)
+{
+  return ((timeout.count() < 0) ||
+          Poll(fd, POLLIN, ToMsec(timeout)));
+}
+
+bool SocketPriv::WaitWritable(Duration timeout)
+{
+  return ((timeout.count() < 0) ||
+          Poll(fd, POLLOUT, ToMsec(timeout)));
 }
 
 void SocketPriv::SetSockOptReuseAddr()

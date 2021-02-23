@@ -68,6 +68,9 @@ struct SocketPriv
   std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
   Accept();
 
+  bool WaitReadable(Duration timeout);
+  bool WaitWritable(Duration timeout);
+
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
   void SetSockOptNoSigPipe();
