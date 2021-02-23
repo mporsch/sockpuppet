@@ -25,33 +25,44 @@ BufferPtr SocketBufferedPriv::GetBuffer()
 
 std::optional<BufferPtr> SocketBufferedPriv::Receive(Duration timeout)
 {
+  if(!this->WaitReadable(timeout)) {
+    return {std::nullopt};
+  }
+  return SocketBufferedPriv::Receive();
+}
+
+BufferPtr SocketBufferedPriv::Receive()
+{
   auto buffer = GetBuffer();
 
-  if(auto const rx = SocketPriv::Receive(
-       const_cast<char *>(buffer->data()),
-       buffer->size(),
-       timeout)) {
-    buffer->resize(*rx);
+  auto const size = SocketPriv::Receive(
+      const_cast<char *>(buffer->data()),
+      buffer->size());
+  buffer->resize(size);
 
-    return {std::move(buffer)};
-  }
-  return {std::nullopt};
+  return buffer;
 }
 
 std::optional<std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>>
 SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
+  if(!this->WaitReadable(timeout)) {
+    return {std::nullopt};
+  }
+  return SocketBufferedPriv::ReceiveFrom();
+}
+
+std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+SocketBufferedPriv::ReceiveFrom()
+{
   auto buffer = GetBuffer();
 
-  if(auto rx = SocketPriv::ReceiveFrom(
-        const_cast<char *>(buffer->data()),
-        buffer->size(),
-        timeout)) {
-    buffer->resize(rx->first);
+  auto [size, from] = SocketPriv::ReceiveFrom(
+      const_cast<char *>(buffer->data()),
+      buffer->size());
+  buffer->resize(size);
 
-    return {{std::move(buffer), std::move(rx->second)}};
-  }
-  return {std::nullopt};
+  return {std::move(buffer), std::move(from)};
 }
 
 } // namespace sockpuppet

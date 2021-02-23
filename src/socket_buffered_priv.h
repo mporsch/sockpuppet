@@ -26,9 +26,12 @@ struct SocketBufferedPriv : public SocketPriv
   BufferPtr GetBuffer();
 
   std::optional<BufferPtr> Receive(Duration timeout);
+  BufferPtr Receive();
 
   std::optional<std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>>
   ReceiveFrom(Duration timeout);
+  std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+  ReceiveFrom();
 };
 
 } // namespace sockpuppet
