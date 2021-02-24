@@ -1,5 +1,5 @@
 #include "driver_priv.h"
-#include "address_priv.h" // for AddressPriv
+#include "address_priv.h" // for Address::AddressPriv
 #include "error_code.h" // for SocketError
 #include "socket_async_priv.h" // for SocketAsyncPriv
 

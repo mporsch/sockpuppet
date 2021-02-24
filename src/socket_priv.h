@@ -1,8 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_PRIV_H
 #define SOCKPUPPET_SOCKET_PRIV_H
 
-#include "sockpuppet/socket.h" // for Socket
 #include "address_priv.h" // for SockAddrView
+#include "sockpuppet/address.h" // for Address
+#include "sockpuppet/socket.h" // for SocketTcpClient
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
@@ -13,6 +14,7 @@ using SOCKET = int;
 
 #include <cstddef> // for size_t
 #include <memory> // for std::shared_ptr
+#include <optional> // for std::optional
 #include <utility> // for std::pair
 
 namespace sockpuppet {

@@ -1,8 +1,9 @@
 #ifndef SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 #define SOCKPUPPET_SOCKET_ASYNC_PRIV_H
 
-#include "address_priv.h" // for AddressPriv
+#include "address_priv.h" // for SockAddrStorage
 #include "socket_buffered_priv.h" // for SocketBufferedPriv
+#include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket_async.h" // for Driver
 
 #include <future> // for std::future

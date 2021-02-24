@@ -1,12 +1,13 @@
 #ifndef SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 #define SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
 
-#include "address_priv.h" // for SockAddrStorage
 #include "socket_priv.h" // for SocketPriv
+#include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket_buffered.h" // for BufferPool
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <optional> // for std::optional
 #include <utility> // for std::pair
 
 namespace sockpuppet {
