@@ -73,16 +73,12 @@ try {
     auto [sock, addr] = this->Accept();
     this->Listen();
 
-    handlers.connect(
-          std::move(sock),
-          Address(std::move(addr)));
+    handlers.connect(std::move(sock), std::move(addr));
   } else if(handlers.receive) {
     handlers.receive(SocketBufferedPriv::Receive());
   } else if(handlers.receiveFrom) {
     auto [buff, addr] = SocketBufferedPriv::ReceiveFrom();
-    handlers.receiveFrom(
-          std::move(buff),
-          Address(std::move(addr)));
+    handlers.receiveFrom(std::move(buff), std::move(addr));
   } else {
     assert(false);
   }
