@@ -26,7 +26,7 @@ BufferPtr SocketBufferedPriv::GetBuffer()
 std::optional<BufferPtr> SocketBufferedPriv::Receive(Duration timeout)
 {
   if(!this->WaitReadable(timeout)) {
-    return {std::nullopt};
+    return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedPriv::Receive();
 }
@@ -43,16 +43,16 @@ BufferPtr SocketBufferedPriv::Receive()
   return buffer;
 }
 
-std::optional<std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>>
+std::optional<std::pair<BufferPtr, Address>>
 SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
   if(!this->WaitReadable(timeout)) {
-    return {std::nullopt};
+    return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedPriv::ReceiveFrom();
 }
 
-std::pair<BufferPtr, std::shared_ptr<SockAddrStorage>>
+std::pair<BufferPtr, Address>
 SocketBufferedPriv::ReceiveFrom()
 {
   auto buffer = GetBuffer();

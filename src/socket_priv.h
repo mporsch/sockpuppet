@@ -36,9 +36,9 @@ struct SocketPriv
   size_t Receive(char *data,
                  size_t size);
 
-  std::optional<std::pair<size_t, std::shared_ptr<SockAddrStorage>>>
+  std::optional<std::pair<size_t, Address>>
   ReceiveFrom(char *data, size_t size, Duration timeout);
-  std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+  std::pair<size_t, Address>
   ReceiveFrom(char *data, size_t size);
 
   size_t Send(char const *data,
@@ -66,9 +66,9 @@ struct SocketPriv
 
   void Listen();
 
-  std::optional<std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>>
+  std::optional<std::pair<SocketTcpClient, Address>>
   Accept(Duration timeout);
-  std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+  std::pair<SocketTcpClient, Address>
   Accept();
 
   bool WaitReadable(Duration timeout);

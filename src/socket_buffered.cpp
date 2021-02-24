@@ -95,10 +95,7 @@ size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
 std::optional<std::pair<BufferPtr, Address>>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
-  if(auto rx = priv->ReceiveFrom(timeout)) {
-    return {{std::move(rx->first), Address(std::move(rx->second))}};
-  }
-  return {std::nullopt};
+  return priv->ReceiveFrom(timeout);
 }
 
 Address SocketUdpBuffered::LocalAddress() const

@@ -25,13 +25,9 @@ size_t SocketUdp::SendTo(char const *data, size_t size,
 }
 
 std::optional<std::pair<size_t, Address>>
-SocketUdp::ReceiveFrom(
-    char *data, size_t size, Duration timeout)
+SocketUdp::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(auto rx = priv->ReceiveFrom(data, size, timeout)) {
-    return {{rx->first, Address(std::move(rx->second))}};
-  }
-  return {std::nullopt};
+  return priv->ReceiveFrom(data, size, timeout);
 }
 
 Address SocketUdp::LocalAddress() const
@@ -109,10 +105,7 @@ std::optional<std::pair<SocketTcpClient, Address>>
 SocketTcpServer::Listen(Duration timeout)
 {
   priv->Listen();
-  if(auto rx = priv->Accept(timeout)) {
-    return {{std::move(rx->first), Address(std::move(rx->second))}};
-  }
-  return std::nullopt;
+  return priv->Accept(timeout);
 }
 
 Address SocketTcpServer::LocalAddress() const

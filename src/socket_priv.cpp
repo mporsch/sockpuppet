@@ -197,7 +197,7 @@ size_t SocketPriv::Receive(char *data, size_t size)
 }
 
 // used for UDP only
-std::optional<std::pair<size_t, std::shared_ptr<SockAddrStorage>>>
+std::optional<std::pair<size_t, Address>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(timeout)) {
@@ -206,7 +206,7 @@ SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
   return {ReceiveFrom(data, size)};
 }
 
-std::pair<size_t, std::shared_ptr<SockAddrStorage>>
+std::pair<size_t, Address>
 SocketPriv::ReceiveFrom(char *data, size_t size)
 {
   static int const flags = 0;
@@ -218,7 +218,7 @@ SocketPriv::ReceiveFrom(char *data, size_t size)
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
   }
-  return {static_cast<size_t>(received), std::move(sas)};
+  return {static_cast<size_t>(received), Address(std::move(sas))};
 }
 
 // TCP send will block regularly, if:
@@ -312,7 +312,7 @@ void SocketPriv::Listen()
   }
 }
 
-std::optional<std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>>
+std::optional<std::pair<SocketTcpClient, Address>>
 SocketPriv::Accept(Duration timeout)
 {
   if(!WaitReadable(timeout)) {
@@ -321,13 +321,13 @@ SocketPriv::Accept(Duration timeout)
   return Accept();
 }
 
-std::pair<std::unique_ptr<SocketPriv>, std::shared_ptr<SockAddrStorage>>
+std::pair<SocketTcpClient, Address>
 SocketPriv::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd,
                          sas->Addr(), sas->AddrLen());
-  return {std::make_unique<SocketPriv>(client), std::move(sas)};
+  return {std::make_unique<SocketPriv>(client), Address(std::move(sas))};
 }
 
 bool SocketPriv::WaitReadable(Duration timeout)
