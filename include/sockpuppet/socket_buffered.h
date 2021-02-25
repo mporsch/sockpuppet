@@ -87,7 +87,7 @@ struct SocketUdpBuffered
   ///                     IP family of bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
+  /// @return  Number of bytes sent. Always matches \p size on unlimited \p timeout.
   /// @throws  If sending fails locally.
   size_t SendTo(char const *data,
                 size_t size,
@@ -98,8 +98,8 @@ struct SocketUdpBuffered
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Received data buffer borrowed from socket and source address.
-  ///          May return empty buffer and invalid address
-  ///          only if non-negative \p timeout is specified.
+  ///          Zero-size receipt is valid in UDP (header-only packet).
+  ///          May return nullopt only if limited \p timeout is specified.
   /// @throws  If receipt fails locally or number of receive buffers is exceeded.
   std::optional<std::pair<BufferPtr, Address>>
   ReceiveFrom(Duration timeout = Duration(-1));
@@ -140,7 +140,7 @@ struct SocketTcpBuffered
   /// @param  size  Size of data to send.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
+  /// @return  Number of bytes sent. Always matches \p size on unlimited \p timeout.
   /// @throws  If sending fails locally or the peer closes the connection.
   size_t Send(char const *data,
               size_t size,
@@ -149,8 +149,8 @@ struct SocketTcpBuffered
   /// Reliably receive data from connected peer.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Received data buffer borrowed from socket.
-  ///          May return empty buffer only if non-negative \p timeout is specified.
+  /// @return  Received data buffer borrowed from socket. Zero-size receipt cannot
+  ///          happen in TCP. May return nullopt only if limited \p timeout is specified.
   /// @throws  If the number of receive buffers is exceeded, receipt fails or
   ///          the peer closes the connection.
   std::optional<BufferPtr> Receive(Duration timeout = Duration(-1));

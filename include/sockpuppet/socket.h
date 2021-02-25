@@ -32,7 +32,7 @@ struct SocketUdp
   ///                     IP family of bound address.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
+  /// @return  Number of bytes sent. Always matches \p size on unlimited \p timeout.
   /// @throws  If sending fails locally.
   size_t SendTo(char const *data,
                 size_t size,
@@ -45,8 +45,8 @@ struct SocketUdp
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
   /// @return  Filled receive buffer size and source address.
-  ///          May return 0 size and invalid address only if
-  ///          non-negative \p timeout is specified.
+  ///          Zero-size receipt is valid in UDP (header-only packet).
+  ///          May return nullopt only if limited \p timeout is specified.
   /// @throws  If receipt fails locally.
   std::optional<std::pair<size_t, Address>>
   ReceiveFrom(char *data,
@@ -88,7 +88,7 @@ struct SocketTcpClient
   /// @param  size  Size of data to send.
   /// @param  timeout  Timeout to use; non-null causes blocking send,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Number of bytes sent. Always matches \p size on negative \p timeout.
+  /// @return  Number of bytes sent. Always matches \p size on unlimited \p timeout.
   /// @throws  If sending fails locally or the peer closes the connection.
   size_t Send(char const *data,
               size_t size,
@@ -99,8 +99,8 @@ struct SocketTcpClient
   /// @param  size  Available receive buffer size.
   /// @param  timeout  Timeout to use; non-null causes blocking receipt,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Filled receive buffer size. May return 0
-  ///          only if non-negative \p timeout is specified.
+  /// @return  Filled receive buffer size. Zero-size receipt cannot happen in TCP.
+  ///          May return nullopt only if limited \p timeout is specified.
   /// @throws  If receipt fails or the peer closes the connection.
   std::optional<size_t> Receive(char *data,
                                 size_t size,
@@ -146,8 +146,9 @@ struct SocketTcpServer
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,
   ///                  a negative value allows unlimited blocking.
-  /// @return  Connected client and its address.
-  /// @throws  If listen or accept fails or timeout occurs.
+  /// @return  Connected client and its peer address.
+  ///          May return nullopt only if limited \p timeout is specified.
+  /// @throws  If listen or accept fails.
   std::optional<std::pair<SocketTcpClient, Address>>
   Listen(Duration timeout = Duration(-1));
 
