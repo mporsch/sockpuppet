@@ -113,9 +113,30 @@ struct ToDo
 };
 
 struct SocketAsyncPriv;
-using ReceiveHandler = std::function<void(BufferPtr)>;
+
+/// Callback for UDP received data.
+/// @param  Received data buffer borrowed from socket.
+///         Zero-size receipt is valid in UDP (header-only packet).
+/// @param  Receipt source address.
 using ReceiveFromHandler = std::function<void(BufferPtr, Address)>;
+
+/// Callack for TCP received data from connected peer.
+/// @param  Received data buffer borrowed from socket.
+///         Zero-size receipt cannot happen in TCP.
+using ReceiveHandler = std::function<void(BufferPtr)>;
+
+/// Callback for accepted incoming TCP connections.
+/// @param  Local socket connected to peer.
+/// @param  Address of peer connected to local socket.
+/// @note  Obtained basic socket can be used as-is or may be upgraded
+///        to async socket with same or different driver.
 using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
+
+/// Callback for TCP peer disconnect.
+/// @param  Address of peer that just disconnected from local socket.
+///         Matches connect address the socket was created with or
+///         obtained peer address of incoming connection.
+/// @note  After peer disconnect the socket is invalid and should be released.
 using DisconnectHandler = std::function<void(Address)>;
 
 /// UDP (unreliable communication) socket class that adds an interface for
