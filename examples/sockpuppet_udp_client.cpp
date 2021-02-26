@@ -1,10 +1,19 @@
 #include "sockpuppet/socket.h" // for SocketUdp
 
+#include <atomic> // for std::atomic
+#include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
 #include <string> // for std::string
 
 using namespace sockpuppet;
+
+static std::atomic<bool> shouldStop = false;
+
+void SignalHandler(int)
+{
+  shouldStop = true;
+}
 
 void Client(Address bindAddress, Address remoteAddress)
 {
@@ -22,27 +31,22 @@ void Client(Address bindAddress, Address remoteAddress)
             << std::endl;
 
   // query and send until cancelled
-  for(;;) {
+  while(!shouldStop) {
     // query a string to send from the command line
     std::string line;
-    std::cout << "message to send? (empty for exit) - ";
+    std::cout << "message to send? (Ctrl-C for exit) - ";
     std::getline(std::cin, line);
 
-    if(line.empty()) {
-      break;
-    } else {
-      static Duration const noTimeout(-1);
-
-      // send the given string data to the remote address
-      // negative timeout -> blocking until sent (although
-      // UDP sockets will rarely ever block on send)
-      // ignore the return value as - with unlimited timeout -
-      // it will always match the sent size
-      (void)sock.SendTo(line.c_str(),
-                        line.size(),
-                        remoteAddress,
-                        noTimeout);
-    }
+    // send the given string data to the remote address
+    // negative timeout -> blocking until sent (although
+    // UDP sockets will rarely ever block on send)
+    // ignore the return value as - with unlimited timeout -
+    // it will always match the sent size
+    static Duration const noTimeout(-1);
+    (void)sock.SendTo(line.c_str(),
+                      line.size(),
+                      remoteAddress,
+                      noTimeout);
   }
 }
 

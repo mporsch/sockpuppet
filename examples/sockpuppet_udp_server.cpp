@@ -30,7 +30,9 @@ void Server(Address bindAddress)
         noTimeout);
 
     // print whatever has just been received
-    std::cout << std::string_view(buffer, receiveSize)
+    std::cout << (receiveSize > 0U ?
+                    std::string_view(buffer, receiveSize) :
+                    "<empty>")
               << " from " << to_string(fromAddr)
               << std::endl;
   }
