@@ -20,9 +20,17 @@ try {
 
   char buffer[256];
   if(auto rx = server.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(1))) {
-    auto &&[receiveSize, clientAddr] = *rx;
-    if(std::string_view(buffer, receiveSize).find("hello") != std::string_view::npos) {
-      std::cout << "received from " << to_string(clientAddr) << std::endl;
+    auto &&[receiveSize, fromAddr] = *rx;
+    if(receiveSize == 0U) {
+      std::cout << "received <empty> from " << to_string(fromAddr)
+                << " responding with 'hello?'" << std::endl;
+
+      for(int i = 0; i < 3; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        static char const hello[] = "hello?";
+        (void)server.SendTo(hello, sizeof(hello), fromAddr);
+      }
       return;
     }
   }
@@ -39,20 +47,29 @@ try {
   auto const clientAddr = client.LocalAddress();
 
   char buffer[256];
-  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(0))) {
+  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::milliseconds(100))) {
     throw std::runtime_error("unexpected receive");
   }
 
-  std::cout << "sending from "
+  std::cout << "sending <empty> from "
             << to_string(clientAddr) << " to "
             << to_string(serverAddr) << std::endl;
 
   for(int i = 0; i < 3; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    static char const hello[] = "hello";
-    (void)client.SendTo(hello, sizeof(hello), serverAddr);
+    (void)client.SendTo(nullptr, 0U, serverAddr);
   }
+
+  if(auto rx = client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(1))) {
+    auto &&[receiveSize, fromAddr] = *rx;
+    if(std::string_view(buffer, receiveSize).find("hello?") != std::string_view::npos) {
+      std::cout << "received 'hello?' from " << to_string(fromAddr) << std::endl;
+      return;
+    }
+  }
+
+  throw std::runtime_error("failed to receive response");
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;
