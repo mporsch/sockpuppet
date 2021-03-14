@@ -9,14 +9,14 @@
 namespace sockpuppet {
 
 namespace {
-  std::unique_ptr<ifaddrs, CDeleter<ifaddrs>> GetIfAddrs()
+  std::unique_ptr<ifaddrs, decltype(&::freeifaddrs)> GetIfAddrs()
   {
-    ifaddrs *addrsRaw;
-    if(::getifaddrs(&addrsRaw)) {
+    ifaddrs *addrs;
+    if(::getifaddrs(&addrs)) {
       throw std::system_error(SocketError(),
             "failed to get local interface addresses");
     }
-    return make_unique(addrsRaw, ::freeifaddrs);
+    return {addrs, ::freeifaddrs};
   }
 } // unnamed namespace
 

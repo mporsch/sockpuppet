@@ -22,31 +22,6 @@
 
 namespace sockpuppet {
 
-template<typename T>
-struct CDeleter
-{
-  using DeleterFn = void(*)(T*);
-
-  DeleterFn fn;
-
-  CDeleter(DeleterFn fn)
-    : fn(fn)
-  {
-  }
-
-  void operator()(T *ptr) const
-  {
-    fn(ptr);
-  }
-};
-
-template<typename T>
-std::unique_ptr<T, CDeleter<T>> make_unique(T *ptr,
-    typename CDeleter<T>::DeleterFn fn)
-{
-  return std::unique_ptr<T, CDeleter<T>>(ptr, fn);
-}
-
 struct SockAddrView
 {
   sockaddr const *addr;
@@ -83,7 +58,7 @@ struct Address::AddressPriv
 
 struct SockAddrInfo : public Address::AddressPriv
 {
-  using AddrInfoPtr = std::unique_ptr<addrinfo, CDeleter<addrinfo>>;
+  using AddrInfoPtr = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>;
 
   AddrInfoPtr info;
 

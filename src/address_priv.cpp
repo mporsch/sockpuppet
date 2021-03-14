@@ -95,7 +95,7 @@ namespace {
               "failed to parse address \"" + uri + "\"");
       }
     }
-    return make_unique(info, ::freeaddrinfo);
+    return {info, ::freeaddrinfo};
   }
 
   SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
@@ -119,7 +119,7 @@ namespace {
               "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
       }
     }
-    return make_unique(info, ::freeaddrinfo);
+    return {info, ::freeaddrinfo};
   }
 
   SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
@@ -134,7 +134,7 @@ namespace {
       throw std::system_error(AddressError(result),
             "failed to parse port \"" + port + "\"");
     }
-    return make_unique(info, ::freeaddrinfo);
+    return {info, ::freeaddrinfo};
   }
 } // unnamed namespace
 
