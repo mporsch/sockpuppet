@@ -87,7 +87,7 @@ ToDo &ToDo::operator=(ToDo &&other) noexcept = default;
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
     Driver &driver, ReceiveFromHandler handleReceiveFrom)
   : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*buff.priv),
+      std::move(buff.priv),
       driver.priv,
       SocketAsyncPriv::Handlers{
         nullptr
@@ -106,7 +106,7 @@ std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
 
 Address SocketUdpAsync::LocalAddress() const
 {
-  return Address(priv->GetSockName());
+  return Address(priv->buff->sock->GetSockName());
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept = default;
@@ -120,7 +120,7 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
     SocketTcpBuffered &&buff, Driver &driver,
     ReceiveHandler handleReceive, DisconnectHandler handleDisconnect)
   : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*buff.priv),
+      std::move(buff.priv),
       driver.priv,
       SocketAsyncPriv::Handlers{
         std::move(checked(handleReceive))
@@ -138,12 +138,12 @@ std::future<void> SocketTcpAsyncClient::Send(BufferPtr &&buffer)
 
 Address SocketTcpAsyncClient::LocalAddress() const
 {
-  return Address(priv->GetSockName());
+  return Address(priv->buff->sock->GetSockName());
 }
 
 Address SocketTcpAsyncClient::PeerAddress() const
 {
-  return Address(priv->GetPeerName());
+  return Address(priv->buff->sock->GetPeerName());
 }
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept = default;
@@ -156,7 +156,7 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
     Driver &driver, ConnectHandler handleConnect)
   : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(*sock.priv),
+      std::move(sock.priv),
       driver.priv,
       SocketAsyncPriv::Handlers{
         nullptr
@@ -165,12 +165,12 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
       , nullptr
       }))
 {
-  priv->Listen();
+  priv->buff->sock->Listen();
 }
 
 Address SocketTcpAsyncServer::LocalAddress() const
 {
-  return Address(priv->GetSockName());
+  return Address(priv->buff->sock->GetSockName());
 }
 
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept = default;

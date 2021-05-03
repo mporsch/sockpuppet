@@ -80,7 +80,7 @@ void BufferPool::Recycle(Buffer *buf)
 SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : priv(std::make_unique<SocketBufferedPriv>(
-      std::move(*sock.priv),
+      std::move(sock.priv),
       rxBufCount,
       rxBufSize))
 {
@@ -89,7 +89,7 @@ SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return priv->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
+  return priv->sock->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
 }
 
 std::optional<std::pair<BufferPtr, Address>>
@@ -100,7 +100,7 @@ SocketUdpBuffered::ReceiveFrom(Duration timeout)
 
 Address SocketUdpBuffered::LocalAddress() const
 {
-  return Address(priv->GetSockName());
+  return Address(priv->sock->GetSockName());
 }
 
 SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
@@ -113,7 +113,7 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : priv(std::make_unique<SocketBufferedPriv>(
-      std::move(*sock.priv),
+      std::move(sock.priv),
       rxBufCount,
       rxBufSize))
 {
@@ -122,7 +122,7 @@ SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
 {
-  return priv->Send(data, size, timeout);
+  return priv->sock->Send(data, size, timeout);
 }
 
 std::optional<BufferPtr> SocketTcpBuffered::Receive(Duration timeout)
@@ -132,12 +132,12 @@ std::optional<BufferPtr> SocketTcpBuffered::Receive(Duration timeout)
 
 Address SocketTcpBuffered::LocalAddress() const
 {
-  return Address(priv->GetSockName());
+  return Address(priv->sock->GetSockName());
 }
 
 Address SocketTcpBuffered::PeerAddress() const
 {
-  return Address(priv->GetPeerName());
+  return Address(priv->sock->GetPeerName());
 }
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;

@@ -23,8 +23,8 @@ int main(int argc, char **argv)
   // the hidden implementation should be acessible after including the internal headers
   std::cout << "Family of address " << to_string(addr) << " is " << addr.priv->Family()
             << std::endl
-            << "File descriptor of bound socket is " << sock.priv->fd
-            << " (" << sizeof(sock.priv->fd) << " byte integer)"
+            << "File descriptor of bound socket is " << sock.priv->buff->sock->fd
+            << " (" << sizeof(sock.priv->buff->sock->fd) << " byte integer)"
             << std::endl;
 
   return EXIT_SUCCESS;

@@ -6,15 +6,15 @@
 
 namespace sockpuppet {
 
-SocketAsyncPriv::SocketAsyncPriv(SocketPriv &&sock, DriverShared &driver, Handlers handlers)
-  : SocketAsyncPriv(SocketBufferedPriv(std::move(sock), 0U, 0U),
+SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketPriv> &&sock, DriverShared &driver, Handlers handlers)
+  : SocketAsyncPriv(std::make_unique<SocketBufferedPriv>(std::move(sock), 0U, 0U),
                     driver,
                     std::move(handlers))
 {
 }
 
-SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff, DriverShared &driver, Handlers handlers)
-  : SocketBufferedPriv(std::move(buff))
+SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff, DriverShared &driver, Handlers handlers)
+  : buff(std::move(buff))
   , driver(driver)
   , handlers(std::move(handlers))
 {
@@ -22,14 +22,14 @@ SocketAsyncPriv::SocketAsyncPriv(SocketBufferedPriv &&buff, DriverShared &driver
 
   if(this->handlers.disconnect) {
     // cache remote address as it will be unavailable after disconnect
-    peerAddr = this->GetPeerName();
+    peerAddr = buff->sock->GetPeerName();
   }
 }
 
 SocketAsyncPriv::~SocketAsyncPriv()
 {
   if(auto const ptr = driver.lock()) {
-    ptr->AsyncUnregister(this->fd);
+    ptr->AsyncUnregister(buff->sock->fd);
   }
 }
 
@@ -60,7 +60,7 @@ std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
 
   if(wasEmpty) {
     if(auto const ptr = driver.lock()) {
-      ptr->AsyncWantSend(this->fd);
+      ptr->AsyncWantSend(buff->sock->fd);
     }
   }
 
@@ -70,15 +70,15 @@ std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
 void SocketAsyncPriv::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
-    auto [sock, addr] = this->Accept();
-    this->Listen();
+    auto [sock, addr] = buff->sock->Accept();
+    buff->sock->Listen();
 
     handlers.connect(std::move(sock), std::move(addr));
   } else if(handlers.receive) {
-    handlers.receive(SocketBufferedPriv::Receive());
+    handlers.receive(buff->Receive());
   } else if(handlers.receiveFrom) {
-    auto [buff, addr] = SocketBufferedPriv::ReceiveFrom();
-    handlers.receiveFrom(std::move(buff), std::move(addr));
+    auto [buffer, addr] = buff->ReceiveFrom();
+    handlers.receiveFrom(std::move(buffer), std::move(addr));
   } else {
     assert(false);
   }
@@ -119,7 +119,7 @@ bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
 
     // allow partial send to avoid starving other
     // driver's sockets if this one is rate limited
-    auto const sent = SocketPriv::SendSome(buffer->data(), buffer->size());
+    auto const sent = buff->sock->SendSome(buffer->data(), buffer->size());
     if(sent == buffer->size()) {
       promise.set_value();
       return true;
@@ -139,7 +139,7 @@ void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
   try {
     auto &&buffer = std::get<1>(t);
     auto &&addr = std::get<2>(t);
-    auto const sent = SocketPriv::SendTo(buffer->data(), buffer->size(),
+    auto const sent = buff->sock->SendTo(buffer->data(), buffer->size(),
                                          addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();

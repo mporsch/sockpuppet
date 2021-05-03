@@ -12,12 +12,13 @@
 
 namespace sockpuppet {
 
-struct SocketBufferedPriv : public SocketPriv
+struct SocketBufferedPriv
 {
+  std::unique_ptr<SocketPriv> sock;
   std::unique_ptr<BufferPool> pool;
   size_t rxBufSize;
 
-  SocketBufferedPriv(SocketPriv &&sock,
+  SocketBufferedPriv(std::unique_ptr<SocketPriv> &&sock,
                      size_t rxBufCount,
                      size_t rxBufSize);
   SocketBufferedPriv(SocketBufferedPriv const &) = delete;

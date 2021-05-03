@@ -14,7 +14,7 @@
 
 namespace sockpuppet {
 
-struct SocketAsyncPriv : public SocketBufferedPriv
+struct SocketAsyncPriv
 {
   using AddressShared = std::shared_ptr<Address::AddressPriv>;
   using DriverShared = std::shared_ptr<Driver::DriverPriv>;
@@ -31,6 +31,7 @@ struct SocketAsyncPriv : public SocketBufferedPriv
     DisconnectHandler disconnect;
   };
 
+  std::unique_ptr<SocketBufferedPriv> buff;
   std::weak_ptr<Driver::DriverPriv> driver;
   Handlers handlers;
   std::mutex sendQMtx;
@@ -38,8 +39,8 @@ struct SocketAsyncPriv : public SocketBufferedPriv
   SendToQ sendToQ;
   std::shared_ptr<SockAddrStorage> peerAddr;
 
-  SocketAsyncPriv(SocketPriv &&sock, DriverShared &driver, Handlers handlers);
-  SocketAsyncPriv(SocketBufferedPriv &&buff, DriverShared &driver, Handlers handlers);
+  SocketAsyncPriv(std::unique_ptr<SocketPriv> &&sock, DriverShared &driver, Handlers handlers);
+  SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff, DriverShared &driver, Handlers handlers);
   SocketAsyncPriv(SocketAsyncPriv const &) = delete;
   SocketAsyncPriv(SocketAsyncPriv &&) = delete;
   ~SocketAsyncPriv();

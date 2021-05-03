@@ -35,7 +35,7 @@ struct FdEqual
 
   bool operator()(SocketAsyncPriv const &async) const
   {
-    return (async.fd == fd);
+    return (async.buff->sock->fd == fd);
   }
 
   bool operator()(pollfd const &pfd) const
@@ -267,7 +267,7 @@ void Driver::DriverPriv::AsyncRegister(
   PauseGuard lock(*this);
 
   sockets.emplace_back(sock);
-  pfds.emplace_back(pollfd{sock.fd, POLLIN, 0});
+  pfds.emplace_back(pollfd{sock.buff->sock->fd, POLLIN, 0});
 }
 
 void Driver::DriverPriv::AsyncUnregister(SOCKET fd)
@@ -324,7 +324,7 @@ void Driver::DriverPriv::DoOneFdTask()
   for(size_t i = 0U; i < sockets.size(); ++i) {
     auto &&pfd = pfds[i + 1U];
     auto &&sock = sockets[i].get();
-    assert(pfd.fd == sock.fd);
+    assert(pfd.fd == sock.buff->sock->fd);
 
     if(pfd.revents & POLLIN) {
       sock.DriverDoFdTaskReadable();
