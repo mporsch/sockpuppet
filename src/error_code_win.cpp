@@ -2,6 +2,7 @@
 
 #include "error_code.h"
 
+#define NOCRYPT
 #include <winsock2.h> // for WSAGetLastError
 
 // Win32/Winsock error code handling inspired by

@@ -1,6 +1,7 @@
 #include "error_code.h"
 
 #ifdef _WIN32
+# define NOCRYPT
 # include <ws2tcpip.h> // for gai_strerror
 #else
 # include <netdb.h> // for gai_strerror

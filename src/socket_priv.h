@@ -7,6 +7,7 @@
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
+# define NOCRYPT
 # include <winsock2.h> // for SOCKET
 #else
 using SOCKET = int;
@@ -30,13 +31,13 @@ struct SocketPriv
   SocketPriv(SOCKET fd);
   SocketPriv(SocketPriv const &) = delete;
   SocketPriv(SocketPriv &&other) noexcept;
-  ~SocketPriv();
+  virtual ~SocketPriv();
 
   std::optional<size_t> Receive(char *data,
                                 size_t size,
                                 Duration timeout);
-  size_t Receive(char *data,
-                 size_t size);
+  virtual size_t Receive(char *data,
+                         size_t size);
 
   std::optional<std::pair<size_t, Address>>
   ReceiveFrom(char *data, size_t size, Duration timeout);
@@ -46,13 +47,13 @@ struct SocketPriv
   size_t Send(char const *data,
               size_t size,
               Duration timeout);
-  size_t SendAll(char const *data,
-                 size_t size);
+  virtual size_t SendAll(char const *data,
+                         size_t size);
   size_t SendSome(char const *data,
                   size_t size,
                   Duration timeout);
-  size_t SendSome(char const *data,
-                  size_t size);
+  virtual size_t SendSome(char const *data,
+                          size_t size);
 
   size_t SendTo(char const *data,
                 size_t size,
@@ -64,13 +65,13 @@ struct SocketPriv
 
   void Bind(SockAddrView const &bindAddr);
 
-  void Connect(SockAddrView const &connectAddr);
+  virtual void Connect(SockAddrView const &connectAddr);
 
   void Listen();
 
   std::optional<std::pair<SocketTcpClient, Address>>
   Accept(Duration timeout);
-  std::pair<SocketTcpClient, Address>
+  virtual std::pair<SocketTcpClient, Address>
   Accept();
 
   bool WaitReadable(Duration timeout);

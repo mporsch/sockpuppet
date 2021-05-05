@@ -1,8 +1,10 @@
 #include "sockpuppet/socket.h"
 #include "address_priv.h" // for Address::AddressPriv
 #include "socket_priv.h" // for SocketPriv
+#include "socket_tls_priv.h" // for SocketTlsPriv
 
 #ifdef _WIN32
+# define NOCRYPT
 # include <winsock2.h> // for IPPROTO_UDP
 #else
 # include <arpa/inet.h> // for IPPROTO_UDP
@@ -55,6 +57,15 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
   priv->Connect(connectAddress.priv->ForTcp());
 }
 
+SocketTcpClient::SocketTcpClient(Address const &connectAddress,
+    std::string_view cert_path, std::string_view key_path)
+  : priv(std::make_unique<SocketTlsPriv>(
+      connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP, TLS_client_method(), cert_path, key_path))
+{
+  priv->SetSockOptNoSigPipe();
+  priv->Connect(connectAddress.priv->ForTcp());
+}
+
 size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
 {
   return priv->Send(data, size, timeout);
@@ -96,6 +107,15 @@ SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = 
 SocketTcpServer::SocketTcpServer(Address const &bindAddress)
   : priv(std::make_unique<SocketPriv>(
       bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP))
+{
+  priv->SetSockOptReuseAddr();
+  priv->Bind(bindAddress.priv->ForTcp());
+}
+
+SocketTcpServer::SocketTcpServer(Address const &bindAddress,
+    std::string_view cert_path, std::string_view key_path)
+  : priv(std::make_unique<SocketTlsPriv>(
+      bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP, TLS_server_method(), cert_path, key_path))
 {
   priv->SetSockOptReuseAddr();
   priv->Bind(bindAddress.priv->ForTcp());

@@ -83,6 +83,10 @@ struct SocketTcpClient
   /// @throws  If connect fails.
   SocketTcpClient(Address const &connectAddress);
 
+  SocketTcpClient(Address const &connectAddress,
+                  std::string_view cert_path,
+                  std::string_view key_path);
+
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
   /// @param  size  Size of data to send.
@@ -142,6 +146,10 @@ struct SocketTcpServer
   ///                      binds to an OS-assigned port.
   /// @throws  If binding or configuration fails.
   SocketTcpServer(Address const &bindAddress);
+
+  SocketTcpServer(Address const &bindAddress,
+                  std::string_view cert_path,
+                  std::string_view key_path);
 
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,

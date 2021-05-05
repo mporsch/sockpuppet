@@ -10,6 +10,7 @@ endif()
 option(BUILD_TESTS "Build test executables" TRUE)
 option(BUILD_EXAMPLES "Build example executables" TRUE)
 option(BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
+option(WITH_TLS "Build with OpenSSL (or compatible)" FALSE)
 
 if(${BUILD_SHARED_LIBS})
   # auto-generate DLL exports for Windows
@@ -38,6 +39,7 @@ add_library(sockpuppet
   src/driver_priv.cpp
   src/driver_priv.h
   src/error_code.cpp
+  src/error_code_tls.cpp
   src/error_code_unix.cpp
   src/error_code_win.cpp
   src/error_code.h
@@ -50,6 +52,10 @@ add_library(sockpuppet
   src/socket_buffered_priv.h
   src/socket_priv.cpp
   src/socket_priv.h
+  src/socket_tls_priv.cpp
+  src/socket_tls_priv.h
+  src/ssl_guard.cpp
+  src/ssl_guard.h
   src/todo_priv.cpp
   src/todo_priv.h
   src/winsock_guard.cpp
@@ -71,6 +77,19 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   else()
     target_link_libraries(sockpuppet PUBLIC WS2_32.Lib)
   endif()
+endif()
+
+if(${WITH_TLS})
+    # LibreSSL works fine as well, just had to remove version suffix from installed libs filenames
+    find_package(OpenSSL REQUIRED)
+
+    target_compile_definitions(sockpuppet PRIVATE WITH_TLS)
+
+    if(${BUILD_SHARED_LIBS})
+      target_link_libraries(sockpuppet PRIVATE OpenSSL::SSL OpenSSL::Crypto bcrypt.lib)
+    else()
+      target_link_libraries(sockpuppet PUBLIC OpenSSL::SSL OpenSSL::Crypto bcrypt.lib)
+    endif()
 endif()
 
 if(${BUILD_TESTS})

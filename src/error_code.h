@@ -14,6 +14,8 @@ std::error_code SocketError(int code);
 
 std::error_code AddressError(int code);
 
+std::error_code SslError(int code);
+
 } // namespace sockpuppet
 
 #endif // SOCKPUPPET_ERROR_CODE_H
