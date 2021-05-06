@@ -71,6 +71,9 @@ target_include_directories(sockpuppet PUBLIC
 )
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  # avoid some unwanted windows header symbols
+  target_compile_definitions(sockpuppet PRIVATE NOMINMAX)
+
   # link with WinSock
   if(${BUILD_SHARED_LIBS})
     target_link_libraries(sockpuppet PRIVATE WS2_32.Lib)
