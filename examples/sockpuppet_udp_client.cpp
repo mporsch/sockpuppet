@@ -17,6 +17,11 @@ void SignalHandler(int)
 
 void Client(Address bindAddress, Address remoteAddress)
 {
+  // set up the handler for Ctrl-C
+  if(std::signal(SIGINT, SignalHandler) == SIG_ERR) {
+    throw std::logic_error("failed to set signal handler");
+  }
+
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
 
