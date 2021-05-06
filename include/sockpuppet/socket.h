@@ -84,8 +84,8 @@ struct SocketTcpClient
   SocketTcpClient(Address const &connectAddress);
 
   SocketTcpClient(Address const &connectAddress,
-                  std::string_view cert_path,
-                  std::string_view key_path);
+                  char const *certFilePath,
+                  char const *keyFilePath);
 
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
@@ -148,8 +148,8 @@ struct SocketTcpServer
   SocketTcpServer(Address const &bindAddress);
 
   SocketTcpServer(Address const &bindAddress,
-                  std::string_view cert_path,
-                  std::string_view key_path);
+                  char const *certFilePath,
+                  char const *keyFilePath);
 
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,

@@ -7,60 +7,38 @@ namespace sockpuppet {
 
 namespace {
 
-std::shared_ptr<SSL_CTX> create_ssl_ctx(
-    std::string_view cert, std::string_view key,
-    const SSL_METHOD* method)
+void ConfigureContext(SSL_CTX *ctx,
+    char const *certFilePath, char const *keyFilePath)
 {
-    auto ctx = std::shared_ptr<SSL_CTX>(
-          SSL_CTX_new(method),
-          [](SSL_CTX* ctx) {
-            if(ctx) {
-                SSL_CTX_free(ctx);
-            }
-          });
-    if(!ctx) {
-        throw std::runtime_error("Failed to create TLS context");
-    }
-    SSL_CTX_set_mode(ctx.get(), SSL_MODE_AUTO_RETRY);
-    SSL_CTX_set_ecdh_auto(ctx.get(), 1);
+  SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
+  SSL_CTX_set_ecdh_auto(ctx, 1);
 
-    if(SSL_CTX_use_certificate_file(ctx.get(), cert.data(), SSL_FILETYPE_PEM) <= 0) {
-        throw std::runtime_error("Failed to set certificate");
-    }
-    if(SSL_CTX_use_PrivateKey_file(ctx.get(), key.data(), SSL_FILETYPE_PEM) <= 0) {
-        throw std::runtime_error("Failed to set private key");
-    }
+  if(SSL_CTX_use_certificate_file(ctx, certFilePath, SSL_FILETYPE_PEM) <= 0) {
+      throw std::runtime_error("failed to set certificate");
+  }
+  if(SSL_CTX_use_PrivateKey_file(ctx, keyFilePath, SSL_FILETYPE_PEM) <= 0) {
+      throw std::runtime_error("failed to set private key");
+  }
+}
+
+void FreeContext(SSL_CTX *ctx)
+{
+  if(ctx) {
+      SSL_CTX_free(ctx);
+  }
+}
+
+std::shared_ptr<SSL_CTX> CreateContext(SSL_METHOD const *method,
+    char const *certFilePath, char const *keyFilePath)
+{
+  if(auto ctx = std::shared_ptr<SSL_CTX>(SSL_CTX_new(method), FreeContext)) {
+    ConfigureContext(ctx.get(), certFilePath, keyFilePath);
     return ctx;
-}
-
-} // unnamed namespace
-
-SocketTlsPriv::SocketTlsPriv(int family, int type, int protocol,
-    const SSL_METHOD* method, std::string_view cert_path, std::string_view key_path)
-  : SocketPriv(family, type, protocol)
-  , sslGuard()
-  , ctx(create_ssl_ctx(cert_path, key_path, method))
-  , ssl(SSL_new(ctx.get()))
-{
-  if(!ssl) {
-      throw std::runtime_error("Failed to instatiate SSL structure");
   }
-  SSL_set_fd(ssl, this->fd);
+  throw std::runtime_error("failed to create SSL context");
 }
 
-SocketTlsPriv::SocketTlsPriv(SOCKET fd, std::shared_ptr<SSL_CTX> ctx)
-  : SocketPriv(fd)
-  , sslGuard()
-  , ctx(std::move(ctx))
-  , ssl(SSL_new(this->ctx.get()))
-{
-  if(!ssl) {
-      throw std::runtime_error("Failed to instatiate SSL structure");
-  }
-  SSL_set_fd(ssl, this->fd);
-}
-
-SocketTlsPriv::~SocketTlsPriv()
+void FreeSsl(SSL *ssl)
 {
   if(ssl) {
       SSL_shutdown(ssl);
@@ -68,29 +46,65 @@ SocketTlsPriv::~SocketTlsPriv()
   }
 }
 
+SocketTlsPriv::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
+{
+  if(auto ssl = SocketTlsPriv::SslPtr(SSL_new(ctx), FreeSsl)) {
+    SSL_set_fd(ssl.get(), fd);
+    return ssl;
+  }
+  throw std::runtime_error("failed to create SSL structure");
+}
+
+} // unnamed namespace
+
+SocketTlsPriv::SocketTlsPriv(int family, int type, int protocol,
+    SSL_METHOD const *method, char const *certFilePath, char const *keyFilePath)
+  : SocketPriv(family, type, protocol)
+  , sslGuard()
+  , ctx(CreateContext(method, certFilePath, keyFilePath))
+  , ssl(CreateSsl(ctx.get(), this->fd))
+{
+}
+
+SocketTlsPriv::SocketTlsPriv(SOCKET fd, std::shared_ptr<SSL_CTX> ctx)
+  : SocketPriv(fd)
+  , sslGuard()
+  , ctx(std::move(ctx))
+  , ssl(CreateSsl(this->ctx.get(), this->fd))
+{
+}
+
+SocketTlsPriv::~SocketTlsPriv() = default;
+
 size_t SocketTlsPriv::Receive(char *data, size_t size)
 {
-  auto const res = SSL_read(ssl, data, size);
-  if(res <= 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl, res)), "failed to TLS receive");
+  auto const res = SSL_read(ssl.get(), data, size);
+  if(res < 0) {
+    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS receive");
+  } else if(res == 0) {
+    throw std::runtime_error("connection closed");
   }
   return static_cast<size_t>(res);
 }
 
 size_t SocketTlsPriv::SendAll(char const *data, size_t size)
 {
-  auto const res = SSL_write(ssl, data, size);
-  if(res <= 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl, res)), "failed to TLS send");
+  auto const res = SSL_write(ssl.get(), data, size);
+  if(res < 0) {
+    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS send");
+  } else if((res == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected send result");
   }
   return static_cast<size_t>(res);
 }
 
 size_t SocketTlsPriv::SendSome(char const *data, size_t size)
 {
-  auto const res = SSL_write(ssl, data, size);
-  if(res <= 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl, res)), "failed to TLS send");
+  auto const res = SSL_write(ssl.get(), data, size);
+  if(res < 0) {
+    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS send");
+  } else if((res == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected send result");
   }
   return static_cast<size_t>(res);
 }
@@ -99,9 +113,9 @@ void SocketTlsPriv::Connect(SockAddrView const &connectAddr)
 {
   SocketPriv::Connect(connectAddr);
 
-  auto res = SSL_connect(ssl);
+  auto res = SSL_connect(ssl.get());
   if(res != 1) {
-      throw std::system_error(SslError(SSL_get_error(ssl, res)), "Failed to TLS connect");
+      throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS connect");
   }
 }
 
@@ -109,17 +123,16 @@ std::pair<SocketTcpClient, Address>
 SocketTlsPriv::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
-  auto clientTls = std::make_unique<SocketTlsPriv>(
+  auto client = std::make_unique<SocketTlsPriv>(
         ::accept(fd, sas->Addr(), sas->AddrLen()),
         ctx);
 
-  auto res = SSL_accept(clientTls->ssl);
+  auto res = SSL_accept(client->ssl.get());
   if(res != 1) {
-    throw std::system_error(SslError(SSL_get_error(ssl, res)), "Failed to TLS accept");
+    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS accept");
   }
 
-  std::unique_ptr<SocketPriv> client = std::move(clientTls);
-  return {std::move(client), Address(std::move(sas))};
+  return {std::unique_ptr<SocketPriv>(std::move(client)), Address(std::move(sas))};
 }
 
 } // namespace sockpuppet

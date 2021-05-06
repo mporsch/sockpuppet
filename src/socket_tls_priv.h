@@ -10,22 +10,23 @@
 #include <cstddef> // for size_t
 #include <memory> // for std::shared_ptr
 #include <utility> // for std::pair
-#include <string_view>
 
 namespace sockpuppet {
 
 struct SocketTlsPriv : public SocketPriv
 {
+  using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;
+
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   std::shared_ptr<SSL_CTX> ctx;
-  SSL* ssl;
+  SslPtr ssl;
 
   SocketTlsPriv(int family,
                 int type,
                 int protocol,
-                const SSL_METHOD* method,
-                std::string_view cert_path,
-                std::string_view key_path);
+                SSL_METHOD const *method,
+                char const *certFilePath,
+                char const *keyFilePath);
 
   SocketTlsPriv(SOCKET fd, std::shared_ptr<SSL_CTX> ctx);
 

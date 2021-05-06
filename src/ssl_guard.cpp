@@ -2,7 +2,7 @@
 
 #include "ssl_guard.h"
 
-#include <openssl/ssl.h>
+#include <openssl/ssl.h> // for SSL_library_init
 
 #include <mutex> // for std::mutex
 
@@ -28,7 +28,7 @@ namespace {
       ERR_load_SSL_strings();
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup
-      // TODO
+      EVP_cleanup();
     }
   }
 } // unnamed namespace

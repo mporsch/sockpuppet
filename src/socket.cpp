@@ -57,9 +57,10 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
 }
 
 SocketTcpClient::SocketTcpClient(Address const &connectAddress,
-    std::string_view cert_path, std::string_view key_path)
+    char const *certFilePath, char const *keyFilePath)
   : priv(std::make_unique<SocketTlsPriv>(
-      connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP, TLS_client_method(), cert_path, key_path))
+      connectAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP,
+      TLS_client_method(), certFilePath, keyFilePath))
 {
   priv->SetSockOptNoSigPipe();
   priv->Connect(connectAddress.priv->ForTcp());
@@ -112,9 +113,10 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress)
 }
 
 SocketTcpServer::SocketTcpServer(Address const &bindAddress,
-    std::string_view cert_path, std::string_view key_path)
+    char const *certFilePath, char const *keyFilePath)
   : priv(std::make_unique<SocketTlsPriv>(
-      bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP, TLS_server_method(), cert_path, key_path))
+      bindAddress.priv->Family(), SOCK_STREAM, IPPROTO_TCP,
+      TLS_server_method(), certFilePath, keyFilePath))
 {
   priv->SetSockOptReuseAddr();
   priv->Bind(bindAddress.priv->ForTcp());
