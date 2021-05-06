@@ -8,7 +8,7 @@
 #include <openssl/ssl.h> // for SSL_CTX
 
 #include <cstddef> // for size_t
-#include <memory> // for std::shared_ptr
+#include <memory> // for std::unique_ptr
 #include <utility> // for std::pair
 
 namespace sockpuppet {
@@ -18,7 +18,6 @@ struct SocketTlsPriv : public SocketPriv
   using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
-  std::shared_ptr<SSL_CTX> ctx;
   SslPtr ssl;
 
   SocketTlsPriv(int family,
@@ -28,7 +27,7 @@ struct SocketTlsPriv : public SocketPriv
                 char const *certFilePath,
                 char const *keyFilePath);
 
-  SocketTlsPriv(SOCKET fd, std::shared_ptr<SSL_CTX> ctx);
+  SocketTlsPriv(SOCKET fd, SSL_CTX *ctx);
 
   ~SocketTlsPriv() override;
 

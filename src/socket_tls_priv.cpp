@@ -7,6 +7,9 @@ namespace sockpuppet {
 
 namespace {
 
+// context is reference-counted by itself: used for transport to session only
+using CtxPtr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
+
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
@@ -21,17 +24,10 @@ void ConfigureContext(SSL_CTX *ctx,
   }
 }
 
-void FreeContext(SSL_CTX *ctx)
-{
-  if(ctx) {
-      SSL_CTX_free(ctx);
-  }
-}
-
-std::shared_ptr<SSL_CTX> CreateContext(SSL_METHOD const *method,
+CtxPtr CreateContext(SSL_METHOD const *method,
     char const *certFilePath, char const *keyFilePath)
 {
-  if(auto ctx = std::shared_ptr<SSL_CTX>(SSL_CTX_new(method), FreeContext)) {
+  if(auto ctx = CtxPtr(SSL_CTX_new(method), SSL_CTX_free)) {
     ConfigureContext(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
@@ -61,16 +57,14 @@ SocketTlsPriv::SocketTlsPriv(int family, int type, int protocol,
     SSL_METHOD const *method, char const *certFilePath, char const *keyFilePath)
   : SocketPriv(family, type, protocol)
   , sslGuard()
-  , ctx(CreateContext(method, certFilePath, keyFilePath))
-  , ssl(CreateSsl(ctx.get(), this->fd))
+  , ssl(CreateSsl(CreateContext(method, certFilePath, keyFilePath).get(), this->fd))
 {
 }
 
-SocketTlsPriv::SocketTlsPriv(SOCKET fd, std::shared_ptr<SSL_CTX> ctx)
+SocketTlsPriv::SocketTlsPriv(SOCKET fd, SSL_CTX *ctx)
   : SocketPriv(fd)
   , sslGuard()
-  , ctx(std::move(ctx))
-  , ssl(CreateSsl(this->ctx.get(), this->fd))
+  , ssl(CreateSsl(ctx, this->fd))
 {
 }
 
@@ -125,7 +119,7 @@ SocketTlsPriv::Accept()
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = std::make_unique<SocketTlsPriv>(
         ::accept(fd, sas->Addr(), sas->AddrLen()),
-        ctx);
+        ssl->ctx);
 
   auto res = SSL_accept(client->ssl.get());
   if(res != 1) {
