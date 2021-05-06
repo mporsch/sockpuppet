@@ -70,18 +70,6 @@ target_include_directories(sockpuppet PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-  # avoid some unwanted windows header symbols
-  target_compile_definitions(sockpuppet PRIVATE NOMINMAX)
-
-  # link with WinSock
-  if(${BUILD_SHARED_LIBS})
-    target_link_libraries(sockpuppet PRIVATE WS2_32.Lib)
-  else()
-    target_link_libraries(sockpuppet PUBLIC WS2_32.Lib)
-  endif()
-endif()
-
 if(${WITH_TLS})
     # LibreSSL works fine as well, just had to remove version suffix from installed libs filenames
     find_package(OpenSSL REQUIRED)
@@ -93,6 +81,18 @@ if(${WITH_TLS})
     else()
       target_link_libraries(sockpuppet PUBLIC OpenSSL::SSL OpenSSL::Crypto bcrypt.lib)
     endif()
+endif()
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  # avoid some unwanted windows header symbols
+  target_compile_definitions(sockpuppet PRIVATE NOMINMAX NOCRYPT)
+
+  # link with WinSock
+  if(${BUILD_SHARED_LIBS})
+    target_link_libraries(sockpuppet PRIVATE WS2_32.Lib)
+  else()
+    target_link_libraries(sockpuppet PUBLIC WS2_32.Lib)
+  endif()
 endif()
 
 if(${BUILD_TESTS})

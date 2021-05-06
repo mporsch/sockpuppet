@@ -4,7 +4,6 @@
 #include "socket_tls_priv.h" // for SocketTlsPriv
 
 #ifdef _WIN32
-# define NOCRYPT
 # include <winsock2.h> // for IPPROTO_UDP
 #else
 # include <arpa/inet.h> // for IPPROTO_UDP

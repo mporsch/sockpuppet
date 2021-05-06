@@ -7,7 +7,6 @@
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
-# define NOCRYPT
 # include <winsock2.h> // for SOCKET
 #else
 using SOCKET = int;
