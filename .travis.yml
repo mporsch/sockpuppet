@@ -49,8 +49,11 @@ jobs:
         - CTEST_OUTPUT_ON_FAILURE=1
 
 before_script:
-  - mkdir build
-  - cd build
-  - cmake .. -G "${GENERATOR}" $SHARED
+  - mkdir -p build/external/
+  - cd build/external
+  - cmake ../../external -G "${GENERATOR}"
+  - cmake --build .
+  - cd ..
+  - cmake .. -G "${GENERATOR}" $SHARED -DWITH_TLS:BOOL=ON -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
 
 script: cmake --build . && cmake --build . --target run_tests

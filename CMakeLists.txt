@@ -72,6 +72,7 @@ target_include_directories(sockpuppet PUBLIC
 
 if(${WITH_TLS})
     # LibreSSL works fine as well, just had to remove version suffix from installed libs filenames
+    message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
     find_package(OpenSSL REQUIRED)
 
     target_compile_definitions(sockpuppet PRIVATE WITH_TLS)
