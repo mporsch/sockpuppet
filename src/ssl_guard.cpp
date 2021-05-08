@@ -21,11 +21,10 @@ namespace {
 
     if(prev == 0 && curr == 1) {
       // we are the first instance -> initialize
-      SSL_library_init();
+      (void)SSL_library_init();
       SSL_load_error_strings();
-      OpenSSL_add_ssl_algorithms();
-      ERR_load_BIO_strings();
-      ERR_load_SSL_strings();
+      // TODO OPENSSL_config / OPENSSL_noconfig
+      // no multithreading within the library, so no OpenSSL thread init
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup
       EVP_cleanup();
