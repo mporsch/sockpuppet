@@ -9,6 +9,8 @@
 # include <arpa/inet.h> // for IPPROTO_UDP
 #endif // _WIN32
 
+#include <stdexcept> // for std::logic_error
+
 namespace sockpuppet {
 
 SocketUdp::SocketUdp(Address const &bindAddress)
@@ -56,6 +58,7 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
   priv->Connect(connectAddress.priv->ForTcp());
 }
 
+#ifdef WITH_TLS
 SocketTcpClient::SocketTcpClient(Address const &connectAddress,
     char const *certFilePath, char const *keyFilePath)
   : priv(std::make_unique<SocketTlsPriv>(
@@ -65,6 +68,13 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress,
   priv->SetSockOptNoSigPipe();
   priv->Connect(connectAddress.priv->ForTcp());
 }
+#else // WITH_TLS
+SocketTcpClient::SocketTcpClient(Address const &,
+    char const *, char const *)
+{
+  throw std::logic_error("not implemented");
+}
+#endif // WITH_TLS
 
 size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
 {
@@ -112,6 +122,7 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress)
   priv->Bind(bindAddress.priv->ForTcp());
 }
 
+#ifdef WITH_TLS
 SocketTcpServer::SocketTcpServer(Address const &bindAddress,
     char const *certFilePath, char const *keyFilePath)
   : priv(std::make_unique<SocketTlsPriv>(
@@ -121,6 +132,13 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress,
   priv->SetSockOptReuseAddr();
   priv->Bind(bindAddress.priv->ForTcp());
 }
+#else // WITH_TLS
+SocketTcpServer::SocketTcpServer(Address const &,
+    char const *, char const *)
+{
+  throw std::logic_error("not implemented");
+}
+#endif // WITH_TLS
 
 std::optional<std::pair<SocketTcpClient, Address>>
 SocketTcpServer::Listen(Duration timeout)

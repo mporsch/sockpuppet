@@ -1,6 +1,8 @@
 #ifndef SOCKPUPPET_SOCKET_TLS_PRIV_H
 #define SOCKPUPPET_SOCKET_TLS_PRIV_H
 
+#ifdef WITH_TLS
+
 #include "address_priv.h" // for SockAddrView
 #include "socket_priv.h" // for SocketPriv
 #include "ssl_guard.h" // for SslGuard
@@ -26,9 +28,7 @@ struct SocketTlsPriv : public SocketPriv
                 SSL_METHOD const *method,
                 char const *certFilePath,
                 char const *keyFilePath);
-
   SocketTlsPriv(SOCKET fd, SSL_CTX *ctx);
-
   ~SocketTlsPriv() override;
 
   size_t Receive(char *data,
@@ -46,5 +46,7 @@ struct SocketTlsPriv : public SocketPriv
 };
 
 } // namespace sockpuppet
+
+#endif // WITH_TLS
 
 #endif // SOCKPUPPET_SOCKET_TLS_PRIV_H

@@ -1,6 +1,8 @@
 #ifndef SOCKPUPPET_SSL_GUARD_H
 #define SOCKPUPPET_SSL_GUARD_H
 
+#ifdef WITH_TLS
+
 namespace sockpuppet {
 
 struct SslGuard
@@ -16,5 +18,7 @@ struct SslGuard
 };
 
 } // namespace sockpuppet
+
+#endif // WITH_TLS
 
 #endif // SOCKPUPPET_SSL_GUARD_H
