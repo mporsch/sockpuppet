@@ -81,6 +81,8 @@ if(${WITH_TLS})
     list(APPEND DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
       list(APPEND DEPENDENCIES bcrypt)
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+      list(APPEND DEPENDENCIES pthread)
     endif()
 endif()
 
