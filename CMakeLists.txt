@@ -75,12 +75,12 @@ if(${WITH_TLS})
     message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
     find_package(OpenSSL REQUIRED)
 
+    # add define for preprocessor switches in source files
     target_compile_definitions(sockpuppet PRIVATE WITH_TLS)
 
-    if(${BUILD_SHARED_LIBS})
-      target_link_libraries(sockpuppet PRIVATE OpenSSL::SSL OpenSSL::Crypto bcrypt.lib)
-    else()
-      target_link_libraries(sockpuppet PUBLIC OpenSSL::SSL OpenSSL::Crypto bcrypt.lib)
+    list(APPEND DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+      list(APPEND DEPENDENCIES bcrypt)
     endif()
 endif()
 
@@ -89,11 +89,13 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   target_compile_definitions(sockpuppet PRIVATE NOMINMAX NOCRYPT)
 
   # link with WinSock
-  if(${BUILD_SHARED_LIBS})
-    target_link_libraries(sockpuppet PRIVATE WS2_32.Lib)
-  else()
-    target_link_libraries(sockpuppet PUBLIC WS2_32.Lib)
-  endif()
+  list(APPEND DEPENDENCIES ws2_32)
+endif()
+
+if(${BUILD_SHARED_LIBS})
+  target_link_libraries(sockpuppet PRIVATE ${DEPENDENCIES})
+else()
+  target_link_libraries(sockpuppet PUBLIC ${DEPENDENCIES})
 endif()
 
 if(${BUILD_TESTS})
