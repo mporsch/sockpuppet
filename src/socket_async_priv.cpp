@@ -22,7 +22,7 @@ SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff, Dri
 
   if(this->handlers.disconnect) {
     // cache remote address as it will be unavailable after disconnect
-    peerAddr = buff->sock->GetPeerName();
+    peerAddr = this->buff->sock->GetPeerName();
   }
 }
 
