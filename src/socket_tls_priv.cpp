@@ -48,6 +48,13 @@ SocketTlsClientPriv::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
   throw std::runtime_error("failed to create SSL structure");
 }
 
+std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
+{
+  return std::system_error(
+        SslError(SSL_get_error(ssl, code)),
+        errorMessage);
+}
+
 } // unnamed namespace
 
 SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
@@ -73,7 +80,7 @@ size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 {
   auto const res = SSL_read(ssl.get(), data, size);
   if(res < 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS receive");
+    throw MakeSslError(ssl.get(), res, "failed to TLS receive");
   } else if(res == 0) {
     throw std::runtime_error("connection closed");
   }
@@ -84,7 +91,7 @@ size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 {
   auto const res = SSL_write(ssl.get(), data, size);
   if(res < 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS send");
+    throw MakeSslError(ssl.get(), res, "failed to TLS send");
   } else if((res == 0) && (size > 0U)) {
     throw std::logic_error("unexpected send result");
   }
@@ -95,7 +102,7 @@ size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
 {
   auto const res = SSL_write(ssl.get(), data, size);
   if(res < 0) {
-    throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS send");
+    throw MakeSslError(ssl.get(), res, "failed to TLS send");
   } else if((res == 0) && (size > 0U)) {
     throw std::logic_error("unexpected send result");
   }
@@ -108,7 +115,7 @@ void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
 
   auto res = SSL_connect(ssl.get());
   if(res != 1) {
-      throw std::system_error(SslError(SSL_get_error(ssl.get(), res)), "failed to TLS connect");
+      throw MakeSslError(ssl.get(), res, "failed to TLS connect");
   }
 }
 
@@ -133,7 +140,7 @@ SocketTlsServerPriv::Accept()
 
   auto res = SSL_accept(client->ssl.get());
   if(res != 1) {
-    throw std::system_error(SslError(SSL_get_error(client->ssl.get(), res)), "failed to TLS accept");
+    throw MakeSslError(client->ssl.get(), res, "failed to TLS accept");
   }
 
   return {std::unique_ptr<SocketPriv>(std::move(client)), Address(std::move(sas))};
