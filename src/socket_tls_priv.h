@@ -15,21 +15,20 @@
 
 namespace sockpuppet {
 
-struct SocketTlsPriv : public SocketPriv
+struct SocketTlsClientPriv : public SocketPriv
 {
   using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
-  SslPtr ssl;
+  SslPtr ssl;  ///< OpenSSL session
 
-  SocketTlsPriv(int family,
-                int type,
-                int protocol,
-                SSL_METHOD const *method,
-                char const *certFilePath,
-                char const *keyFilePath);
-  SocketTlsPriv(SOCKET fd, SSL_CTX *ctx);
-  ~SocketTlsPriv() override;
+  SocketTlsClientPriv(int family,
+                      int type,
+                      int protocol,
+                      char const *certFilePath,
+                      char const *keyFilePath);
+  SocketTlsClientPriv(SOCKET fd, SSL_CTX *ctx);
+  ~SocketTlsClientPriv() override;
 
   size_t Receive(char *data,
                  size_t size) override;
@@ -40,6 +39,22 @@ struct SocketTlsPriv : public SocketPriv
                   size_t size) override;
 
   void Connect(SockAddrView const &connectAddr) override;
+};
+
+struct SocketTlsServerPriv : public SocketPriv
+{
+  // context is reference-counted by itself: used for transport to sessions only
+  using CtxPtr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
+
+  SslGuard sslGuard;  ///< Guard to initialize OpenSSL
+  CtxPtr ctx;  ///< OpenSSL context to be shared with all accepted clients
+
+  SocketTlsServerPriv(int family,
+                      int type,
+                      int protocol,
+                      char const *certFilePath,
+                      char const *keyFilePath);
+  ~SocketTlsServerPriv() override;
 
   std::pair<SocketTcpClient, Address>
   Accept() override;
