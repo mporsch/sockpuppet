@@ -144,7 +144,13 @@ std::optional<std::pair<SocketTcpClient, Address>>
 SocketTcpServer::Listen(Duration timeout)
 {
   priv->Listen();
-  return priv->Accept(timeout);
+  if(auto client = priv->Accept(timeout)) {
+    return {{
+      SocketTcpClient(std::move(client->first)),
+      std::move(client->second)
+    }};
+  }
+  return std::nullopt;
 }
 
 Address SocketTcpServer::LocalAddress() const

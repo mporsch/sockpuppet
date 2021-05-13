@@ -27,7 +27,7 @@ struct SocketTlsClientPriv : public SocketPriv
                       int protocol,
                       char const *certFilePath,
                       char const *keyFilePath);
-  SocketTlsClientPriv(SOCKET fd, SSL_CTX *ctx);
+  SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx);
   ~SocketTlsClientPriv() override;
 
   size_t Receive(char *data,
@@ -56,7 +56,7 @@ struct SocketTlsServerPriv : public SocketPriv
                       char const *keyFilePath);
   ~SocketTlsServerPriv() override;
 
-  std::pair<SocketTcpClient, Address>
+  std::pair<std::unique_ptr<SocketPriv>, Address>
   Accept() override;
 };
 

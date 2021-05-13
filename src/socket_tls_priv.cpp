@@ -67,8 +67,8 @@ SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
 {
 }
 
-SocketTlsClientPriv::SocketTlsClientPriv(SOCKET fd, SSL_CTX *ctx)
-  : SocketPriv(fd)
+SocketTlsClientPriv::SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx)
+  : SocketPriv(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
 {
@@ -130,20 +130,21 @@ SocketTlsServerPriv::SocketTlsServerPriv(int family, int type, int protocol,
 
 SocketTlsServerPriv::~SocketTlsServerPriv() = default;
 
-std::pair<SocketTcpClient, Address>
+std::pair<std::unique_ptr<SocketPriv>, Address>
 SocketTlsServerPriv::Accept()
 {
-  auto sas = std::make_shared<SockAddrStorage>();
-  auto client = std::make_unique<SocketTlsClientPriv>(
-        ::accept(this->fd, sas->Addr(), sas->AddrLen()),
-        ctx.get());
+  auto [client, addr] = SocketPriv::Accept();
 
-  auto res = SSL_accept(client->ssl.get());
+  auto clientTls = std::make_unique<SocketTlsClientPriv>(
+      std::move(*client),
+      ctx.get());
+
+  auto res = SSL_accept(clientTls->ssl.get());
   if(res != 1) {
-    throw MakeSslError(client->ssl.get(), res, "failed to TLS accept");
+    throw MakeSslError(clientTls->ssl.get(), res, "failed to TLS accept");
   }
 
-  return {std::unique_ptr<SocketPriv>(std::move(client)), Address(std::move(sas))};
+  return {std::move(clientTls), std::move(addr)};
 }
 
 } // namespace sockpuppet
