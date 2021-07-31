@@ -325,8 +325,7 @@ std::pair<std::unique_ptr<SocketPriv>, Address>
 SocketPriv::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
-  auto client = ::accept(fd,
-                         sas->Addr(), sas->AddrLen());
+  auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
   return {
     std::make_unique<SocketPriv>(client),
     Address(std::move(sas))

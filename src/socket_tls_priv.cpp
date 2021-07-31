@@ -14,10 +14,10 @@ void ConfigureContext(SSL_CTX *ctx,
   SSL_CTX_set_ecdh_auto(ctx, 1);
 
   if(SSL_CTX_use_certificate_file(ctx, certFilePath, SSL_FILETYPE_PEM) <= 0) {
-      throw std::runtime_error("failed to set certificate");
+    throw std::runtime_error("failed to set certificate");
   }
   if(SSL_CTX_use_PrivateKey_file(ctx, keyFilePath, SSL_FILETYPE_PEM) <= 0) {
-      throw std::runtime_error("failed to set private key");
+    throw std::runtime_error("failed to set private key");
   }
 }
 

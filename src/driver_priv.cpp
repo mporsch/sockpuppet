@@ -313,7 +313,7 @@ void Driver::DriverPriv::Bump()
 void Driver::DriverPriv::Unbump()
 {
   char dump[256U];
-  (void)pipeTo.Receive(dump, sizeof(dump), noTimeout);
+  (void)pipeTo.ReceiveFrom(dump, sizeof(dump));
 }
 
 void Driver::DriverPriv::DoOneFdTask()

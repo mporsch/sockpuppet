@@ -122,15 +122,15 @@ bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
     auto const sent = buff->sock->SendSome(buffer->data(), buffer->size());
     if(sent == buffer->size()) {
       promise.set_value();
-      return true;
     } else {
       assert(sent > 0U);
       buffer->erase(0, sent);
+      return false;
     }
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
-  return false;
+  return true;
 }
 
 void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
