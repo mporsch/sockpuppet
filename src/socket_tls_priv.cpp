@@ -64,6 +64,7 @@ SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
   , ssl(CreateSsl(
           CreateContext(TLS_client_method(), certFilePath, keyFilePath).get(),
           this->fd))
+  , isHandShakeComplete(false)
 {
 }
 
@@ -71,51 +72,112 @@ SocketTlsClientPriv::SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx)
   : SocketPriv(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
+  , isHandShakeComplete(false)
 {
 }
 
 SocketTlsClientPriv::~SocketTlsClientPriv() = default;
 
+std::optional<size_t> SocketTlsClientPriv::Receive(
+    char *data, size_t size, Duration timeout)
+{
+  if(HandShake(timeout)) {
+    auto const res = SSL_read(ssl.get(), data, size);
+    if(res < 0) {
+      throw MakeSslError(ssl.get(), res, "failed to TLS receive");
+    } else if(res == 0) {
+      throw std::runtime_error("connection closed");
+    }
+    return static_cast<size_t>(res);
+  }
+  return std::nullopt;
+}
+
 size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 {
-  auto const res = SSL_read(ssl.get(), data, size);
-  if(res < 0) {
-    throw MakeSslError(ssl.get(), res, "failed to TLS receive");
-  } else if(res == 0) {
-    throw std::runtime_error("connection closed");
+  if(HandShake(Duration(0))) {
+    auto const res = SSL_read(ssl.get(), data, size);
+    if(res < 0) {
+      throw MakeSslError(ssl.get(), res, "failed to TLS receive");
+    } else if(res == 0) {
+      throw std::runtime_error("connection closed");
+    }
+    return static_cast<size_t>(res);
   }
-  return static_cast<size_t>(res);
+  return 0;
 }
 
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 {
-  auto const res = SSL_write(ssl.get(), data, size);
-  if(res < 0) {
-    throw MakeSslError(ssl.get(), res, "failed to TLS send");
-  } else if((res == 0) && (size > 0U)) {
-    throw std::logic_error("unexpected send result");
+  return SendSome(data, size, Duration(-1));
+}
+
+size_t SocketTlsClientPriv::SendSome(
+    char const *data, size_t size, Duration timeout)
+{
+  if(HandShake(timeout)) {
+    auto const res = SSL_write(ssl.get(), data, size);
+    if(res < 0) {
+      throw MakeSslError(ssl.get(), res, "failed to TLS send");
+    } else if((res == 0) && (size > 0U)) {
+      throw std::logic_error("unexpected send result");
+    }
+    return static_cast<size_t>(res);
   }
-  return static_cast<size_t>(res);
+  return 0;
 }
 
 size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
 {
-  auto const res = SSL_write(ssl.get(), data, size);
-  if(res < 0) {
-    throw MakeSslError(ssl.get(), res, "failed to TLS send");
-  } else if((res == 0) && (size > 0U)) {
-    throw std::logic_error("unexpected send result");
-  }
-  return static_cast<size_t>(res);
+  return SendSome(data, size, Duration(0));
 }
 
 void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
 {
   SocketPriv::Connect(connectAddr);
+  SocketPriv::SetSockOptNonBlocking();
+  SSL_set_connect_state(ssl.get());
+  (void)HandShake(Duration(0)); // initiate the handshake
+}
 
-  auto res = SSL_connect(ssl.get());
-  if(res != 1) {
-      throw MakeSslError(ssl.get(), res, "failed to TLS connect");
+bool SocketTlsClientPriv::HandShake(Duration timeout)
+{
+  if(isHandShakeComplete) {
+    return true;
+  }
+
+  if(HandShakeLoop(timeout)) {
+    isHandShakeComplete = true;
+    SocketPriv::SetSockOptBlocking();
+    // after finalizing the handshake we cannot be sure
+    // the socket is still readable/writable,
+    // so we should not attempt to read/write data now
+  }
+  return false;
+}
+
+bool SocketTlsClientPriv::HandShakeLoop(Duration timeout)
+{
+  for(auto res = SSL_do_handshake(ssl.get());
+      res != 1;
+      res = SSL_do_handshake(ssl.get())) {
+    auto code = SSL_get_error(ssl.get(), res);
+    if(!HandShakeWait(code, timeout)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool SocketTlsClientPriv::HandShakeWait(int code, Duration timeout)
+{
+  switch(code) {
+  case SSL_ERROR_WANT_READ:
+    return this->WaitReadableNonBlocking(timeout);
+  case SSL_ERROR_WANT_WRITE:
+    return this->WaitWritableNonBlocking(timeout);
+  default:
+    throw MakeSslError(ssl.get(), code, "failed to do TLS handshake");
   }
 }
 
@@ -134,15 +196,13 @@ std::pair<std::unique_ptr<SocketPriv>, Address>
 SocketTlsServerPriv::Accept()
 {
   auto [client, addr] = SocketPriv::Accept();
+  client->SetSockOptNonBlocking();
 
   auto clientTls = std::make_unique<SocketTlsClientPriv>(
       std::move(*client),
       ctx.get());
-
-  auto res = SSL_accept(clientTls->ssl.get());
-  if(res != 1) {
-    throw MakeSslError(clientTls->ssl.get(), res, "failed to TLS accept");
-  }
+  SSL_set_accept_state(clientTls->ssl.get());
+  (void)clientTls->HandShake(Duration(0)); // initiate the handshake
 
   return {std::move(clientTls), std::move(addr)};
 }

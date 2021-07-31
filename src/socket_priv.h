@@ -32,9 +32,9 @@ struct SocketPriv
   SocketPriv(SocketPriv &&other) noexcept;
   virtual ~SocketPriv();
 
-  std::optional<size_t> Receive(char *data,
-                                size_t size,
-                                Duration timeout);
+  virtual std::optional<size_t> Receive(char *data,
+                                        size_t size,
+                                        Duration timeout);
   virtual size_t Receive(char *data,
                          size_t size);
 
@@ -48,9 +48,9 @@ struct SocketPriv
               Duration timeout);
   virtual size_t SendAll(char const *data,
                          size_t size);
-  size_t SendSome(char const *data,
-                  size_t size,
-                  Duration timeout);
+  virtual size_t SendSome(char const *data,
+                          size_t size,
+                          Duration timeout);
   virtual size_t SendSome(char const *data,
                           size_t size);
 
@@ -75,7 +75,11 @@ struct SocketPriv
 
   bool WaitReadable(Duration timeout);
   bool WaitWritable(Duration timeout);
+  bool WaitWritableNonBlocking(Duration timeout);
+  bool WaitReadableNonBlocking(Duration timeout);
 
+  void SetSockOptBlocking();
+  void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
   void SetSockOptNoSigPipe();

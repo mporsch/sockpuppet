@@ -44,6 +44,34 @@ void CloseSocket(SOCKET fd)
 #endif // _WIN32
 }
 
+int SetBlocking(SOCKET fd)
+{
+#ifdef _WIN32
+  unsigned long enable = 0U;
+  return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
+#else
+  int const flags = ::fcntl(fd, F_GETFL, 0);
+  if (flags == -1) {
+    return flags;
+  }
+  return fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+#endif // _WIN32
+}
+
+int SetNonBlocking(SOCKET fd)
+{
+#ifdef _WIN32
+  unsigned long enable = 1U;
+  return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
+#else
+  int const flags = ::fcntl(fd, F_GETFL, 0);
+  if (flags == -1) {
+    return flags;
+  }
+  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+#endif // _WIN32
+}
+
 size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
 {
   auto const sent = ::send(fd,
@@ -87,9 +115,17 @@ int DoPoll(pollfd pfd, int timeout)
 #endif // _WIN32
 }
 
-bool Poll(SOCKET fd, short events, int timeout)
+int ToMsec(Duration timeout)
 {
-  if(auto const result = DoPoll(pollfd{fd, events, 0}, timeout)) {
+  using namespace std::chrono;
+  using MilliSeconds = duration<int, std::milli>;
+
+  return duration_cast<MilliSeconds>(timeout).count();
+}
+
+bool Poll(SOCKET fd, short events, Duration timeout)
+{
+  if(auto const result = DoPoll(pollfd{fd, events, 0}, ToMsec(timeout))) {
     if(result < 0) {
       throw std::system_error(
           SocketError(),
@@ -100,14 +136,6 @@ bool Poll(SOCKET fd, short events, int timeout)
     return true; // read/write ready
   }
   return false; // timeout exceeded
-}
-
-int ToMsec(Duration timeout)
-{
-  using namespace std::chrono;
-  using MilliSeconds = duration<int, std::milli>;
-
-  return duration_cast<MilliSeconds>(timeout).count();
 }
 
 struct Deadline
@@ -127,7 +155,7 @@ struct Deadline
   bool WaitWritable(SOCKET fd) const
   {
     assert(remaining.count() >= 0);
-    return Poll(fd, POLLOUT, ToMsec(remaining));
+    return Poll(fd, POLLOUT, remaining);
   }
 
   bool TimeLeft()
@@ -335,13 +363,39 @@ SocketPriv::Accept()
 bool SocketPriv::WaitReadable(Duration timeout)
 {
   return ((timeout.count() < 0) ||
-          Poll(fd, POLLIN, ToMsec(timeout)));
+          WaitReadableNonBlocking(timeout));
 }
 
 bool SocketPriv::WaitWritable(Duration timeout)
 {
   return ((timeout.count() < 0) ||
-          Poll(fd, POLLOUT, ToMsec(timeout)));
+          WaitWritableNonBlocking(timeout));
+}
+
+bool SocketPriv::WaitReadableNonBlocking(Duration timeout)
+{
+  return Poll(fd, POLLIN, timeout);
+}
+
+bool SocketPriv::WaitWritableNonBlocking(Duration timeout)
+{
+  return Poll(fd, POLLOUT, timeout);
+}
+
+void SocketPriv::SetSockOptBlocking()
+{
+  if(SetBlocking(fd)) {
+    throw std::system_error(SocketError(),
+        "failed to set socket option non-blocking");
+  }
+}
+
+void SocketPriv::SetSockOptNonBlocking()
+{
+  if(SetNonBlocking(fd)) {
+    throw std::system_error(SocketError(),
+        "failed to set socket option non-blocking");
+  }
 }
 
 void SocketPriv::SetSockOptReuseAddr()

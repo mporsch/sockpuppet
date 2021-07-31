@@ -123,7 +123,6 @@ bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
     if(sent == buffer->size()) {
       promise.set_value();
     } else {
-      assert(sent > 0U);
       buffer->erase(0, sent);
       return false;
     }

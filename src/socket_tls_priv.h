@@ -21,6 +21,7 @@ struct SocketTlsClientPriv : public SocketPriv
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
+  bool isHandShakeComplete;  ///< during TLS handshake the socket is set to non-blocking mode
 
   SocketTlsClientPriv(int family,
                       int type,
@@ -30,15 +31,25 @@ struct SocketTlsClientPriv : public SocketPriv
   SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx);
   ~SocketTlsClientPriv() override;
 
+  std::optional<size_t> Receive(char *data,
+                                size_t size,
+                                Duration timeout) override;
   size_t Receive(char *data,
                  size_t size) override;
 
   size_t SendAll(char const *data,
-                 size_t size) override;
+              size_t size) override;
+  size_t SendSome(char const *data,
+                  size_t size,
+                  Duration timeout) override;
   size_t SendSome(char const *data,
                   size_t size) override;
 
   void Connect(SockAddrView const &connectAddr) override;
+
+  bool HandShake(Duration timeout);
+  bool HandShakeLoop(Duration timeout);
+  bool HandShakeWait(int code, Duration timeout);
 };
 
 struct SocketTlsServerPriv : public SocketPriv
