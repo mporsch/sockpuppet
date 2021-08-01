@@ -56,6 +56,17 @@ std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
         errorMessage);
 }
 
+size_t DoReceive(SSL *ssl, char *data, size_t size)
+{
+  auto const res = SSL_read(ssl, data, size);
+  if(res < 0) {
+    throw MakeSslError(ssl, res, "failed to TLS receive");
+  } else if(res == 0) {
+    throw std::runtime_error("connection closed");
+  }
+  return static_cast<size_t>(res);
+}
+
 } // unnamed namespace
 
 SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
@@ -83,13 +94,7 @@ std::optional<size_t> SocketTlsClientPriv::Receive(
     char *data, size_t size, Duration timeout)
 {
   if(HandShake(timeout)) {
-    auto const res = SSL_read(ssl.get(), data, size);
-    if(res < 0) {
-      throw MakeSslError(ssl.get(), res, "failed to TLS receive");
-    } else if(res == 0) {
-      throw std::runtime_error("connection closed");
-    }
-    return {static_cast<size_t>(res)};
+    return {DoReceive(ssl.get(), data, size)};
   }
   return {std::nullopt};
 }
@@ -97,15 +102,9 @@ std::optional<size_t> SocketTlsClientPriv::Receive(
 size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 {
   if(HandShake(Duration(0))) {
-    auto const res = SSL_read(ssl.get(), data, size);
-    if(res < 0) {
-      throw MakeSslError(ssl.get(), res, "failed to TLS receive");
-    } else if(res == 0) {
-      throw std::runtime_error("connection closed");
-    }
-    return static_cast<size_t>(res);
+    return DoReceive(ssl.get(), data, size);
   }
-  return 0;
+  return 0; // socket was readable for TLS handshake only
 }
 
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
@@ -147,27 +146,31 @@ bool SocketTlsClientPriv::HandShake(Duration timeout)
     return true;
   }
 
-  if(HandShakeLoop(timeout)) {
-    isHandShakeComplete = true;
-    SocketPriv::SetSockOptBlocking();
-    // after finalizing the handshake we cannot be sure
-    // the socket is still readable/writable,
-    // so we should not attempt to read/write data now
-  }
-  return false;
+  // execute TLS handshake while keeping track of the time
+  return (timeout.count() >= 0 ?
+      HandShakeLoop(DeadlineLimited(timeout)) :
+      HandShakeLoop(DeadlineUnlimited()));
 }
 
-bool SocketTlsClientPriv::HandShakeLoop(Duration timeout)
+template<typename Deadline>
+bool SocketTlsClientPriv::HandShakeLoop(Deadline deadline)
 {
-  for(auto res = SSL_do_handshake(ssl.get());
-      res != 1;
-      res = SSL_do_handshake(ssl.get())) {
+  do {
+    auto res = SSL_do_handshake(ssl.get());
+    deadline.Tick();
+    if(res == 1) {
+      isHandShakeComplete = true;
+      SocketPriv::SetSockOptBlocking();
+      return deadline.TimeLeft(); // run sockets if time remains
+    }
+
     auto code = SSL_get_error(ssl.get(), res);
-    if(!HandShakeWait(code, timeout)) {
+    if(!HandShakeWait(code, deadline.Remaining())) {
       return false;
     }
-  }
-  return true;
+    deadline.Tick();
+  } while(deadline.TimeLeft());
+  return false;
 }
 
 bool SocketTlsClientPriv::HandShakeWait(int code, Duration timeout)

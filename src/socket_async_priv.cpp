@@ -75,7 +75,11 @@ try {
 
     handlers.connect(std::move(sock), std::move(addr));
   } else if(handlers.receive) {
-    handlers.receive(buff->Receive());
+      // the TLS socket generates non-receipts during handshake
+      auto buffer = buff->Receive();
+      if(!buffer->empty()) {
+        handlers.receive(std::move(buffer));
+      }
   } else if(handlers.receiveFrom) {
     auto [buffer, addr] = buff->ReceiveFrom();
     handlers.receiveFrom(std::move(buffer), std::move(addr));

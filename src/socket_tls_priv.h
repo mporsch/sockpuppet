@@ -47,8 +47,10 @@ struct SocketTlsClientPriv : public SocketPriv
 
   void Connect(SockAddrView const &connectAddr) override;
 
+  // return whether TLS handshake was performed and if time remains for data send/receive
   bool HandShake(Duration timeout);
-  bool HandShakeLoop(Duration timeout);
+  template<typename Deadline>
+  bool HandShakeLoop(Deadline deadline);
   bool HandShakeWait(int code, Duration timeout);
 };
 
