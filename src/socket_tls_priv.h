@@ -38,7 +38,7 @@ struct SocketTlsClientPriv : public SocketPriv
                  size_t size) override;
 
   size_t SendAll(char const *data,
-              size_t size) override;
+                 size_t size) override;
   size_t SendSome(char const *data,
                   size_t size,
                   Duration timeout) override;

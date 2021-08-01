@@ -46,7 +46,7 @@ bool WaitWritableBlocking(SOCKET fd, Duration timeout);
 bool WaitWritableNonBlocking(SOCKET fd, Duration timeout);
 
 // readable/writable socket will be marked accordingly
-bool Wait(std::vector<pollfd> &polls, Duration timeout);
+bool Wait(std::vector<pollfd> &pfds, Duration timeout);
 
 } // namespace sockpuppet
 

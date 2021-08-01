@@ -43,7 +43,7 @@ void FreeSsl(SSL *ssl)
 SocketTlsClientPriv::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
   if(auto ssl = SocketTlsClientPriv::SslPtr(SSL_new(ctx), FreeSsl)) {
-    SSL_set_fd(ssl.get(), fd);
+    SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
   throw std::runtime_error("failed to create SSL structure");
@@ -58,11 +58,11 @@ std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
 
 size_t DoReceive(SSL *ssl, char *data, size_t size)
 {
-  auto const res = SSL_read(ssl, data, size);
+  auto const res = SSL_read(ssl, data, static_cast<int>(size));
   if(res < 0) {
     throw MakeSslError(ssl, res, "failed to TLS receive");
   } else if(res == 0) {
-    throw std::runtime_error("connection closed");
+    throw std::runtime_error("TLS connection closed");
   }
   return static_cast<size_t>(res);
 }
@@ -104,7 +104,7 @@ size_t SocketTlsClientPriv::Receive(char *data, size_t size)
   if(HandShake(Duration(0))) {
     return DoReceive(ssl.get(), data, size);
   }
-  return 0; // socket was readable for TLS handshake only
+  return 0U; // socket was readable for TLS handshake only
 }
 
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
@@ -124,7 +124,7 @@ size_t SocketTlsClientPriv::SendSome(
     }
     return static_cast<size_t>(res);
   }
-  return 0;
+  return 0U;
 }
 
 size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)

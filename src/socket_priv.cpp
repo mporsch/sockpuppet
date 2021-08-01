@@ -44,32 +44,26 @@ void CloseSocket(SOCKET fd)
 #endif // _WIN32
 }
 
-int SetBlocking(SOCKET fd)
+int DoSetBlocking(SOCKET fd, bool blocking)
 {
 #ifdef _WIN32
-  unsigned long enable = 0U;
+  unsigned long enable = (blocking ? 0U : 1U);
   return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
 #else
-  int const flags = ::fcntl(fd, F_GETFL, 0);
+  int flags = ::fcntl(fd, F_GETFL, 0);
   if (flags == -1) {
     return flags;
   }
-  return fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
+  flags = (blocking ? flags & ~O_NONBLOCK : flags | O_NONBLOCK);
+  return ::fcntl(fd, F_SETFL, flags);
 #endif // _WIN32
 }
 
-int SetNonBlocking(SOCKET fd)
+void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
 {
-#ifdef _WIN32
-  unsigned long enable = 1U;
-  return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
-#else
-  int const flags = ::fcntl(fd, F_GETFL, 0);
-  if (flags == -1) {
-    return flags;
+  if(DoSetBlocking(fd, blocking)) {
+    throw std::system_error(SocketError(), errorMessage);
   }
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-#endif // _WIN32
 }
 
 size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
@@ -299,18 +293,12 @@ SocketPriv::Accept()
 
 void SocketPriv::SetSockOptBlocking()
 {
-  if(SetBlocking(fd)) {
-    throw std::system_error(SocketError(),
-        "failed to set socket option non-blocking");
-  }
+  SetBlocking(fd, true, "failed to set socket option blocking");
 }
 
 void SocketPriv::SetSockOptNonBlocking()
 {
-  if(SetNonBlocking(fd)) {
-    throw std::system_error(SocketError(),
-        "failed to set socket option non-blocking");
-  }
+  SetBlocking(fd, false, "failed to set socket option non-blocking");
 }
 
 void SocketPriv::SetSockOptReuseAddr()
