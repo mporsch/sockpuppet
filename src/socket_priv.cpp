@@ -1,8 +1,8 @@
 #include "socket_priv.h"
 #include "error_code.h" // for SocketError
+#include "wait.h" // for WaitReadable
 
 #ifndef _WIN32
-# include <poll.h> // for pollfd
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
@@ -106,69 +106,6 @@ T GetSockOpt(SOCKET fd, int id, char const *errorMessage)
   return value;
 }
 
-int DoPoll(pollfd pfd, int timeout)
-{
-#ifdef _WIN32
-  return ::WSAPoll(&pfd, 1U, timeout);
-#else
-  return ::poll(&pfd, 1U, timeout);
-#endif // _WIN32
-}
-
-int ToMsec(Duration timeout)
-{
-  using namespace std::chrono;
-  using MilliSeconds = duration<int, std::milli>;
-
-  return duration_cast<MilliSeconds>(timeout).count();
-}
-
-bool Poll(SOCKET fd, short events, Duration timeout)
-{
-  if(auto const result = DoPoll(pollfd{fd, events, 0}, ToMsec(timeout))) {
-    if(result < 0) {
-      throw std::system_error(
-          SocketError(),
-          (events == POLLIN ?
-             "failed to wait for socket readable" :
-             "failed to wait for socket writable"));
-    }
-    return true; // read/write ready
-  }
-  return false; // timeout exceeded
-}
-
-struct Deadline
-{
-  using Clock = std::chrono::steady_clock;
-  using TimePoint = Clock::time_point;
-
-  Duration remaining;
-  TimePoint lastStart;
-
-  Deadline(Duration timeout)
-    : remaining(timeout)
-  {
-    lastStart = Clock::now();
-  }
-
-  bool WaitWritable(SOCKET fd) const
-  {
-    assert(remaining.count() >= 0);
-    return Poll(fd, POLLOUT, remaining);
-  }
-
-  bool TimeLeft()
-  {
-    auto const now = Clock::now();
-
-    remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
-    lastStart = now;
-
-    return (remaining.count() > 0);
-  }
-};
-
 } // unnamed namespace
 
 SocketPriv::SocketPriv(int family, int type, int protocol)
@@ -204,7 +141,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {Receive(data, size)};
@@ -228,7 +165,7 @@ size_t SocketPriv::Receive(char *data, size_t size)
 std::optional<std::pair<size_t, Address>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -294,7 +231,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritable(timeout)) {
+  if(!WaitWritableBlocking(fd, timeout)) {
     return 0U; // timeout exceeded
   }
   return SendTo(data, size, dstAddr);
@@ -343,7 +280,7 @@ void SocketPriv::Listen()
 std::optional<std::pair<std::unique_ptr<SocketPriv>, Address>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
@@ -358,28 +295,6 @@ SocketPriv::Accept()
     std::make_unique<SocketPriv>(client),
     Address(std::move(sas))
   };
-}
-
-bool SocketPriv::WaitReadable(Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          WaitReadableNonBlocking(timeout));
-}
-
-bool SocketPriv::WaitWritable(Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          WaitWritableNonBlocking(timeout));
-}
-
-bool SocketPriv::WaitReadableNonBlocking(Duration timeout)
-{
-  return Poll(fd, POLLIN, timeout);
-}
-
-bool SocketPriv::WaitWritableNonBlocking(Duration timeout)
-{
-  return Poll(fd, POLLOUT, timeout);
 }
 
 void SocketPriv::SetSockOptBlocking()

@@ -2,6 +2,7 @@
 #include "address_priv.h" // for Address::AddressPriv
 #include "error_code.h" // for SocketError
 #include "socket_async_priv.h" // for SocketAsyncPriv
+#include "wait.h" // for Poll
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
@@ -11,23 +12,6 @@ namespace sockpuppet {
 namespace {
 
 auto const noTimeout = Duration(-1);
-
-int Poll(std::vector<pollfd> &polls, Duration timeout)
-{
-  using namespace std::chrono;
-
-  auto const timeoutMs = static_cast<int>(duration_cast<milliseconds>(timeout).count());
-
-#ifdef _WIN32
-  return ::WSAPoll(polls.data(),
-                   static_cast<ULONG>(polls.size()),
-                   timeoutMs);
-#else
-  return ::poll(polls.data(),
-                static_cast<nfds_t>(polls.size()),
-                timeoutMs);
-#endif // _WIN32
-}
 
 struct FdEqual
 {
@@ -41,64 +25,6 @@ struct FdEqual
   bool operator()(pollfd const &pfd) const
   {
     return (pfd.fd == fd);
-  }
-};
-
-struct DeadlineUnlimited
-{
-  Duration remaining;
-  TimePoint now;
-
-  DeadlineUnlimited(Duration timeout)
-    : remaining(timeout)
-    , now(Clock::now())
-  {
-  }
-
-  void Tick()
-  {
-    now = Clock::now();
-  }
-
-  bool TimeLeft() const
-  {
-    return true;
-  }
-
-  Duration Remaining() const
-  {
-    return remaining;
-  }
-
-  Duration Remaining(TimePoint until) const
-  {
-    return std::chrono::duration_cast<Duration>(until - now);
-  }
-};
-
-struct DeadlineLimited : public DeadlineUnlimited
-{
-  TimePoint deadline;
-
-  DeadlineLimited(Duration timeout)
-    : DeadlineUnlimited(timeout)
-    , deadline(now + timeout)
-  {
-  }
-
-  bool TimeLeft() const
-  {
-    return (now <= deadline);
-  }
-
-  Duration Remaining() const
-  {
-    return DeadlineUnlimited::Remaining(deadline);
-  }
-
-  Duration Remaining(TimePoint until) const
-  {
-    return DeadlineUnlimited::Remaining(std::min(until, deadline));
   }
 };
 

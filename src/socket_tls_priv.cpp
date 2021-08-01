@@ -2,6 +2,7 @@
 
 #include "socket_tls_priv.h"
 #include "error_code.h" // for SocketError
+#include "wait.h" // for WaitReadableNonBlocking
 
 namespace sockpuppet {
 
@@ -88,9 +89,9 @@ std::optional<size_t> SocketTlsClientPriv::Receive(
     } else if(res == 0) {
       throw std::runtime_error("connection closed");
     }
-    return static_cast<size_t>(res);
+    return {static_cast<size_t>(res)};
   }
-  return std::nullopt;
+  return {std::nullopt};
 }
 
 size_t SocketTlsClientPriv::Receive(char *data, size_t size)
@@ -173,9 +174,9 @@ bool SocketTlsClientPriv::HandShakeWait(int code, Duration timeout)
 {
   switch(code) {
   case SSL_ERROR_WANT_READ:
-    return this->WaitReadableNonBlocking(timeout);
+    return WaitReadableNonBlocking(this->fd, timeout);
   case SSL_ERROR_WANT_WRITE:
-    return this->WaitWritableNonBlocking(timeout);
+    return WaitWritableNonBlocking(this->fd, timeout);
   default:
     throw MakeSslError(ssl.get(), code, "failed to do TLS handshake");
   }

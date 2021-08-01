@@ -58,6 +58,8 @@ add_library(sockpuppet
   src/ssl_guard.h
   src/todo_priv.cpp
   src/todo_priv.h
+  src/wait.cpp
+  src/wait.h
   src/winsock_guard.cpp
   src/winsock_guard.h
   ${SOCKPUPPET_PUBLIC_HEADERS}
