@@ -1,8 +1,7 @@
 #include "driver_priv.h"
 #include "address_priv.h" // for Address::AddressPriv
-#include "error_code.h" // for SocketError
 #include "socket_async_priv.h" // for SocketAsyncPriv
-#include "wait.h" // for Poll
+#include "wait.h" // for DeadlineLimited
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
@@ -27,6 +26,17 @@ struct FdEqual
     return (pfd.fd == fd);
   }
 };
+
+template<typename Rep, typename Period>
+Duration MinDuration(
+    std::chrono::duration<Rep, Period> const &lhs,
+    Duration const &rhs)
+{
+  if(rhs.count() < 0) {
+    return std::chrono::duration_cast<Duration>(lhs);
+  }
+  return std::min(std::chrono::duration_cast<Duration>(lhs), rhs);
+}
 
 } // unnamed namespace
 
@@ -97,10 +107,7 @@ void Driver::DriverPriv::Step(Duration timeout)
     // execute due ToDos while keeping track of the time
     auto remaining = (timeout.count() >= 0 ?
         StepTodos(DeadlineLimited(timeout)) :
-        StepTodos(DeadlineUnlimited(timeout)));
-
-    // must not turn timeout >=0 into <0
-    assert((timeout.count() < 0) || (remaining.count() >= 0));
+        StepTodos(DeadlineUnlimited()));
 
     // run sockets with remaining time
     StepFds(remaining);
@@ -115,8 +122,9 @@ Duration Driver::DriverPriv::StepTodos(Deadline deadline)
     auto &front = todos.front();
 
     // check if pending task is due, if not return time until it is
-    if(front->when > deadline.now) {
-      return deadline.Remaining(front->when);
+    auto until = front->when - deadline.now;
+    if(until.count() > 0) {
+      return MinDuration(until, deadline.Remaining());
     }
 
     // take task from list and execute it
@@ -135,13 +143,8 @@ Duration Driver::DriverPriv::StepTodos(Deadline deadline)
 
 void Driver::DriverPriv::StepFds(Duration timeout)
 {
-  if(auto const result = Poll(pfds, timeout)) {
-    if(result < 0) {
-      throw std::system_error(SocketError(), "failed to poll");
-    }
-  } else {
-    // timeout exceeded
-    return;
+  if(!Wait(pfds, timeout)) {
+    return; // timeout exceeded
   }
 
   // one or more sockets is readable/writable

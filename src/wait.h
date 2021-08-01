@@ -15,34 +15,17 @@ using SOCKET = int;
 
 namespace sockpuppet {
 
-struct Deadline
-{
-  using Clock = std::chrono::steady_clock;
-  using TimePoint = Clock::time_point;
-
-  Duration remaining;
-  TimePoint lastStart;
-
-  Deadline(Duration timeout);
-
-  bool WaitWritable(SOCKET fd) const;
-
-  bool TimeLeft();
-};
-
 struct DeadlineUnlimited
 {
-  Duration remaining;
   TimePoint now;
 
-  DeadlineUnlimited(Duration timeout);
+  DeadlineUnlimited();
 
   void Tick();
 
   bool TimeLeft() const;
 
   Duration Remaining() const;
-  Duration Remaining(TimePoint until) const;
 };
 
 struct DeadlineLimited : public DeadlineUnlimited
@@ -54,15 +37,16 @@ struct DeadlineLimited : public DeadlineUnlimited
   bool TimeLeft() const;
 
   Duration Remaining() const;
-  Duration Remaining(TimePoint until) const;
 };
 
+// return true if readable/writable or false if timeout exceeded
 bool WaitReadableBlocking(SOCKET fd, Duration timeout);
 bool WaitReadableNonBlocking(SOCKET fd, Duration timeout);
 bool WaitWritableBlocking(SOCKET fd, Duration timeout);
 bool WaitWritableNonBlocking(SOCKET fd, Duration timeout);
 
-int Poll(std::vector<pollfd> &polls, Duration timeout);
+// readable/writable socket will be marked accordingly
+bool Wait(std::vector<pollfd> &polls, Duration timeout);
 
 } // namespace sockpuppet
 

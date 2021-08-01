@@ -205,16 +205,16 @@ size_t SocketPriv::SendAll(char const *data, size_t size)
   return sent;
 }
 
-// send the max amount of data within the user-provided timeout
 size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
 {
   size_t sent = 0U;
-  Deadline deadline(timeout);
+  DeadlineLimited deadline(timeout);
   do {
-    if(!deadline.WaitWritable(fd)) {
+    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
       break; // timeout exceeded
     }
     sent += SendSome(data + sent, size - sent);
+    deadline.Tick();
   } while((sent < size) && deadline.TimeLeft());
   return sent;
 }

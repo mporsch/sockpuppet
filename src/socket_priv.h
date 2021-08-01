@@ -32,9 +32,11 @@ struct SocketPriv
   SocketPriv(SocketPriv &&other) noexcept;
   virtual ~SocketPriv();
 
+  // waits for readable
   virtual std::optional<size_t> Receive(char *data,
                                         size_t size,
                                         Duration timeout);
+  // assumes a readable socket
   virtual size_t Receive(char *data,
                          size_t size);
 
@@ -48,9 +50,12 @@ struct SocketPriv
               Duration timeout);
   virtual size_t SendAll(char const *data,
                          size_t size);
+  // waits for writable repeatedly and
+  // sends the max amount of data within the user-provided timeout
   virtual size_t SendSome(char const *data,
                           size_t size,
                           Duration timeout);
+  // assumes a writable socket
   virtual size_t SendSome(char const *data,
                           size_t size);
 

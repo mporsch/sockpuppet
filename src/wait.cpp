@@ -7,13 +7,22 @@ namespace sockpuppet {
 
 namespace {
 
-int DoPoll(pollfd pfd, int timeout)
+int DoPoll(pollfd *pfds, size_t count, int timeoutMs)
 {
 #ifdef _WIN32
-  return ::WSAPoll(&pfd, 1U, timeout);
+  return ::WSAPoll(pfds,
+                   static_cast<ULONG>(count),
+                   timeoutMs);
 #else
-  return ::poll(&pfd, 1U, timeout);
+  return ::poll(pfds,
+                static_cast<nfds_t>(count),
+                timeoutMs);
 #endif // _WIN32
+}
+
+int DoPoll(pollfd pfd, int timeoutMs)
+{
+  return DoPoll(&pfd, 1, timeoutMs);
 }
 
 int ToMsec(Duration timeout)
@@ -41,32 +50,8 @@ bool Poll(SOCKET fd, short events, Duration timeout)
 
 } // unnamed namespace
 
-Deadline::Deadline(Duration timeout)
-  : remaining(timeout)
-{
-  lastStart = Clock::now();
-}
-
-bool Deadline::WaitWritable(SOCKET fd) const
-{
-  assert(remaining.count() >= 0);
-  return Poll(fd, POLLOUT, remaining);
-}
-
-bool Deadline::TimeLeft()
-{
-  auto const now = Clock::now();
-
-  remaining -= std::chrono::duration_cast<Duration>(now - lastStart);
-  lastStart = now;
-
-  return (remaining.count() > 0);
-}
-
-
-DeadlineUnlimited::DeadlineUnlimited(Duration timeout)
-  : remaining(timeout)
-  , now(Clock::now())
+DeadlineUnlimited::DeadlineUnlimited()
+  : now(Clock::now())
 {
 }
 
@@ -82,18 +67,13 @@ bool DeadlineUnlimited::TimeLeft() const
 
 Duration DeadlineUnlimited::Remaining() const
 {
-  return remaining;
-}
-
-Duration DeadlineUnlimited::Remaining(TimePoint until) const
-{
-  return std::chrono::duration_cast<Duration>(until - now);
+  return Duration(-1);
 }
 
 
 DeadlineLimited::DeadlineLimited(Duration timeout)
-  : DeadlineUnlimited(timeout)
-  , deadline(now + timeout)
+  : DeadlineUnlimited()
+  , deadline(this->now + timeout)
 {
 }
 
@@ -104,12 +84,11 @@ bool DeadlineLimited::TimeLeft() const
 
 Duration DeadlineLimited::Remaining() const
 {
-  return DeadlineUnlimited::Remaining(deadline);
-}
-
-Duration DeadlineLimited::Remaining(TimePoint until) const
-{
-  return DeadlineUnlimited::Remaining(std::min(until, deadline));
+  auto remaining = std::chrono::duration_cast<Duration>(deadline - now);
+  if(remaining.count() < 0) {
+    return Duration(0); // must not turn timeout >=0 into <0
+  }
+  return remaining;
 }
 
 
@@ -135,21 +114,15 @@ bool WaitWritableNonBlocking(SOCKET fd, Duration timeout)
   return Poll(fd, POLLOUT, timeout);
 }
 
-int Poll(std::vector<pollfd> &polls, Duration timeout)
+bool Wait(std::vector<pollfd> &polls, Duration timeout)
 {
-  using namespace std::chrono;
-
-  auto const timeoutMs = static_cast<int>(duration_cast<milliseconds>(timeout).count());
-
-#ifdef _WIN32
-  return ::WSAPoll(polls.data(),
-                   static_cast<ULONG>(polls.size()),
-                   timeoutMs);
-#else
-  return ::poll(polls.data(),
-                static_cast<nfds_t>(polls.size()),
-                timeoutMs);
-#endif // _WIN32
+  if(auto const result = DoPoll(polls.data(), polls.size(), ToMsec(timeout))) {
+    if(result < 0) {
+      throw std::system_error(SocketError(), "failed to wait for socket readable/writable");
+    }
+    return true; // one or more readable/writable
+  }
+  return false; // timeout exceeded
 }
 
 } // namespace sockpuppet
