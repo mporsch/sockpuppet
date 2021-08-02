@@ -58,7 +58,7 @@ std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
 
 size_t DoReceive(SSL *ssl, char *data, size_t size)
 {
-  auto const res = SSL_read(ssl, data, static_cast<int>(size));
+  auto res = SSL_read(ssl, data, static_cast<int>(size));
   if(res < 0) {
     throw MakeSslError(ssl, res, "failed to TLS receive");
   } else if(res == 0) {
@@ -116,7 +116,7 @@ size_t SocketTlsClientPriv::SendSome(
     char const *data, size_t size, Duration timeout)
 {
   if(HandShake(timeout)) {
-    auto const res = SSL_write(ssl.get(), data, size);
+    auto res = SSL_write(ssl.get(), data, static_cast<int>(size));
     if(res < 0) {
       throw MakeSslError(ssl.get(), res, "failed to TLS send");
     } else if((res == 0) && (size > 0U)) {

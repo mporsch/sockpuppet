@@ -3,6 +3,7 @@
 #include "wait.h" // for WaitReadable
 
 #ifndef _WIN32
+# include <fcntl.h> // for ::fcntl
 # include <sys/socket.h> // for ::socket
 # include <unistd.h> // for ::close
 #endif // _WIN32
