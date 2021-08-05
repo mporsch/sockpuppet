@@ -79,8 +79,8 @@ if(${WITH_TLS})
     message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
     find_package(OpenSSL REQUIRED)
 
-    # add define for preprocessor switches in source files
-    target_compile_definitions(sockpuppet PRIVATE WITH_TLS)
+    # add define for preprocessor switches in source files and public includes and export file
+    target_compile_definitions(sockpuppet PUBLIC SOCKPUPPET_WITH_TLS)
 
     list(APPEND DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")

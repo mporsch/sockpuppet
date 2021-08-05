@@ -1,4 +1,4 @@
-#ifdef WITH_TLS
+#ifdef SOCKPUPPET_WITH_TLS
 
 #include "socket_tls_priv.h"
 #include "error_code.h" // for SocketError
@@ -248,4 +248,4 @@ SocketTlsServerPriv::Accept()
 
 } // namespace sockpuppet
 
-#endif // WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS

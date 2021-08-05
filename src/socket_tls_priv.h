@@ -1,7 +1,7 @@
 #ifndef SOCKPUPPET_SOCKET_TLS_PRIV_H
 #define SOCKPUPPET_SOCKET_TLS_PRIV_H
 
-#ifdef WITH_TLS
+#ifdef SOCKPUPPET_WITH_TLS
 
 #include "address_priv.h" // for SockAddrView
 #include "socket_priv.h" // for SocketPriv
@@ -80,6 +80,6 @@ struct SocketTlsServerPriv : public SocketPriv
 
 } // namespace sockpuppet
 
-#endif // WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS
 
 #endif // SOCKPUPPET_SOCKET_TLS_PRIV_H

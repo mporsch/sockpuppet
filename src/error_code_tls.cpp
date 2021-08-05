@@ -1,4 +1,4 @@
-#ifdef WITH_TLS
+#ifdef SOCKPUPPET_WITH_TLS
 
 #include "error_code.h"
 
@@ -62,4 +62,4 @@ std::error_code SslError(int code)
 
 } // namespace sockpuppet
 
-#endif // WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS

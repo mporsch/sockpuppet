@@ -1,4 +1,4 @@
-#ifdef WITH_TLS
+#ifdef SOCKPUPPET_WITH_TLS
 
 #include "ssl_guard.h"
 
@@ -44,4 +44,4 @@ SslGuard::~SslGuard()
 
 } // namespace sockpuppet
 
-#endif // WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS

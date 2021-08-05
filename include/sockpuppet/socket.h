@@ -22,7 +22,7 @@ struct SocketUdp
   /// @param  bindAddress  Local interface address to bind to.
   ///                      Unspecified service or port number 0
   ///                      binds to an OS-assigned port.
-  /// @throws  If binding or configuration fails.
+  /// @throws  If binding fails.
   SocketUdp(Address const &bindAddress);
 
   /// Unreliably send data to address.
@@ -83,9 +83,18 @@ struct SocketTcpClient
   /// @throws  If connect fails.
   SocketTcpClient(Address const &connectAddress);
 
+#ifdef SOCKPUPPET_WITH_TLS
+  /// Create a TLS-enabled TCP socket connected to given address.
+  /// @param  certFilePath  Path to certificate file in PEM format
+  /// @param  keyFilePath  Path to private key file in PEM format.
+  /// @throws  If loading certificate/key or connect fails.
+  /// @note  While the TCP connection is established immediately,
+  ///        the TLS handshake is performed later with subsequent
+  ///        send/receive operations.
   SocketTcpClient(Address const &connectAddress,
                   char const *certFilePath,
                   char const *keyFilePath);
+#endif // #ifdef SOCKPUPPET_WITH_TLS
 
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
@@ -144,12 +153,24 @@ struct SocketTcpServer
   /// @param  bindAddress  Local interface address to bind to.
   ///                      Unspecified service or port number 0
   ///                      binds to an OS-assigned port.
-  /// @throws  If binding or configuration fails.
+  /// @throws  If binding fails.
   SocketTcpServer(Address const &bindAddress);
 
+#ifdef SOCKPUPPET_WITH_TLS
+  /// Create a TLS-enabled TCP server socket bound to given address.
+  /// @param  bindAddress  Local interface address to bind to.
+  ///                      Unspecified service or port number 0
+  ///                      binds to an OS-assigned port.
+  /// @param  certFilePath  Path to certificate file in PEM format
+  /// @param  keyFilePath  Path to private key file in PEM format.
+  /// @throws  If loading certificate/key or binding fails.
+  /// @note  While incoming TCP connections are established immediately,
+  ///        their TLS handshake is performed later with subsequent
+  ///        send/receive operations.
   SocketTcpServer(Address const &bindAddress,
                   char const *certFilePath,
                   char const *keyFilePath);
+#endif // #ifdef SOCKPUPPET_WITH_TLS
 
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,

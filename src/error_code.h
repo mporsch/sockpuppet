@@ -14,9 +14,9 @@ std::error_code SocketError(int code);
 
 std::error_code AddressError(int code);
 
-#ifdef WITH_TLS
+#ifdef SOCKPUPPET_WITH_TLS
 std::error_code SslError(int code);
-#endif // WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS
 
 } // namespace sockpuppet
 
