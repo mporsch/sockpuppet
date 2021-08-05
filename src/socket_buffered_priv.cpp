@@ -1,5 +1,5 @@
 #include "socket_buffered_priv.h"
-#include "wait.h" // for WaitReadable
+#include "wait.h" // for WaitReadableBlocking
 
 namespace sockpuppet {
 

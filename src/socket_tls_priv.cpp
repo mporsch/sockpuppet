@@ -16,8 +16,18 @@ static Duration const noBlock(0);
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
-  SSL_CTX_set_mode(ctx, SSL_MODE_AUTO_RETRY);
-  SSL_CTX_set_ecdh_auto(ctx, 1);
+  static int const flags =
+      SSL_MODE_ENABLE_PARTIAL_WRITE | // dont block when sending long payloads
+      SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | // TODO
+      SSL_MODE_AUTO_RETRY; // TODO
+
+  if((SSL_CTX_set_mode(ctx, flags) & flags) != flags) {
+    throw std::logic_error("failed to set TLS mode");
+  }
+
+  if(SSL_CTX_set_ecdh_auto(ctx, 1) <= 0) {
+    throw std::logic_error("failed to set TLS ECDH");
+  }
 
   if(SSL_CTX_use_certificate_file(ctx, certFilePath, SSL_FILETYPE_PEM) <= 0) {
     throw std::runtime_error("failed to set certificate");
@@ -25,9 +35,6 @@ void ConfigureContext(SSL_CTX *ctx,
   if(SSL_CTX_use_PrivateKey_file(ctx, keyFilePath, SSL_FILETYPE_PEM) <= 0) {
     throw std::runtime_error("failed to set private key");
   }
-
-  // dont block when sending long payloads
-  (void)SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 }
 
 SocketTlsServerPriv::CtxPtr CreateContext(SSL_METHOD const *method,
