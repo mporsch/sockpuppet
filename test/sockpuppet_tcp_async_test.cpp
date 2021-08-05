@@ -1,3 +1,5 @@
+#include "sockpuppet_test_common.h" // for MakeTestSocket
+
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <iostream> // for std::cout
@@ -30,7 +32,7 @@ struct Server
 
   Server(Address bindAddress,
          Driver &driver)
-    : server({bindAddress},
+    : server(MakeTestSocket<SocketTcpServer>(bindAddress),
              driver,
              std::bind(&Server::HandleConnect,
                        this,
@@ -146,7 +148,7 @@ int main(int, char **)
     for(auto &&client : clients)
     {
       client.reset(
-            new SocketTcpAsyncClient({serverAddress},
+            new SocketTcpAsyncClient({MakeTestSocket<SocketTcpClient>(serverAddress)},
                                      driver,
                                      ReceiveDummy,
                                      DisconnectDummy));
@@ -186,7 +188,7 @@ int main(int, char **)
 
   // try the disconnect the other way around
   loneClient.reset(
-        new SocketTcpAsyncClient({serverAddress},
+        new SocketTcpAsyncClient({MakeTestSocket<SocketTcpClient>(serverAddress)},
                                  driver,
                                  ReceiveDummy,
                                  HandleDisconnect));

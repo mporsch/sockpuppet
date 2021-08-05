@@ -7,6 +7,16 @@
 
 namespace sockpuppet {
 
+template<typename Socket, typename... Args>
+Socket MakeTestSocket(Args&&... args)
+{
+#ifdef TEST_TLS
+  return Socket(std::forward<Args>(args)..., "test_cert.pem", "test_key.pem");
+#else // TEST_TLS
+  return Socket(std::forward<Args>(args)...);
+#endif // TEST_TLS
+}
+
 struct TestData
 {
   std::vector<char> const referenceData;

@@ -1,4 +1,4 @@
-#include "sockpuppet_test_common.h"
+#include "sockpuppet_test_common.h" // for TestData
 
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
@@ -46,7 +46,7 @@ struct Server
 
   Server(Address bindAddress,
          Driver &driver)
-    : server({bindAddress},
+    : server(MakeTestSocket<SocketTcpServer>(bindAddress),
              driver,
              std::bind(&Server::HandleConnect,
                        this,
@@ -127,7 +127,7 @@ struct Clients
 
   void Add(Address serverAddr, Driver &driver)
   {
-    SocketTcpClient client(serverAddr);
+    auto client = MakeTestSocket<SocketTcpClient>(serverAddr);
     auto clientAddr = client.LocalAddress();
 
     std::cout << "client " << to_string(clientAddr)

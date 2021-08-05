@@ -1,4 +1,5 @@
 #include "sockpuppet_test_common.h" // for TestData
+
 #include "sockpuppet/socket_buffered.h" // for SocketTcpBuffered
 
 #include <atomic> // for std::atomic
@@ -35,7 +36,7 @@ void ServerHandler(std::pair<SocketTcpClient, Address> p)
 
 void Server(Address serverAddress)
 try {
-  SocketTcpServer server(serverAddress);
+  auto server = MakeTestSocket<SocketTcpServer>(serverAddress);
 
   std::cout << "server listening at " << to_string(serverAddress)
             << std::endl;
@@ -48,7 +49,7 @@ try {
 
 void Client(Address serverAddress, Duration perPacketSendTimeout)
 try {
-  SocketTcpBuffered client(serverAddress);
+  SocketTcpBuffered client(MakeTestSocket<SocketTcpClient>(serverAddress));
 
   std::cout << "client " << to_string(client.LocalAddress())
             << " connected to server " << to_string(serverAddress)

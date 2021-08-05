@@ -1,3 +1,5 @@
+#include "sockpuppet_test_common.h" // for MakeTestSocket
+
 #include "sockpuppet/socket.h" // for SocketTcpClient
 
 #include <atomic> // for std::atomic
@@ -37,7 +39,7 @@ try {
 
 void Server(Address serverAddr)
 try {
-  SocketTcpServer server(serverAddr);
+  auto server = MakeTestSocket<SocketTcpServer>(serverAddr);
 
   std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
@@ -60,7 +62,7 @@ try {
 
 void Client(Address serverAddr)
 try {
-  SocketTcpClient client(serverAddr);
+  auto client = MakeTestSocket<SocketTcpClient>(serverAddr);
   auto const clientAddr = client.LocalAddress();
 
   std::cout << "client " << to_string(clientAddr)

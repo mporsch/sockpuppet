@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.12.0)
 
 project(sockpuppet CXX)
 
@@ -82,12 +82,12 @@ if(${WITH_TLS})
     # add define for preprocessor switches in source files and public includes and export file
     target_compile_definitions(sockpuppet PUBLIC SOCKPUPPET_WITH_TLS)
 
-    list(APPEND DEPENDENCIES OpenSSL::SSL OpenSSL::Crypto)
-    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-      list(APPEND DEPENDENCIES bcrypt)
-    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-      list(APPEND DEPENDENCIES pthread)
-    endif()
+    list(APPEND DEPENDENCIES
+      OpenSSL::SSL
+      OpenSSL::Crypto
+      $<$<PLATFORM_ID:Windows>:bcrypt>
+      $<$<PLATFORM_ID:Linux>:pthread>
+    )
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
