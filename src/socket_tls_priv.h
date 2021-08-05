@@ -31,17 +31,22 @@ struct SocketTlsClientPriv : public SocketPriv
   SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx);
   ~SocketTlsClientPriv() override;
 
+  // waits for readable
   std::optional<size_t> Receive(char *data,
                                 size_t size,
                                 Duration timeout) override;
+  // assumes a readable socket
   size_t Receive(char *data,
                  size_t size) override;
 
   size_t SendAll(char const *data,
                  size_t size) override;
+  // waits for writable repeatedly and
+  // sends the max amount of data within the user-provided timeout
   size_t SendSome(char const *data,
                   size_t size,
                   Duration timeout) override;
+  // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
 

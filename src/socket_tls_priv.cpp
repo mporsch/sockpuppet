@@ -4,9 +4,14 @@
 #include "error_code.h" // for SocketError
 #include "wait.h" // for WaitReadableNonBlocking
 
+#include <cassert> // for assert
+
 namespace sockpuppet {
 
 namespace {
+
+static Duration const noTimeout(-1);
+static Duration const noBlock(0);
 
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
@@ -20,6 +25,9 @@ void ConfigureContext(SSL_CTX *ctx,
   if(SSL_CTX_use_PrivateKey_file(ctx, keyFilePath, SSL_FILETYPE_PEM) <= 0) {
     throw std::runtime_error("failed to set private key");
   }
+
+  // dont block when sending long payloads
+  (void)SSL_CTX_set_mode(ctx, SSL_MODE_ENABLE_PARTIAL_WRITE);
 }
 
 SocketTlsServerPriv::CtxPtr CreateContext(SSL_METHOD const *method,
@@ -67,6 +75,17 @@ size_t DoReceive(SSL *ssl, char *data, size_t size)
   return static_cast<size_t>(res);
 }
 
+size_t DoSend(SSL *ssl, char const *data, size_t size)
+{
+  auto res = SSL_write(ssl, data, static_cast<int>(size));
+  if(res < 0) {
+    throw MakeSslError(ssl, res, "failed to TLS send");
+  } else if((res == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected TLS send result");
+  }
+  return static_cast<size_t>(res);
+}
+
 } // unnamed namespace
 
 SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
@@ -93,7 +112,8 @@ SocketTlsClientPriv::~SocketTlsClientPriv() = default;
 std::optional<size_t> SocketTlsClientPriv::Receive(
     char *data, size_t size, Duration timeout)
 {
-  if(HandShake(timeout)) {
+  if(HandShake(timeout) &&
+     WaitReadableBlocking(this->fd, timeout)) {
     return {DoReceive(ssl.get(), data, size)};
   }
   return {std::nullopt};
@@ -101,7 +121,7 @@ std::optional<size_t> SocketTlsClientPriv::Receive(
 
 size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 {
-  if(HandShake(Duration(0))) {
+  if(HandShake(noBlock)) {
     return DoReceive(ssl.get(), data, size);
   }
   return 0U; // socket was readable for TLS handshake only
@@ -109,27 +129,42 @@ size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 {
-  return SendSome(data, size, Duration(-1));
+  size_t sent = 0U;
+  if(HandShake(noTimeout)) {
+    do {
+      sent += DoSend(ssl.get(), data + sent, size - sent);
+    } while(sent < size);
+  }
+  assert(sent == size);
+  return sent;
 }
 
 size_t SocketTlsClientPriv::SendSome(
     char const *data, size_t size, Duration timeout)
 {
+  size_t sent = 0U;
+
+  DeadlineLimited deadline(timeout);
   if(HandShake(timeout)) {
-    auto res = SSL_write(ssl.get(), data, static_cast<int>(size));
-    if(res < 0) {
-      throw MakeSslError(ssl.get(), res, "failed to TLS send");
-    } else if((res == 0) && (size > 0U)) {
-      throw std::logic_error("unexpected send result");
-    }
-    return static_cast<size_t>(res);
+    deadline.Tick();
+    do {
+      if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+        break; // timeout exceeded
+      }
+      sent += DoSend(ssl.get(), data + sent, size - sent);
+      deadline.Tick();
+    } while((sent < size) && deadline.TimeLeft());
   }
-  return 0U;
+
+  return sent;
 }
 
 size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
 {
-  return SendSome(data, size, Duration(0));
+  if(HandShake(noBlock)) {
+    return DoSend(ssl.get(), data, size);
+  }
+  return 0U; // socket was writable for TLS handshake only
 }
 
 void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
@@ -137,7 +172,7 @@ void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
   SocketPriv::Connect(connectAddr);
   SocketPriv::SetSockOptNonBlocking();
   SSL_set_connect_state(ssl.get());
-  (void)HandShake(Duration(0)); // initiate the handshake
+  (void)HandShake(noBlock); // initiate the handshake
 }
 
 bool SocketTlsClientPriv::HandShake(Duration timeout)
@@ -206,7 +241,7 @@ SocketTlsServerPriv::Accept()
       std::move(*client),
       ctx.get());
   SSL_set_accept_state(clientTls->ssl.get());
-  (void)clientTls->HandShake(Duration(0)); // initiate the handshake
+  (void)clientTls->HandShake(noBlock); // initiate the handshake
 
   return {std::move(clientTls), std::move(addr)};
 }

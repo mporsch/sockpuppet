@@ -1,6 +1,6 @@
 #include "socket_priv.h"
 #include "error_code.h" // for SocketError
-#include "wait.h" // for WaitReadable
+#include "wait.h" // for WaitReadableBlocking
 
 #ifndef _WIN32
 # include <fcntl.h> // for ::fcntl
