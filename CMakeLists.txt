@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.1.0)
 
 project(sockpuppet CXX)
-set(CMAKE_CXX_STANDARD 17)
 
 if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default
@@ -65,6 +64,9 @@ add_library(sockpuppet
   ${SOCKPUPPET_PUBLIC_HEADERS}
 )
 set_target_properties(sockpuppet PROPERTIES PUBLIC_HEADER "${SOCKPUPPET_PUBLIC_HEADERS}")
+
+# internals and public includes depend on C++17
+target_compile_features(sockpuppet PUBLIC cxx_std_17)
 
 # set/forward include directory
 target_include_directories(sockpuppet PUBLIC
