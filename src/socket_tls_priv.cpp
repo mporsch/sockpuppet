@@ -5,6 +5,8 @@
 #include "wait.h" // for WaitReadableNonBlocking
 
 #include <cassert> // for assert
+#include <csignal> // for std::signal
+#include <stdexcept> // for std::logic_error
 
 namespace sockpuppet {
 
@@ -13,9 +15,27 @@ namespace {
 static Duration const noTimeout(-1);
 static Duration const noBlock(0);
 
+struct IgnoreSigPipeGuard
+{
+  IgnoreSigPipeGuard()
+  {
+#ifndef SO_NOSIGPIPE
+    // in Linux (where no other SIGPIPE workaround with OpenSSL
+    // is available) ignore signal for the whole program
+    if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+      throw std::logic_error("failed to ignore SIGPIPE");
+    }
+#endif // SO_NOSIGPIPE
+  }
+};
+
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
+  // avoid SIGPIPE on connection closed
+  // which might occur during SSL_write() or SSL_do_handshake()
+  static IgnoreSigPipeGuard const ignoreSigPipe;
+
   static int const flags =
       SSL_MODE_ENABLE_PARTIAL_WRITE | // dont block when sending long payloads
       SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | // TODO

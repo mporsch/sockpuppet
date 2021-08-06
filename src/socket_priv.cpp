@@ -23,7 +23,7 @@ static auto const fdInvalid =
 
 static int const sendAllFlags =
 #ifdef MSG_NOSIGNAL
-    MSG_NOSIGNAL | // avoid SIGPIPE on connection closed
+    MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
 #endif // MSG_NOSIGNAL
     0;
 
@@ -315,6 +315,7 @@ void SocketPriv::SetSockOptBroadcast()
 void SocketPriv::SetSockOptNoSigPipe()
 {
 #ifdef SO_NOSIGPIPE
+  // avoid SIGPIPE on connection closed (in OSX)
   SetSockOpt(fd, SO_NOSIGPIPE, 1, "failed to set socket option non-SIGPIPE");
 #endif // SO_NOSIGPIPE
 }
