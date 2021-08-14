@@ -9,7 +9,7 @@
 
 using namespace sockpuppet;
 
-static TestData const testData(10000000U);
+static TestData const testData(1000000U);
 static std::atomic<bool> success(true);
 
 void ServerHandler(std::pair<SocketTcpClient, Address> p)
