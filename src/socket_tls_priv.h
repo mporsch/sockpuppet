@@ -52,10 +52,12 @@ struct SocketTlsClientPriv : public SocketPriv
 
   void Connect(SockAddrView const &connectAddr) override;
 
+  bool WaitReadable(Duration timeout) override;
+  bool WaitWritable(Duration timeout) override;
+
   // return whether TLS handshake was performed and if time remains for data send/receive
-  bool HandShake(Duration timeout);
   template<typename Deadline>
-  bool HandShakeLoop(Deadline deadline);
+  bool HandShake(Deadline &&deadline);
   bool HandShakeWait(int code, Duration timeout);
 };
 

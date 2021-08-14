@@ -136,7 +136,7 @@ SocketPriv::~SocketPriv()
 // used for TCP only
 std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {Receive(data, size)};
@@ -160,7 +160,7 @@ size_t SocketPriv::Receive(char *data, size_t size)
 std::optional<std::pair<size_t, Address>>
 SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -205,7 +205,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
   size_t sent = 0U;
   DeadlineLimited deadline(timeout);
   do {
-    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+    if(!WaitWritable(deadline.Remaining())) {
       break; // timeout exceeded
     }
     sent += SendSome(data + sent, size - sent);
@@ -226,7 +226,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size)
 size_t SocketPriv::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritableBlocking(fd, timeout)) {
+  if(!WaitWritable(timeout)) {
     return 0U; // timeout exceeded
   }
   return SendTo(data, size, dstAddr);
@@ -275,7 +275,7 @@ void SocketPriv::Listen()
 std::optional<std::pair<std::unique_ptr<SocketPriv>, Address>>
 SocketPriv::Accept(Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
@@ -290,6 +290,16 @@ SocketPriv::Accept()
     std::make_unique<SocketPriv>(client),
     Address(std::move(sas))
   };
+}
+
+bool SocketPriv::WaitReadable(Duration timeout)
+{
+  return WaitReadableBlocking(fd, timeout);
+}
+
+bool SocketPriv::WaitWritable(Duration timeout)
+{
+  return WaitWritableBlocking(fd, timeout);
 }
 
 void SocketPriv::SetSockOptBlocking()

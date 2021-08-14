@@ -1,5 +1,4 @@
 #include "socket_buffered_priv.h"
-#include "wait.h" // for WaitReadableBlocking
 
 namespace sockpuppet {
 
@@ -26,7 +25,7 @@ BufferPtr SocketBufferedPriv::GetBuffer()
 
 std::optional<BufferPtr> SocketBufferedPriv::Receive(Duration timeout)
 {
-  if(!WaitReadableBlocking(sock->fd, timeout)) {
+  if(!this->sock->WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedPriv::Receive();
@@ -47,7 +46,7 @@ BufferPtr SocketBufferedPriv::Receive()
 std::optional<std::pair<BufferPtr, Address>>
 SocketBufferedPriv::ReceiveFrom(Duration timeout)
 {
-  if(!WaitReadableBlocking(sock->fd, timeout)) {
+  if(!this->sock->WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedPriv::ReceiveFrom();

@@ -78,6 +78,9 @@ struct SocketPriv
   virtual std::pair<std::unique_ptr<SocketPriv>, Address>
   Accept();
 
+  virtual bool WaitReadable(Duration timeout);
+  virtual bool WaitWritable(Duration timeout);
+
   void SetSockOptBlocking();
   void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
