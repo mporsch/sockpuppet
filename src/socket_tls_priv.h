@@ -15,6 +15,8 @@
 
 namespace sockpuppet {
 
+// unlike the regular TCP client socket, the TLS one is set to non-blocking mode
+// to maintain control of the timing behaviour during the TLS handshake
 struct SocketTlsClientPriv : public SocketPriv
 {
   using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;

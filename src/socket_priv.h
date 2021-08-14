@@ -81,7 +81,6 @@ struct SocketPriv
   virtual bool WaitReadable(Duration timeout);
   virtual bool WaitWritable(Duration timeout);
 
-  void SetSockOptBlocking();
   void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();

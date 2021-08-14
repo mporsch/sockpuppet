@@ -302,11 +302,6 @@ bool SocketPriv::WaitWritable(Duration timeout)
   return WaitWritableBlocking(fd, timeout);
 }
 
-void SocketPriv::SetSockOptBlocking()
-{
-  SetBlocking(fd, true, "failed to set socket option blocking");
-}
-
 void SocketPriv::SetSockOptNonBlocking()
 {
   SetBlocking(fd, false, "failed to set socket option non-blocking");
