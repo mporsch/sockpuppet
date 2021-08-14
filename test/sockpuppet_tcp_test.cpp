@@ -71,7 +71,7 @@ try {
 
   char buffer[256];
   if(auto rx = client.Receive(buffer, sizeof(buffer), seconds(1))) {
-    if(std::string_view(buffer, *rx).find("hello") != std::string::npos) {
+    if(std::string_view(buffer, rx.value()).find("hello") != std::string::npos) {
       std::cout << "client " << to_string(clientAddr)
                 << " received from server" << std::endl;
 
