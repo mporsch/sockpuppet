@@ -21,7 +21,6 @@ struct SocketTlsClientPriv : public SocketPriv
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
-  bool isHandShakeComplete;  ///< during TLS handshake the socket is set to non-blocking mode
 
   SocketTlsClientPriv(int family,
                       int type,
@@ -38,6 +37,10 @@ struct SocketTlsClientPriv : public SocketPriv
   // assumes a readable socket
   size_t Receive(char *data,
                  size_t size) override;
+  template<typename Deadline>
+  size_t Receive(char *data,
+                 size_t size,
+                 Deadline &&deadline);
 
   size_t SendAll(char const *data,
                  size_t size) override;
@@ -49,16 +52,16 @@ struct SocketTlsClientPriv : public SocketPriv
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
+  template<typename Deadline>
+  size_t Send(char const *data,
+              size_t size,
+              Deadline &&deadline);
 
   void Connect(SockAddrView const &connectAddr) override;
 
   bool WaitReadable(Duration timeout) override;
   bool WaitWritable(Duration timeout) override;
-
-  // return whether TLS handshake was performed and if time remains for data send/receive
-  template<typename Deadline>
-  bool HandShake(Deadline &&deadline);
-  bool HandShakeWait(int code, Duration timeout);
+  bool Wait(int code, Duration timeout);
 };
 
 struct SocketTlsServerPriv : public SocketPriv

@@ -12,7 +12,6 @@ namespace sockpuppet {
 
 namespace {
 
-static Duration const noTimeout(-1);
 static Duration const noBlock(0);
 
 struct IgnoreSigPipeGuard
@@ -22,10 +21,20 @@ struct IgnoreSigPipeGuard
 #ifndef SO_NOSIGPIPE
 # ifdef SIGPIPE
     // in Linux (where no other SIGPIPE workaround with OpenSSL
-    // is available) ignore signal for the whole program
-    if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-      throw std::logic_error("failed to ignore SIGPIPE");
-    }
+    // is available) ignore signal once for each thread we run in
+    struct Shared
+    {
+      Shared()
+      {
+        // avoid SIGPIPE on connection closed
+        // which might occur during SSL_write() or SSL_do_handshake()
+        if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+          throw std::logic_error("failed to ignore SIGPIPE");
+        }
+      }
+    };
+
+    thread_local Shared const instance;
 # endif // SIGPIPE
 #endif // SO_NOSIGPIPE
   }
@@ -34,10 +43,6 @@ struct IgnoreSigPipeGuard
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
-  // avoid SIGPIPE on connection closed
-  // which might occur during SSL_write() or SSL_do_handshake()
-  static IgnoreSigPipeGuard const ignoreSigPipe;
-
   static int const flags =
       SSL_MODE_ENABLE_PARTIAL_WRITE | // dont block when sending long payloads
       SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | // TODO
@@ -93,28 +98,6 @@ std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
         errorMessage);
 }
 
-size_t DoReceive(SSL *ssl, char *data, size_t size)
-{
-  auto res = SSL_read(ssl, data, static_cast<int>(size));
-  if(res < 0) {
-    throw MakeSslError(ssl, res, "failed to TLS receive");
-  } else if(res == 0) {
-    throw std::runtime_error("TLS connection closed");
-  }
-  return static_cast<size_t>(res);
-}
-
-size_t DoSend(SSL *ssl, char const *data, size_t size)
-{
-  auto res = SSL_write(ssl, data, static_cast<int>(size));
-  if(res < 0) {
-    throw MakeSslError(ssl, res, "failed to TLS send");
-  } else if((res == 0) && (size > 0U)) {
-    throw std::logic_error("unexpected TLS send result");
-  }
-  return static_cast<size_t>(res);
-}
-
 } // unnamed namespace
 
 SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
@@ -124,7 +107,6 @@ SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
   , ssl(CreateSsl(
           CreateContext(TLS_client_method(), certFilePath, keyFilePath).get(),
           this->fd))
-  , isHandShakeComplete(false)
 {
 }
 
@@ -132,7 +114,6 @@ SocketTlsClientPriv::SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx)
   : SocketPriv(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
-  , isHandShakeComplete(false)
 {
 }
 
@@ -141,47 +122,49 @@ SocketTlsClientPriv::~SocketTlsClientPriv() = default;
 std::optional<size_t> SocketTlsClientPriv::Receive(
     char *data, size_t size, Duration timeout)
 {
-  if(isHandShakeComplete) {
-     if(WaitReadable(timeout)) {
-       return {DoReceive(ssl.get(), data, size)};
-     }
-  } else {
-    if(timeout.count() >= 0) {
-      DeadlineLimited deadline(timeout);
-      if(HandShake(deadline) && WaitReadable(deadline.Remaining())) {
-        return {DoReceive(ssl.get(), data, size)};
-      }
+  if(timeout.count() >= 0) {
+    if(auto received = Receive(data, size, DeadlineLimited(timeout))) {
+      return {received};
     } else {
-      DeadlineUnlimited deadline;
-      if(HandShake(deadline) && WaitReadable(deadline.Remaining())) {
-        return {DoReceive(ssl.get(), data, size)};
-      }
+      return {std::nullopt};
     }
+  } else {
+    auto received = Receive(data, size, DeadlineUnlimited());
+    assert(received > 0U);
+    return {received};
   }
-  return {std::nullopt};
 }
 
 size_t SocketTlsClientPriv::Receive(char *data, size_t size)
 {
-  if(isHandShakeComplete) {
-    return DoReceive(ssl.get(), data, size);
-  } else {
-    (void)HandShake(DeadlineLimited(noBlock));
+  return Receive(data, size, DeadlineLimited(noBlock));
+}
+
+template<typename Deadline>
+size_t SocketTlsClientPriv::Receive(char *data, size_t size,
+    Deadline &&deadline)
+{
+  IgnoreSigPipeGuard const guard;
+
+  // run in a loop, as OpenSSL might require a handshake at any time
+  for(;;) {
+    auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
+    if(res < 0) {
+      if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+        return 0U; // timeout / socket was readable for TLS handshake only
+      }
+      deadline.Tick();
+    } else if(res == 0) {
+      throw std::runtime_error("TLS connection closed");
+    } else {
+      return static_cast<size_t>(res);
+    }
   }
-  return 0U; // socket was readable for TLS handshake only
 }
 
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 {
-  if(!isHandShakeComplete) {
-    (void)HandShake(DeadlineUnlimited());
-  }
-
-  size_t sent = 0U;
-  do {
-    (void)WaitWritable(noTimeout);
-    sent += DoSend(ssl.get(), data + sent, size - sent);
-  } while(sent < size);
+  auto sent = Send(data, size, DeadlineUnlimited());
   assert(sent == size);
   return sent;
 }
@@ -189,38 +172,51 @@ size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 size_t SocketTlsClientPriv::SendSome(
     char const *data, size_t size, Duration timeout)
 {
-  size_t sent = 0U;
-
-  DeadlineLimited deadline(timeout);
-  if(isHandShakeComplete || HandShake(deadline)) {
-    deadline.Tick();
-    do {
-      if(!WaitWritable(deadline.Remaining())) {
-        break; // timeout exceeded
-      }
-      sent += DoSend(ssl.get(), data + sent, size - sent);
-      deadline.Tick();
-    } while((sent < size) && deadline.TimeLeft());
+  if(timeout.count() >= 0) {
+    return Send(data, size, DeadlineLimited(timeout));
+  } else {
+    return SendAll(data, size);
   }
-
-  return sent;
 }
 
 size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
 {
-  if(!isHandShakeComplete) {
-    (void)HandShake(DeadlineLimited(noBlock));
-    return 0U; // socket was writable for TLS handshake only
-  }
-  return DoSend(ssl.get(), data, size);
+  return Send(data, size, DeadlineLimited(noBlock));
+}
+
+template<typename Deadline>
+size_t SocketTlsClientPriv::Send(char const *data, size_t size,
+    Deadline &&deadline)
+{
+  IgnoreSigPipeGuard const guard;
+  size_t sent = 0U;
+
+  // run in a loop, as OpenSSL might require a handshake at any time
+  do {
+    auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
+    if(res < 0) {
+      if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+        break; // timeout / socket was writable for TLS handshake only
+      }
+      deadline.Tick();
+    } else if((res == 0) && (size > 0U)) {
+      throw std::logic_error("unexpected TLS send result");
+    } else {
+      sent += static_cast<size_t>(res);
+    }
+  } while(sent < size);
+
+  return sent;
 }
 
 void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
 {
   SocketPriv::Connect(connectAddr);
   SocketPriv::SetSockOptNonBlocking();
+
   SSL_set_connect_state(ssl.get());
-  (void)HandShake(DeadlineLimited(noBlock)); // initiate the handshake
+  IgnoreSigPipeGuard const guard;
+  (void)SSL_do_handshake(ssl.get()); // initiate the handshake
 }
 
 bool sockpuppet::SocketTlsClientPriv::WaitReadable(Duration timeout)
@@ -233,30 +229,7 @@ bool SocketTlsClientPriv::WaitWritable(Duration timeout)
   return WaitWritableNonBlocking(this->fd, timeout);
 }
 
-template<typename Deadline>
-bool SocketTlsClientPriv::HandShake(Deadline &&deadline)
-{
-  assert(!isHandShakeComplete);
-
-  // execute TLS handshake while keeping track of the time
-  do {
-    auto res = SSL_do_handshake(ssl.get());
-    if(res == 1) {
-      isHandShakeComplete = true;
-      return true;
-    }
-
-    auto code = SSL_get_error(ssl.get(), res);
-    deadline.Tick();
-    if(!HandShakeWait(code, deadline.Remaining())) {
-      return false;
-    }
-    deadline.Tick();
-  } while(deadline.TimeLeft());
-  return false;
-}
-
-bool SocketTlsClientPriv::HandShakeWait(int code, Duration timeout)
+bool SocketTlsClientPriv::Wait(int code, Duration timeout)
 {
   switch(code) {
   case SSL_ERROR_WANT_READ:
@@ -288,8 +261,10 @@ SocketTlsServerPriv::Accept()
   auto clientTls = std::make_unique<SocketTlsClientPriv>(
       std::move(*client),
       ctx.get());
+
   SSL_set_accept_state(clientTls->ssl.get());
-  (void)clientTls->HandShake(DeadlineLimited(noBlock)); // initiate the handshake
+  IgnoreSigPipeGuard const guard;
+  (void)SSL_do_handshake(clientTls->ssl.get()); // initiate the handshake
 
   return {std::move(clientTls), std::move(addr)};
 }
