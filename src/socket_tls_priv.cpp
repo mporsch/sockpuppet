@@ -1,7 +1,7 @@
 #ifdef SOCKPUPPET_WITH_TLS
 
 #include "socket_tls_priv.h"
-#include "error_code.h" // for SocketError
+#include "error_code.h" // for SslError
 #include "wait.h" // for WaitReadableNonBlocking
 
 #include <cassert> // for assert
@@ -45,8 +45,7 @@ void ConfigureContext(SSL_CTX *ctx,
 {
   static int const flags =
       SSL_MODE_ENABLE_PARTIAL_WRITE | // dont block when sending long payloads
-      SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER | // TODO
-      SSL_MODE_AUTO_RETRY; // TODO
+      SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER; // cannot guarantee user reuses buffer after timeout
 
   if((SSL_CTX_set_mode(ctx, flags) & flags) != flags) {
     throw std::logic_error("failed to set TLS mode");
@@ -162,30 +161,23 @@ size_t SocketTlsClientPriv::Receive(char *data, size_t size,
   }
 }
 
+size_t SocketTlsClientPriv::Send(char const *data, size_t size,
+    Duration timeout)
+{
+  return (timeout.count() < 0 ?
+            SendAll(data, size) :
+            SendSome(data, size, DeadlineLimited(timeout)));
+}
+
 size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 {
-  auto sent = Send(data, size, DeadlineUnlimited());
+  auto sent = SendSome(data, size, DeadlineUnlimited());
   assert(sent == size);
   return sent;
 }
 
-size_t SocketTlsClientPriv::SendSome(
-    char const *data, size_t size, Duration timeout)
-{
-  if(timeout.count() >= 0) {
-    return Send(data, size, DeadlineLimited(timeout));
-  } else {
-    return SendAll(data, size);
-  }
-}
-
-size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
-{
-  return Send(data, size, DeadlineLimited(noBlock));
-}
-
 template<typename Deadline>
-size_t SocketTlsClientPriv::Send(char const *data, size_t size,
+size_t SocketTlsClientPriv::SendSome(char const *data, size_t size,
     Deadline &&deadline)
 {
   IgnoreSigPipeGuard const guard;
@@ -207,6 +199,11 @@ size_t SocketTlsClientPriv::Send(char const *data, size_t size,
   } while(sent < size);
 
   return sent;
+}
+
+size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
+{
+  return SendSome(data, size, DeadlineLimited(noBlock));
 }
 
 void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)

@@ -44,13 +44,17 @@ struct SocketTlsClientPriv : public SocketPriv
                  size_t size,
                  Deadline &&deadline);
 
+  size_t Send(char const *data,
+              size_t size,
+              Duration timeout) override;
   size_t SendAll(char const *data,
-                 size_t size) override;
+                 size_t size);
   // waits for writable repeatedly and
   // sends the max amount of data within the user-provided timeout
+  template<typename Deadline>
   size_t SendSome(char const *data,
                   size_t size,
-                  Duration timeout) override;
+                  Deadline &&deadline);
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;

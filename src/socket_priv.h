@@ -45,16 +45,16 @@ struct SocketPriv
   std::pair<size_t, Address>
   ReceiveFrom(char *data, size_t size);
 
-  size_t Send(char const *data,
-              size_t size,
-              Duration timeout);
-  virtual size_t SendAll(char const *data,
-                         size_t size);
+  virtual size_t Send(char const *data,
+                      size_t size,
+                      Duration timeout);
+  size_t SendAll(char const *data,
+                 size_t size);
   // waits for writable repeatedly and
   // sends the max amount of data within the user-provided timeout
-  virtual size_t SendSome(char const *data,
-                          size_t size,
-                          Duration timeout);
+  size_t SendSome(char const *data,
+                  size_t size,
+                  Duration timeout);
   // assumes a writable socket
   virtual size_t SendSome(char const *data,
                           size_t size);
