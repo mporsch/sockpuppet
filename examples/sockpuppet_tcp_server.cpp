@@ -2,6 +2,7 @@
 
 #include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
+#include <functional> // for std::bind
 #include <iostream> // for std::cout
 #include <map> // for std::map
 
@@ -18,10 +19,13 @@ void HandleSignal(int)
   driver.Stop();
 }
 
-void HandleReceive(BufferPtr buffer)
+void HandleReceive(Address clientAddr, BufferPtr buffer)
 {
   // print whatever has just been received
-  std::cout << *buffer << std::endl;
+  std::cout << to_string(clientAddr)
+            << " says: "
+            << *buffer
+            << std::endl;
 }
 
 void HandleDisconnect(Address clientAddr)
@@ -51,7 +55,7 @@ void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
   SocketTcpAsyncClient clientAsync(
         SocketTcpBuffered(std::move(clientSock)),
         driver,
-        HandleReceive,
+        std::bind(HandleReceive, clientAddr, std::placeholders::_1),
         HandleDisconnect);
 
   // store the augmented client socket
@@ -67,6 +71,8 @@ void Server(Address bindAddress)
   }
 
   // bind a TCP server socket to given address
+  // (you can turn this into a TLS-encrypted server
+  // by adding arguments for certificate and key file path)
   SocketTcpAsyncServer server(
       SocketTcpServer(bindAddress),
       driver,

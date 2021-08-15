@@ -9,6 +9,8 @@ using namespace sockpuppet;
 void Client(Address remoteAddress)
 {
   // connect a TCP client socket to given address
+  // (you can connect to a TLS-encrypted server
+  // by adding arguments for certificate and key file path)
   SocketTcpClient client(remoteAddress);
 
   // print the bound TCP socket address
