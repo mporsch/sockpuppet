@@ -1,5 +1,5 @@
-#include "todo_priv.h"
-#include "driver_priv.h" // for DriverPriv
+#include "todo_impl.h"
+#include "driver_impl.h" // for DriverImpl
 
 #include <algorithm> // for std::find_if
 
@@ -19,7 +19,7 @@ struct WhenBefore
 
 struct IsSame
 {
-  ToDo::ToDoPriv *ptr;
+  ToDo::ToDoImpl *ptr;
 
   bool operator()(ToDoShared const &todo) const
   {
@@ -35,7 +35,7 @@ void ToDos::Insert(ToDoShared todo)
   (void)emplace(where, std::move(todo));
 }
 
-void ToDos::Remove(ToDo::ToDoPriv *todo)
+void ToDos::Remove(ToDo::ToDoImpl *todo)
 {
   auto it = Find(IsSame{todo});
   if(it != end()) { // may have already been removed
@@ -58,29 +58,29 @@ std::deque<ToDoShared>::iterator ToDos::Find(Pred pred)
 }
 
 
-ToDo::ToDoPriv::ToDoPriv(DriverShared &driver, std::function<void()> what)
+ToDo::ToDoImpl::ToDoImpl(DriverShared &driver, std::function<void()> what)
   : driver(driver)
   , what(std::move(what))
 {
 }
 
-ToDo::ToDoPriv::ToDoPriv(DriverShared &driver, std::function<void()> what, TimePoint when)
+ToDo::ToDoImpl::ToDoImpl(DriverShared &driver, std::function<void()> what, TimePoint when)
   : driver(driver)
   , what(std::move(what))
   , when(when)
 {
 }
 
-ToDo::ToDoPriv::~ToDoPriv() = default;
+ToDo::ToDoImpl::~ToDoImpl() = default;
 
-void ToDo::ToDoPriv::Cancel()
+void ToDo::ToDoImpl::Cancel()
 {
   if(auto const ptr = driver.lock()) {
     ptr->ToDoRemove(this);
   }
 }
 
-void ToDo::ToDoPriv::Shift(TimePoint when)
+void ToDo::ToDoImpl::Shift(TimePoint when)
 {
   if(auto const ptr = driver.lock()) {
     ptr->ToDoMove(shared_from_this(), when);

@@ -1,6 +1,6 @@
-#include "driver_priv.h"
-#include "address_priv.h" // for Address::AddressPriv
-#include "socket_async_priv.h" // for SocketAsyncPriv
+#include "driver_impl.h"
+#include "address_impl.h" // for Address::AddressImpl
+#include "socket_async_impl.h" // for SocketAsyncImpl
 #include "wait.h" // for DeadlineLimited
 
 #include <algorithm> // for std::find_if
@@ -16,7 +16,7 @@ struct FdEqual
 {
   SOCKET fd;
 
-  bool operator()(SocketAsyncPriv const &async) const
+  bool operator()(SocketAsyncImpl const &async) const
   {
     return (async.buff->sock->fd == fd);
   }
@@ -40,15 +40,15 @@ Duration MinDuration(
 
 } // unnamed namespace
 
-Driver::DriverPriv::StepGuard::StepGuard(DriverPriv &priv)
-  : stepLock(priv.stepMtx)
-  , pauseLock(priv.pauseMtx, std::defer_lock)
+Driver::DriverImpl::StepGuard::StepGuard(DriverImpl &impl)
+  : stepLock(impl.stepMtx)
+  , pauseLock(impl.pauseMtx, std::defer_lock)
 {
   // block until acquiring step mutex, keep locked during life time
   // do not acquire pause mutex yet
 }
 
-Driver::DriverPriv::StepGuard::~StepGuard()
+Driver::DriverImpl::StepGuard::~StepGuard()
 {
   // release step mutex
   stepLock.unlock();
@@ -59,23 +59,23 @@ Driver::DriverPriv::StepGuard::~StepGuard()
 }
 
 
-Driver::DriverPriv::PauseGuard::PauseGuard(DriverPriv &priv)
-  : stepLock(priv.stepMtx, std::defer_lock)
+Driver::DriverImpl::PauseGuard::PauseGuard(DriverImpl &impl)
+  : stepLock(impl.stepMtx, std::defer_lock)
 {
   // try to acquire step mutex
   if(!stepLock.try_lock()) {
     // on failure, do a handshake with StepGuard for step mutex
     // using pause mutex and signalling pipe
-    std::lock_guard<std::mutex> pauseLock(priv.pauseMtx);
-    priv.Bump();
+    std::lock_guard<std::mutex> pauseLock(impl.pauseMtx);
+    impl.Bump();
     stepLock.lock();
   }
 }
 
-Driver::DriverPriv::PauseGuard::~PauseGuard() = default;
+Driver::DriverImpl::PauseGuard::~PauseGuard() = default;
 
 
-Driver::DriverPriv::DriverPriv()
+Driver::DriverImpl::DriverImpl()
   : pipeToAddr(std::make_shared<SockAddrInfo>(0U))
   , pipeFrom(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
   , pipeTo(pipeToAddr->Family(), SOCK_DGRAM, IPPROTO_UDP)
@@ -89,7 +89,7 @@ Driver::DriverPriv::DriverPriv()
   pipeFrom.Bind(pipeFromAddr.ForUdp());
 }
 
-Driver::DriverPriv::~DriverPriv()
+Driver::DriverImpl::~DriverImpl()
 {
   shouldStop = true;
 
@@ -97,7 +97,7 @@ Driver::DriverPriv::~DriverPriv()
   PauseGuard lock(*this);
 }
 
-void Driver::DriverPriv::Step(Duration timeout)
+void Driver::DriverImpl::Step(Duration timeout)
 {
   StepGuard lock(*this);
 
@@ -115,7 +115,7 @@ void Driver::DriverPriv::Step(Duration timeout)
 }
 
 template<typename Deadline>
-Duration Driver::DriverPriv::StepTodos(Deadline deadline)
+Duration Driver::DriverImpl::StepTodos(Deadline deadline)
 {
   do {
     assert(!todos.empty());
@@ -141,7 +141,7 @@ Duration Driver::DriverPriv::StepTodos(Deadline deadline)
   return Duration(0);
 }
 
-void Driver::DriverPriv::StepFds(Duration timeout)
+void Driver::DriverImpl::StepFds(Duration timeout)
 {
   if(!Wait(pfds, timeout)) {
     return; // timeout exceeded
@@ -158,7 +158,7 @@ void Driver::DriverPriv::StepFds(Duration timeout)
   }
 }
 
-void Driver::DriverPriv::Run()
+void Driver::DriverImpl::Run()
 {
   shouldStop = false;
   while(!shouldStop) {
@@ -166,32 +166,32 @@ void Driver::DriverPriv::Run()
   }
 }
 
-void Driver::DriverPriv::Stop()
+void Driver::DriverImpl::Stop()
 {
   shouldStop = true;
   Bump();
 }
 
-void Driver::DriverPriv::ToDoInsert(ToDoShared todo)
+void Driver::DriverImpl::ToDoInsert(ToDoShared todo)
 {
   PauseGuard lock(*this);
   todos.Insert(std::move(todo));
 }
 
-void Driver::DriverPriv::ToDoRemove(ToDo::ToDoPriv *todo)
+void Driver::DriverImpl::ToDoRemove(ToDo::ToDoImpl *todo)
 {
   PauseGuard lock(*this);
   todos.Remove(todo);
 }
 
-void Driver::DriverPriv::ToDoMove(ToDoShared todo, TimePoint when)
+void Driver::DriverImpl::ToDoMove(ToDoShared todo, TimePoint when)
 {
   PauseGuard lock(*this);
   todos.Move(std::move(todo), when);
 }
 
-void Driver::DriverPriv::AsyncRegister(
-    SocketAsyncPriv &sock)
+void Driver::DriverImpl::AsyncRegister(
+    SocketAsyncImpl &sock)
 {
   PauseGuard lock(*this);
 
@@ -199,7 +199,7 @@ void Driver::DriverPriv::AsyncRegister(
   pfds.emplace_back(pollfd{sock.buff->sock->fd, POLLIN, 0});
 }
 
-void Driver::DriverPriv::AsyncUnregister(SOCKET fd)
+void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
@@ -218,7 +218,7 @@ void Driver::DriverPriv::AsyncUnregister(SOCKET fd)
   pfds.erase(itPfd);
 }
 
-void Driver::DriverPriv::AsyncWantSend(SOCKET fd)
+void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
@@ -230,7 +230,7 @@ void Driver::DriverPriv::AsyncWantSend(SOCKET fd)
   itPfd->events |= POLLOUT;
 }
 
-void Driver::DriverPriv::Bump()
+void Driver::DriverImpl::Bump()
 {
   static char const one = '1';
   auto const sent = pipeFrom.SendTo(&one, sizeof(one),
@@ -239,13 +239,13 @@ void Driver::DriverPriv::Bump()
   assert(sent == sizeof(one));
 }
 
-void Driver::DriverPriv::Unbump()
+void Driver::DriverImpl::Unbump()
 {
   char dump[256U];
   (void)pipeTo.ReceiveFrom(dump, sizeof(dump));
 }
 
-void Driver::DriverPriv::DoOneFdTask()
+void Driver::DriverImpl::DoOneFdTask()
 {
   assert(sockets.size() + 1U == pfds.size());
 

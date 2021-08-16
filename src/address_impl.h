@@ -1,5 +1,5 @@
-#ifndef SOCKPUPPET_ADDRESS_PRIV_H
-#define SOCKPUPPET_ADDRESS_PRIV_H
+#ifndef SOCKPUPPET_ADDRESS_IMPL_H
+#define SOCKPUPPET_ADDRESS_IMPL_H
 
 #include "sockpuppet/address.h" // for Address
 #include "winsock_guard.h" // for WinSockGuard
@@ -28,12 +28,12 @@ struct SockAddrView
   bool operator!=(SockAddrView const &other) const;
 };
 
-struct Address::AddressPriv
+struct Address::AddressImpl
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
 
-  AddressPriv();
-  virtual ~AddressPriv();
+  AddressImpl();
+  virtual ~AddressImpl();
 
   virtual SockAddrView ForTcp() const = 0;
   virtual SockAddrView ForUdp() const = 0;
@@ -45,14 +45,14 @@ struct Address::AddressPriv
   uint16_t Port() const;
   bool IsV6() const;
 
-  bool operator<(Address::AddressPriv const &other) const;
-  bool operator==(Address::AddressPriv const &other) const;
-  bool operator!=(Address::AddressPriv const &other) const;
+  bool operator<(Address::AddressImpl const &other) const;
+  bool operator==(Address::AddressImpl const &other) const;
+  bool operator!=(Address::AddressImpl const &other) const;
 
   static std::vector<Address> LocalAddresses();
 };
 
-struct SockAddrInfo : public Address::AddressPriv
+struct SockAddrInfo : public Address::AddressImpl
 {
   using AddrInfoPtr = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>;
 
@@ -71,7 +71,7 @@ struct SockAddrInfo : public Address::AddressPriv
   int Family() const override;
 };
 
-struct SockAddrStorage : public Address::AddressPriv
+struct SockAddrStorage : public Address::AddressImpl
 {
   sockaddr_storage storage;
   socklen_t size;
@@ -89,10 +89,10 @@ struct SockAddrStorage : public Address::AddressPriv
   int Family() const override;
 };
 
-std::string to_string(Address::AddressPriv const &sockAddr);
+std::string to_string(Address::AddressImpl const &sockAddr);
 
 std::string to_string(SockAddrView const &sockAddr);
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_ADDRESS_PRIV_H
+#endif // SOCKPUPPET_ADDRESS_IMPL_H

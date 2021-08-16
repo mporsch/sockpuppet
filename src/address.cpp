@@ -1,66 +1,66 @@
 #include "sockpuppet/address.h"
-#include "address_priv.h" // for Address::AddressPriv
+#include "address_impl.h" // for Address::AddressImpl
 
 namespace sockpuppet {
 
 Address::Address(std::string const &uri)
-  : priv(std::make_shared<SockAddrInfo>(uri))
+  : impl(std::make_shared<SockAddrInfo>(uri))
 {
 }
 
 Address::Address(std::string const &host,
     std::string const &service)
-  : priv(std::make_shared<SockAddrInfo>(host, service))
+  : impl(std::make_shared<SockAddrInfo>(host, service))
 {
 }
 
 Address::Address(uint16_t port)
-  : priv(std::make_shared<SockAddrInfo>(port))
+  : impl(std::make_shared<SockAddrInfo>(port))
 {
 }
 
 bool Address::operator<(Address const &other) const
 {
-  return (*priv < *other.priv);
+  return (*impl < *other.impl);
 }
 
 bool Address::operator==(Address const &other) const
 {
-  return (*priv == *other.priv);
+  return (*impl == *other.impl);
 }
 
 bool Address::operator!=(Address const &other) const
 {
-  return (*priv != *other.priv);
+  return (*impl != *other.impl);
 }
 
 std::string Address::Host() const
 {
-  return priv->Host();
+  return impl->Host();
 }
 
 std::string Address::Service() const
 {
-  return priv->Service();
+  return impl->Service();
 }
 
 uint16_t Address::Port() const
 {
-  return priv->Port();
+  return impl->Port();
 }
 
 bool Address::IsV6() const
 {
-  return priv->IsV6();
+  return impl->IsV6();
 }
 
 std::vector<Address> Address::LocalAddresses()
 {
-  return AddressPriv::LocalAddresses();
+  return AddressImpl::LocalAddresses();
 }
 
-Address::Address(std::shared_ptr<AddressPriv> other)
-  : priv(std::move(other))
+Address::Address(std::shared_ptr<AddressImpl> other)
+  : impl(std::move(other))
 {
 }
 
@@ -77,7 +77,7 @@ Address &Address::operator=(Address &&other) noexcept = default;
 
 std::string to_string(Address const &addr)
 {
-  return to_string(*addr.priv);
+  return to_string(*addr.impl);
 }
 
 } // namespace sockpuppet

@@ -60,7 +60,7 @@ private:
   std::deque<BufferStorage> m_busy;
 };
 
-struct SocketBufferedPriv;
+struct SocketBufferedImpl;
 using BufferPtr = BufferPool::BufferPtr;
 
 /// UDP (unreliable communication) socket class that adds an internal
@@ -115,7 +115,7 @@ struct SocketUdpBuffered
   SocketUdpBuffered &operator=(SocketUdpBuffered &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketBufferedPriv> priv;
+  std::unique_ptr<SocketBufferedImpl> impl;
 };
 
 /// TCP (reliable communication) socket class that adds an internal
@@ -170,7 +170,7 @@ struct SocketTcpBuffered
   SocketTcpBuffered &operator=(SocketTcpBuffered &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketBufferedPriv> priv;
+  std::unique_ptr<SocketBufferedImpl> impl;
 };
 
 } // namespace sockpuppet

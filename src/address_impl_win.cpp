@@ -1,11 +1,11 @@
 #ifdef _WIN32
 
-#include "address_priv.h"
+#include "address_impl.h"
 
 namespace sockpuppet {
 
 std::vector<Address>
-Address::AddressPriv::LocalAddresses()
+Address::AddressImpl::LocalAddresses()
 {
   // a special host name provides a list of local machine interface addresses
   SockAddrInfo const sockAddr("..localmachine");

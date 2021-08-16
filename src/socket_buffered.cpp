@@ -1,6 +1,6 @@
 #include "sockpuppet/socket_buffered.h"
-#include "address_priv.h" // for Address::AddressPriv
-#include "socket_buffered_priv.h" // for SocketBufferedPriv
+#include "address_impl.h" // for Address::AddressImpl
+#include "socket_buffered_impl.h" // for SocketBufferedImpl
 
 #include <algorithm> // for std::find_if
 #include <cassert> // for assert
@@ -79,8 +79,8 @@ void BufferPool::Recycle(Buffer *buf)
 
 SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : priv(std::make_unique<SocketBufferedPriv>(
-      std::move(sock.priv),
+  : impl(std::make_unique<SocketBufferedImpl>(
+      std::move(sock.impl),
       rxBufCount,
       rxBufSize))
 {
@@ -89,18 +89,18 @@ SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return priv->sock->SendTo(data, size, dstAddress.priv->ForUdp(), timeout);
+  return impl->sock->SendTo(data, size, dstAddress.impl->ForUdp(), timeout);
 }
 
 std::optional<std::pair<BufferPtr, Address>>
 SocketUdpBuffered::ReceiveFrom(Duration timeout)
 {
-  return priv->ReceiveFrom(timeout);
+  return impl->ReceiveFrom(timeout);
 }
 
 Address SocketUdpBuffered::LocalAddress() const
 {
-  return Address(priv->sock->GetSockName());
+  return Address(impl->sock->GetSockName());
 }
 
 SocketUdpBuffered::SocketUdpBuffered(SocketUdpBuffered &&other) noexcept = default;
@@ -112,8 +112,8 @@ SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexc
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
     size_t rxBufCount, size_t rxBufSize)
-  : priv(std::make_unique<SocketBufferedPriv>(
-      std::move(sock.priv),
+  : impl(std::make_unique<SocketBufferedImpl>(
+      std::move(sock.impl),
       rxBufCount,
       rxBufSize))
 {
@@ -122,22 +122,22 @@ SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
 {
-  return priv->sock->Send(data, size, timeout);
+  return impl->sock->Send(data, size, timeout);
 }
 
 std::optional<BufferPtr> SocketTcpBuffered::Receive(Duration timeout)
 {
-  return priv->Receive(timeout);
+  return impl->Receive(timeout);
 }
 
 Address SocketTcpBuffered::LocalAddress() const
 {
-  return Address(priv->sock->GetSockName());
+  return Address(impl->sock->GetSockName());
 }
 
 Address SocketTcpBuffered::PeerAddress() const
 {
-  return Address(priv->sock->GetPeerName());
+  return Address(impl->sock->GetPeerName());
 }
 
 SocketTcpBuffered::SocketTcpBuffered(SocketTcpBuffered &&other) noexcept = default;

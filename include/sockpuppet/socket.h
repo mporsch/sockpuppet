@@ -11,7 +11,7 @@
 
 namespace sockpuppet {
 
-struct SocketPriv;
+struct SocketImpl;
 using Duration = std::chrono::milliseconds;
 
 /// UDP (unreliable communication) socket class that is
@@ -70,7 +70,7 @@ struct SocketUdp
   SocketUdp &operator=(SocketUdp &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketPriv> priv;
+  std::unique_ptr<SocketImpl> impl;
 };
 
 /// TCP (reliable communication) socket class that is either
@@ -133,7 +133,7 @@ struct SocketTcpClient
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
-  SocketTcpClient(std::unique_ptr<SocketPriv> &&other);
+  SocketTcpClient(std::unique_ptr<SocketImpl> &&other);
   SocketTcpClient(SocketTcpClient const &other) = delete;
   SocketTcpClient(SocketTcpClient &&other) noexcept;
   ~SocketTcpClient();
@@ -141,7 +141,7 @@ struct SocketTcpClient
   SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketPriv> priv;
+  std::unique_ptr<SocketImpl> impl;
 };
 
 /// TCP (reliable communication) socket class that is
@@ -192,7 +192,7 @@ struct SocketTcpServer
   SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketPriv> priv;
+  std::unique_ptr<SocketImpl> impl;
 };
 
 } // namespace sockpuppet

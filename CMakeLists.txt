@@ -31,12 +31,12 @@ set(SOCKPUPPET_PUBLIC_HEADERS
 # this is influenced by the BUILD_SHARED_LIBS setting
 add_library(sockpuppet
   src/address.cpp
-  src/address_priv.cpp
-  src/address_priv_unix.cpp
-  src/address_priv_win.cpp
-  src/address_priv.h
-  src/driver_priv.cpp
-  src/driver_priv.h
+  src/address_impl.cpp
+  src/address_impl_unix.cpp
+  src/address_impl_win.cpp
+  src/address_impl.h
+  src/driver_impl.cpp
+  src/driver_impl.h
   src/error_code.cpp
   src/error_code_tls.cpp
   src/error_code_unix.cpp
@@ -44,19 +44,19 @@ add_library(sockpuppet
   src/error_code.h
   src/socket.cpp
   src/socket_async.cpp
-  src/socket_async_priv.cpp
-  src/socket_async_priv.h
+  src/socket_async_impl.cpp
+  src/socket_async_impl.h
   src/socket_buffered.cpp
-  src/socket_buffered_priv.cpp
-  src/socket_buffered_priv.h
-  src/socket_priv.cpp
-  src/socket_priv.h
-  src/socket_tls_priv.cpp
-  src/socket_tls_priv.h
+  src/socket_buffered_impl.cpp
+  src/socket_buffered_impl.h
+  src/socket_impl.cpp
+  src/socket_impl.h
+  src/socket_tls_impl.cpp
+  src/socket_tls_impl.h
   src/ssl_guard.cpp
   src/ssl_guard.h
-  src/todo_priv.cpp
-  src/todo_priv.h
+  src/todo_impl.cpp
+  src/todo_impl.h
   src/wait.cpp
   src/wait.h
   src/winsock_guard.cpp

@@ -1,6 +1,6 @@
 #ifdef SOCKPUPPET_WITH_TLS
 
-#include "socket_tls_priv.h"
+#include "socket_tls_impl.h"
 #include "error_code.h" // for SslError
 #include "wait.h" // for WaitReadableNonBlocking
 
@@ -60,10 +60,10 @@ void ConfigureContext(SSL_CTX *ctx,
   }
 }
 
-SocketTlsServerPriv::CtxPtr CreateContext(SSL_METHOD const *method,
+SocketTlsServerImpl::CtxPtr CreateContext(SSL_METHOD const *method,
     char const *certFilePath, char const *keyFilePath)
 {
-  if(auto ctx = SocketTlsServerPriv::CtxPtr(SSL_CTX_new(method), SSL_CTX_free)) {
+  if(auto ctx = SocketTlsServerImpl::CtxPtr(SSL_CTX_new(method), SSL_CTX_free)) {
     ConfigureContext(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
@@ -78,9 +78,9 @@ void FreeSsl(SSL *ssl)
   }
 }
 
-SocketTlsClientPriv::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
+SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientPriv::SslPtr(SSL_new(ctx), FreeSsl)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), FreeSsl)) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
@@ -96,9 +96,9 @@ std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
 
 } // unnamed namespace
 
-SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
+SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
-  : SocketPriv(family, type, protocol)
+  : SocketImpl(family, type, protocol)
   , sslGuard()
   , ssl(CreateSsl(
           CreateContext(TLS_client_method(), certFilePath, keyFilePath).get(),
@@ -106,16 +106,16 @@ SocketTlsClientPriv::SocketTlsClientPriv(int family, int type, int protocol,
 {
 }
 
-SocketTlsClientPriv::SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx)
-  : SocketPriv(std::move(sock))
+SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
+  : SocketImpl(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
 {
 }
 
-SocketTlsClientPriv::~SocketTlsClientPriv() = default;
+SocketTlsClientImpl::~SocketTlsClientImpl() = default;
 
-std::optional<size_t> SocketTlsClientPriv::Receive(
+std::optional<size_t> SocketTlsClientImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
   if(timeout.count() >= 0) {
@@ -131,13 +131,13 @@ std::optional<size_t> SocketTlsClientPriv::Receive(
   }
 }
 
-size_t SocketTlsClientPriv::Receive(char *data, size_t size)
+size_t SocketTlsClientImpl::Receive(char *data, size_t size)
 {
   return Receive(data, size, DeadlineLimited(noBlock));
 }
 
 template<typename Deadline>
-size_t SocketTlsClientPriv::Receive(char *data, size_t size,
+size_t SocketTlsClientImpl::Receive(char *data, size_t size,
     Deadline &&deadline)
 {
   IgnoreSigPipe();
@@ -158,7 +158,7 @@ size_t SocketTlsClientPriv::Receive(char *data, size_t size,
   }
 }
 
-size_t SocketTlsClientPriv::Send(char const *data, size_t size,
+size_t SocketTlsClientImpl::Send(char const *data, size_t size,
     Duration timeout)
 {
   return (timeout.count() < 0 ?
@@ -166,7 +166,7 @@ size_t SocketTlsClientPriv::Send(char const *data, size_t size,
             SendSome(data, size, DeadlineLimited(timeout)));
 }
 
-size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
+size_t SocketTlsClientImpl::SendAll(char const *data, size_t size)
 {
   auto sent = SendSome(data, size, DeadlineUnlimited());
   assert(sent == size);
@@ -174,7 +174,7 @@ size_t SocketTlsClientPriv::SendAll(char const *data, size_t size)
 }
 
 template<typename Deadline>
-size_t SocketTlsClientPriv::SendSome(char const *data, size_t size,
+size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
     Deadline &&deadline)
 {
   IgnoreSigPipe();
@@ -197,32 +197,32 @@ size_t SocketTlsClientPriv::SendSome(char const *data, size_t size,
   return sent;
 }
 
-size_t SocketTlsClientPriv::SendSome(char const *data, size_t size)
+size_t SocketTlsClientImpl::SendSome(char const *data, size_t size)
 {
   return SendSome(data, size, DeadlineLimited(noBlock));
 }
 
-void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
+void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)
 {
-  SocketPriv::Connect(connectAddr);
-  SocketPriv::SetSockOptNonBlocking();
+  SocketImpl::Connect(connectAddr);
+  SocketImpl::SetSockOptNonBlocking();
 
   SSL_set_connect_state(ssl.get());
   IgnoreSigPipe();
   (void)SSL_do_handshake(ssl.get()); // initiate the handshake
 }
 
-bool sockpuppet::SocketTlsClientPriv::WaitReadable(Duration timeout)
+bool sockpuppet::SocketTlsClientImpl::WaitReadable(Duration timeout)
 {
   return WaitReadableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsClientPriv::WaitWritable(Duration timeout)
+bool SocketTlsClientImpl::WaitWritable(Duration timeout)
 {
   return WaitWritableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsClientPriv::Wait(int code, Duration timeout)
+bool SocketTlsClientImpl::Wait(int code, Duration timeout)
 {
   switch(code) {
   case SSL_ERROR_WANT_READ:
@@ -235,24 +235,24 @@ bool SocketTlsClientPriv::Wait(int code, Duration timeout)
 }
 
 
-SocketTlsServerPriv::SocketTlsServerPriv(int family, int type, int protocol,
+SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
-  : SocketPriv(family, type, protocol)
+  : SocketImpl(family, type, protocol)
   , sslGuard()
   , ctx(CreateContext(TLS_server_method(), certFilePath, keyFilePath))
 {
 }
 
-SocketTlsServerPriv::~SocketTlsServerPriv() = default;
+SocketTlsServerImpl::~SocketTlsServerImpl() = default;
 
 std::pair<SocketTcpClient, Address>
-SocketTlsServerPriv::Accept()
+SocketTlsServerImpl::Accept()
 {
-  auto [client, addr] = SocketPriv::Accept();
-  client.priv->SetSockOptNonBlocking();
+  auto [client, addr] = SocketImpl::Accept();
+  client.impl->SetSockOptNonBlocking();
 
-  auto clientTls = std::make_unique<SocketTlsClientPriv>(
-      std::move(*client.priv),
+  auto clientTls = std::make_unique<SocketTlsClientImpl>(
+      std::move(*client.impl),
       ctx.get());
 
   SSL_set_accept_state(clientTls->ssl.get());

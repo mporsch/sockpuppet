@@ -1,8 +1,8 @@
-#include "socket_buffered_priv.h"
+#include "socket_buffered_impl.h"
 
 namespace sockpuppet {
 
-SocketBufferedPriv::SocketBufferedPriv(std::unique_ptr<SocketPriv> &&sock,
+SocketBufferedImpl::SocketBufferedImpl(std::unique_ptr<SocketImpl> &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : sock(std::move(sock))
   , pool(std::make_unique<BufferPool>(rxBufCount))
@@ -12,26 +12,26 @@ SocketBufferedPriv::SocketBufferedPriv(std::unique_ptr<SocketPriv> &&sock,
 {
 }
 
-SocketBufferedPriv::SocketBufferedPriv(SocketBufferedPriv &&other) noexcept = default;
+SocketBufferedImpl::SocketBufferedImpl(SocketBufferedImpl &&other) noexcept = default;
 
-SocketBufferedPriv::~SocketBufferedPriv() = default;
+SocketBufferedImpl::~SocketBufferedImpl() = default;
 
-BufferPtr SocketBufferedPriv::GetBuffer()
+BufferPtr SocketBufferedImpl::GetBuffer()
 {
   auto buffer = pool->Get();
   buffer->resize(rxBufSize);
   return buffer;
 }
 
-std::optional<BufferPtr> SocketBufferedPriv::Receive(Duration timeout)
+std::optional<BufferPtr> SocketBufferedImpl::Receive(Duration timeout)
 {
   if(!this->sock->WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
-  return SocketBufferedPriv::Receive();
+  return SocketBufferedImpl::Receive();
 }
 
-BufferPtr SocketBufferedPriv::Receive()
+BufferPtr SocketBufferedImpl::Receive()
 {
   auto buffer = GetBuffer();
 
@@ -44,16 +44,16 @@ BufferPtr SocketBufferedPriv::Receive()
 }
 
 std::optional<std::pair<BufferPtr, Address>>
-SocketBufferedPriv::ReceiveFrom(Duration timeout)
+SocketBufferedImpl::ReceiveFrom(Duration timeout)
 {
   if(!this->sock->WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
-  return SocketBufferedPriv::ReceiveFrom();
+  return SocketBufferedImpl::ReceiveFrom();
 }
 
 std::pair<BufferPtr, Address>
-SocketBufferedPriv::ReceiveFrom()
+SocketBufferedImpl::ReceiveFrom()
 {
   auto buffer = GetBuffer();
 

@@ -49,8 +49,8 @@ struct Driver
   Driver &operator=(Driver &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  struct DriverPriv;
-  std::shared_ptr<DriverPriv> priv;
+  struct DriverImpl;
+  std::shared_ptr<DriverImpl> impl;
 };
 
 /// Scheduled task to be executed later.
@@ -108,11 +108,11 @@ struct ToDo
   ToDo &operator=(ToDo &&other) noexcept;
 
   /// Bridge to implementation instance shared with driver.
-  struct ToDoPriv;
-  std::shared_ptr<ToDoPriv> priv;
+  struct ToDoImpl;
+  std::shared_ptr<ToDoImpl> impl;
 };
 
-struct SocketAsyncPriv;
+struct SocketAsyncImpl;
 
 /// Callback for UDP received data.
 /// @param  Received data buffer borrowed from socket.
@@ -172,7 +172,7 @@ struct SocketUdpAsync
   SocketUdpAsync &operator=(SocketUdpAsync &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketAsyncPriv> priv;
+  std::unique_ptr<SocketAsyncImpl> impl;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
@@ -213,7 +213,7 @@ struct SocketTcpAsyncClient
   SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketAsyncPriv> priv;
+  std::unique_ptr<SocketAsyncImpl> impl;
 };
 
 /// TCP (reliable communication) socket class that adds an interface for
@@ -240,7 +240,7 @@ struct SocketTcpAsyncServer
   SocketTcpAsyncServer &operator=(SocketTcpAsyncServer &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
-  std::unique_ptr<SocketAsyncPriv> priv;
+  std::unique_ptr<SocketAsyncImpl> impl;
 };
 
 } // namespace sockpuppet

@@ -1,10 +1,10 @@
-#ifndef SOCKPUPPET_SOCKET_TLS_PRIV_H
-#define SOCKPUPPET_SOCKET_TLS_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_TLS_IMPL_H
+#define SOCKPUPPET_SOCKET_TLS_IMPL_H
 
 #ifdef SOCKPUPPET_WITH_TLS
 
-#include "address_priv.h" // for SockAddrView
-#include "socket_priv.h" // for SocketPriv
+#include "address_impl.h" // for SockAddrView
+#include "socket_impl.h" // for SocketImpl
 #include "ssl_guard.h" // for SslGuard
 
 #include <openssl/ssl.h> // for SSL_CTX
@@ -17,20 +17,20 @@ namespace sockpuppet {
 
 // unlike the regular TCP client socket, the TLS one is set to non-blocking mode
 // to maintain control of the timing behaviour during the TLS handshake
-struct SocketTlsClientPriv : public SocketPriv
+struct SocketTlsClientImpl : public SocketImpl
 {
   using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
 
-  SocketTlsClientPriv(int family,
+  SocketTlsClientImpl(int family,
                       int type,
                       int protocol,
                       char const *certFilePath,
                       char const *keyFilePath);
-  SocketTlsClientPriv(SocketPriv &&sock, SSL_CTX *ctx);
-  ~SocketTlsClientPriv() override;
+  SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx);
+  ~SocketTlsClientImpl() override;
 
   // waits for readable
   std::optional<size_t> Receive(char *data,
@@ -70,7 +70,7 @@ struct SocketTlsClientPriv : public SocketPriv
   bool Wait(int code, Duration timeout);
 };
 
-struct SocketTlsServerPriv : public SocketPriv
+struct SocketTlsServerImpl : public SocketImpl
 {
   // context is reference-counted by itself: used for transport to sessions only
   using CtxPtr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
@@ -78,12 +78,12 @@ struct SocketTlsServerPriv : public SocketPriv
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   CtxPtr ctx;  ///< OpenSSL context to be shared with all accepted clients
 
-  SocketTlsServerPriv(int family,
+  SocketTlsServerImpl(int family,
                       int type,
                       int protocol,
                       char const *certFilePath,
                       char const *keyFilePath);
-  ~SocketTlsServerPriv() override;
+  ~SocketTlsServerImpl() override;
 
   std::pair<SocketTcpClient, Address>
   Accept() override;
@@ -93,4 +93,4 @@ struct SocketTlsServerPriv : public SocketPriv
 
 #endif // SOCKPUPPET_WITH_TLS
 
-#endif // SOCKPUPPET_SOCKET_TLS_PRIV_H
+#endif // SOCKPUPPET_SOCKET_TLS_IMPL_H

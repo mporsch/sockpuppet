@@ -1,20 +1,20 @@
-#include "socket_async_priv.h"
-#include "driver_priv.h" // for DriverPriv
+#include "socket_async_impl.h"
+#include "driver_impl.h" // for DriverImpl
 
 #include <cassert> // for assert
 #include <stdexcept> // for std::runtime_error
 
 namespace sockpuppet {
 
-SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketPriv> &&sock,
+SocketAsyncImpl::SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock,
     DriverShared &driver, Handlers handlers)
-  : SocketAsyncPriv(std::make_unique<SocketBufferedPriv>(std::move(sock), 0U, 0U),
+  : SocketAsyncImpl(std::make_unique<SocketBufferedImpl>(std::move(sock), 0U, 0U),
                     driver,
                     std::move(handlers))
 {
 }
 
-SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff,
+SocketAsyncImpl::SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
     DriverShared &driver, Handlers handlers)
   : buff(std::move(buff))
   , driver(driver)
@@ -28,25 +28,25 @@ SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff,
   }
 }
 
-SocketAsyncPriv::~SocketAsyncPriv()
+SocketAsyncImpl::~SocketAsyncImpl()
 {
   if(auto const ptr = driver.lock()) {
     ptr->AsyncUnregister(buff->sock->fd);
   }
 }
 
-std::future<void> SocketAsyncPriv::Send(BufferPtr &&buffer)
+std::future<void> SocketAsyncImpl::Send(BufferPtr &&buffer)
 {
   return DoSend(sendQ, std::move(buffer));
 }
 
-std::future<void> SocketAsyncPriv::SendTo(BufferPtr &&buffer, AddressShared dstAddr)
+std::future<void> SocketAsyncImpl::SendTo(BufferPtr &&buffer, AddressShared dstAddr)
 {
   return DoSend(sendToQ, std::move(buffer), std::move(dstAddr));
 }
 
 template<typename Queue, typename... Args>
-std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
+std::future<void> SocketAsyncImpl::DoSend(Queue &q, Args&&... args)
 {
   std::promise<void> promise;
   auto ret = promise.get_future();
@@ -69,7 +69,7 @@ std::future<void> SocketAsyncPriv::DoSend(Queue &q, Args&&... args)
   return ret;
 }
 
-void SocketAsyncPriv::DriverDoFdTaskReadable()
+void SocketAsyncImpl::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
     auto [sock, addr] = buff->sock->Accept();
@@ -91,7 +91,7 @@ try {
   DriverDoFdTaskError();
 }
 
-bool SocketAsyncPriv::DriverDoFdTaskWritable()
+bool SocketAsyncImpl::DriverDoFdTaskWritable()
 {
   // hold the lock during send/sendto
   // as we already checked that the socket will not block and
@@ -116,7 +116,7 @@ bool SocketAsyncPriv::DriverDoFdTaskWritable()
   return false;
 }
 
-bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
+bool SocketAsyncImpl::DriverDoSend(SendQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
@@ -137,7 +137,7 @@ bool SocketAsyncPriv::DriverDoSend(SendQElement &t)
   return true;
 }
 
-void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
+void SocketAsyncImpl::DriverDoSendTo(SendToQElement &t)
 {
   auto &&promise = std::get<0>(t);
   try {
@@ -152,7 +152,7 @@ void SocketAsyncPriv::DriverDoSendTo(SendToQElement &t)
   }
 }
 
-void SocketAsyncPriv::DriverDoFdTaskError()
+void SocketAsyncImpl::DriverDoFdTaskError()
 {
   if(handlers.disconnect) {
     handlers.disconnect(Address(peerAddr));

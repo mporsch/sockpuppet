@@ -1,7 +1,7 @@
 #include "sockpuppet/socket_async.h"
-#include "driver_priv.h" // for DriverPriv
-#include "socket_async_priv.h" // for SocketAsyncPriv
-#include "todo_priv.h" // for ToDoPriv
+#include "driver_impl.h" // for DriverImpl
+#include "socket_async_impl.h" // for SocketAsyncImpl
+#include "todo_impl.h" // for ToDoImpl
 
 #include <stdexcept> // for std::logic_error
 
@@ -19,23 +19,23 @@ namespace {
 } // unnamed namespace
 
 Driver::Driver()
-  : priv(std::make_shared<DriverPriv>())
+  : impl(std::make_shared<DriverImpl>())
 {
 }
 
 void Driver::Step(Duration timeout)
 {
-  priv->Step(timeout);
+  impl->Step(timeout);
 }
 
 void Driver::Run()
 {
-  priv->Run();
+  impl->Run();
 }
 
 void Driver::Stop()
 {
-  priv->Stop();
+  impl->Stop();
 }
 
 Driver::Driver(Driver &&other) noexcept = default;
@@ -46,35 +46,35 @@ Driver &Driver::operator=(Driver &&other) noexcept = default;
 
 
 ToDo::ToDo(Driver &driver, std::function<void()> task)
-  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task)))
+  : impl(std::make_shared<ToDoImpl>(driver.impl, std::move(task)))
 {
 }
 
 ToDo::ToDo(Driver &driver, std::function<void()> task, TimePoint when)
-  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), when))
+  : impl(std::make_shared<ToDoImpl>(driver.impl, std::move(task), when))
 {
-  driver.priv->ToDoInsert(priv);
+  driver.impl->ToDoInsert(impl);
 }
 
 ToDo::ToDo(Driver &driver, std::function<void()> task, Duration delay)
-  : priv(std::make_shared<ToDoPriv>(driver.priv, std::move(task), Clock::now() + delay))
+  : impl(std::make_shared<ToDoImpl>(driver.impl, std::move(task), Clock::now() + delay))
 {
-  driver.priv->ToDoInsert(priv);
+  driver.impl->ToDoInsert(impl);
 }
 
 void ToDo::Cancel()
 {
-  priv->Cancel();
+  impl->Cancel();
 }
 
 void ToDo::Shift(TimePoint when)
 {
-  priv->Shift(when);
+  impl->Shift(when);
 }
 
 void ToDo::Shift(Duration delay)
 {
-  priv->Shift(Clock::now() + delay);
+  impl->Shift(Clock::now() + delay);
 }
 
 ToDo::ToDo(ToDo &&other) noexcept = default;
@@ -86,10 +86,10 @@ ToDo &ToDo::operator=(ToDo &&other) noexcept = default;
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
     Driver &driver, ReceiveFromHandler handleReceiveFrom)
-  : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(buff.priv),
-      driver.priv,
-      SocketAsyncPriv::Handlers{
+  : impl(std::make_unique<SocketAsyncImpl>(
+      std::move(buff.impl),
+      driver.impl,
+      SocketAsyncImpl::Handlers{
         nullptr
       , std::move(checked(handleReceiveFrom))
       , nullptr
@@ -101,12 +101,12 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
 std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
     Address const &dstAddress)
 {
-  return priv->SendTo(std::move(buffer), dstAddress.priv);
+  return impl->SendTo(std::move(buffer), dstAddress.impl);
 }
 
 Address SocketUdpAsync::LocalAddress() const
 {
-  return Address(priv->buff->sock->GetSockName());
+  return Address(impl->buff->sock->GetSockName());
 }
 
 SocketUdpAsync::SocketUdpAsync(SocketUdpAsync &&other) noexcept = default;
@@ -119,10 +119,10 @@ SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept = def
 SocketTcpAsyncClient::SocketTcpAsyncClient(
     SocketTcpBuffered &&buff, Driver &driver,
     ReceiveHandler handleReceive, DisconnectHandler handleDisconnect)
-  : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(buff.priv),
-      driver.priv,
-      SocketAsyncPriv::Handlers{
+  : impl(std::make_unique<SocketAsyncImpl>(
+      std::move(buff.impl),
+      driver.impl,
+      SocketAsyncImpl::Handlers{
         std::move(checked(handleReceive))
       , nullptr
       , nullptr
@@ -133,17 +133,17 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
 
 std::future<void> SocketTcpAsyncClient::Send(BufferPtr &&buffer)
 {
-  return priv->Send(std::move(buffer));
+  return impl->Send(std::move(buffer));
 }
 
 Address SocketTcpAsyncClient::LocalAddress() const
 {
-  return Address(priv->buff->sock->GetSockName());
+  return Address(impl->buff->sock->GetSockName());
 }
 
 Address SocketTcpAsyncClient::PeerAddress() const
 {
-  return Address(priv->buff->sock->GetPeerName());
+  return Address(impl->buff->sock->GetPeerName());
 }
 
 SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept = default;
@@ -155,22 +155,22 @@ SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&oth
 
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
     Driver &driver, ConnectHandler handleConnect)
-  : priv(std::make_unique<SocketAsyncPriv>(
-      std::move(sock.priv),
-      driver.priv,
-      SocketAsyncPriv::Handlers{
+  : impl(std::make_unique<SocketAsyncImpl>(
+      std::move(sock.impl),
+      driver.impl,
+      SocketAsyncImpl::Handlers{
         nullptr
       , nullptr
       , std::move(checked(handleConnect))
       , nullptr
       }))
 {
-  priv->buff->sock->Listen();
+  impl->buff->sock->Listen();
 }
 
 Address SocketTcpAsyncServer::LocalAddress() const
 {
-  return Address(priv->buff->sock->GetSockName());
+  return Address(impl->buff->sock->GetSockName());
 }
 
 SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept = default;

@@ -1,7 +1,7 @@
-#ifndef SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
-#define SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_BUFFERED_IMPL_H
+#define SOCKPUPPET_SOCKET_BUFFERED_IMPL_H
 
-#include "socket_priv.h" // for SocketPriv
+#include "socket_impl.h" // for SocketImpl
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket_buffered.h" // for BufferPool
 
@@ -12,18 +12,18 @@
 
 namespace sockpuppet {
 
-struct SocketBufferedPriv
+struct SocketBufferedImpl
 {
-  std::unique_ptr<SocketPriv> sock;
+  std::unique_ptr<SocketImpl> sock;
   std::unique_ptr<BufferPool> pool;
   size_t rxBufSize;
 
-  SocketBufferedPriv(std::unique_ptr<SocketPriv> &&sock,
+  SocketBufferedImpl(std::unique_ptr<SocketImpl> &&sock,
                      size_t rxBufCount,
                      size_t rxBufSize);
-  SocketBufferedPriv(SocketBufferedPriv const &) = delete;
-  SocketBufferedPriv(SocketBufferedPriv &&other) noexcept;
-  ~SocketBufferedPriv();
+  SocketBufferedImpl(SocketBufferedImpl const &) = delete;
+  SocketBufferedImpl(SocketBufferedImpl &&other) noexcept;
+  ~SocketBufferedImpl();
 
   BufferPtr GetBuffer();
 
@@ -38,4 +38,4 @@ struct SocketBufferedPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_SOCKET_BUFFERED_PRIV_H
+#endif // SOCKPUPPET_SOCKET_BUFFERED_IMPL_H

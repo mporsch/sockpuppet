@@ -1,4 +1,4 @@
-#include "socket_priv.h"
+#include "socket_impl.h"
 #include "error_code.h" // for SocketError
 #include "wait.h" // for WaitReadableBlocking
 
@@ -103,7 +103,7 @@ T GetSockOpt(SOCKET fd, int id, char const *errorMessage)
 
 } // unnamed namespace
 
-SocketPriv::SocketPriv(int family, int type, int protocol)
+SocketImpl::SocketImpl(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
   , fd(::socket(family, type, protocol))
 {
@@ -112,7 +112,7 @@ SocketPriv::SocketPriv(int family, int type, int protocol)
   }
 }
 
-SocketPriv::SocketPriv(SOCKET fd)
+SocketImpl::SocketImpl(SOCKET fd)
   : fd(fd)
 {
   if(fd == fdInvalid) {
@@ -120,13 +120,13 @@ SocketPriv::SocketPriv(SOCKET fd)
   }
 }
 
-SocketPriv::SocketPriv(SocketPriv &&other) noexcept
+SocketImpl::SocketImpl(SocketImpl &&other) noexcept
   : fd(other.fd)
 {
   other.fd = fdInvalid;
 }
 
-SocketPriv::~SocketPriv()
+SocketImpl::~SocketImpl()
 {
   if(fd != fdInvalid) {
     CloseSocket(fd);
@@ -134,7 +134,7 @@ SocketPriv::~SocketPriv()
 }
 
 // used for TCP only
-std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration timeout)
+std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
@@ -142,7 +142,7 @@ std::optional<size_t> SocketPriv::Receive(char *data, size_t size, Duration time
   return {Receive(data, size)};
 }
 
-size_t SocketPriv::Receive(char *data, size_t size)
+size_t SocketImpl::Receive(char *data, size_t size)
 {
   static int const flags = 0;
   auto const received = ::recv(fd,
@@ -158,7 +158,7 @@ size_t SocketPriv::Receive(char *data, size_t size)
 
 // used for UDP only
 std::optional<std::pair<size_t, Address>>
-SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
+SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
@@ -167,7 +167,7 @@ SocketPriv::ReceiveFrom(char *data, size_t size, Duration timeout)
 }
 
 std::pair<size_t, Address>
-SocketPriv::ReceiveFrom(char *data, size_t size)
+SocketImpl::ReceiveFrom(char *data, size_t size)
 {
   static int const flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
@@ -185,14 +185,14 @@ SocketPriv::ReceiveFrom(char *data, size_t size)
 //   the user enqueues faster than the NIC can send or the peer can process
 //   network losses/delay causes retransmissions
 // causing the OS send buffer to fill up
-size_t SocketPriv::Send(char const *data, size_t size, Duration timeout)
+size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 {
   return (timeout.count() < 0 ?
             SendAll(data, size) :
             SendSome(data, size, timeout));
 }
 
-size_t SocketPriv::SendAll(char const *data, size_t size)
+size_t SocketImpl::SendAll(char const *data, size_t size)
 {
   // set flags to block until everything is sent
   auto const sent = DoSend(fd, data, size, sendAllFlags);
@@ -200,7 +200,7 @@ size_t SocketPriv::SendAll(char const *data, size_t size)
   return sent;
 }
 
-size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
+size_t SocketImpl::SendSome(char const *data, size_t size, Duration timeout)
 {
   size_t sent = 0U;
   DeadlineLimited deadline(timeout);
@@ -214,7 +214,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size, Duration timeout)
   return sent;
 }
 
-size_t SocketPriv::SendSome(char const *data, size_t size)
+size_t SocketImpl::SendSome(char const *data, size_t size)
 {
   // set flags to send only what can be sent without blocking
   return DoSend(fd, data, size, sendSomeFlags);
@@ -223,7 +223,7 @@ size_t SocketPriv::SendSome(char const *data, size_t size)
 // UDP send will block only rarely,
 // if the user enqueues faster than the NIC can send
 // causing the OS send buffer to fill up
-size_t SocketPriv::SendTo(char const *data, size_t size,
+size_t SocketImpl::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
   if(!WaitWritable(timeout)) {
@@ -232,7 +232,7 @@ size_t SocketPriv::SendTo(char const *data, size_t size,
   return SendTo(data, size, dstAddr);
 }
 
-size_t SocketPriv::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
+size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
 {
   static int const flags = 0;
   auto const sent = ::sendto(fd,
@@ -248,7 +248,7 @@ size_t SocketPriv::SendTo(char const *data, size_t size, SockAddrView const &dst
   return static_cast<size_t>(sent);
 }
 
-void SocketPriv::Connect(SockAddrView const &connectAddr)
+void SocketImpl::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
     auto const error = SocketError(); // cache before risking another
@@ -256,7 +256,7 @@ void SocketPriv::Connect(SockAddrView const &connectAddr)
   }
 }
 
-void SocketPriv::Bind(SockAddrView const &bindAddr)
+void SocketImpl::Bind(SockAddrView const &bindAddr)
 {
   if(::bind(fd, bindAddr.addr, bindAddr.addrLen)) {
     auto const error = SocketError(); // cache before risking another
@@ -264,7 +264,7 @@ void SocketPriv::Bind(SockAddrView const &bindAddr)
   }
 }
 
-void SocketPriv::Listen()
+void SocketImpl::Listen()
 {
   static int const backlog = 128;
   if(::listen(fd, backlog)) {
@@ -273,7 +273,7 @@ void SocketPriv::Listen()
 }
 
 std::optional<std::pair<SocketTcpClient, Address>>
-SocketPriv::Accept(Duration timeout)
+SocketImpl::Accept(Duration timeout)
 {
   if(!WaitReadable(timeout)) {
     return {std::nullopt}; // timeout exceeded
@@ -282,42 +282,42 @@ SocketPriv::Accept(Duration timeout)
 }
 
 std::pair<SocketTcpClient, Address>
-SocketPriv::Accept()
+SocketImpl::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
   return {
-    SocketTcpClient(std::make_unique<SocketPriv>(client)),
+    SocketTcpClient(std::make_unique<SocketImpl>(client)),
     Address(std::move(sas))
   };
 }
 
-bool SocketPriv::WaitReadable(Duration timeout)
+bool SocketImpl::WaitReadable(Duration timeout)
 {
   return WaitReadableBlocking(fd, timeout);
 }
 
-bool SocketPriv::WaitWritable(Duration timeout)
+bool SocketImpl::WaitWritable(Duration timeout)
 {
   return WaitWritableBlocking(fd, timeout);
 }
 
-void SocketPriv::SetSockOptNonBlocking()
+void SocketImpl::SetSockOptNonBlocking()
 {
   SetBlocking(fd, false, "failed to set socket option non-blocking");
 }
 
-void SocketPriv::SetSockOptReuseAddr()
+void SocketImpl::SetSockOptReuseAddr()
 {
   SetSockOpt(fd, SO_REUSEADDR, 1, "failed to set socket option address reuse");
 }
 
-void SocketPriv::SetSockOptBroadcast()
+void SocketImpl::SetSockOptBroadcast()
 {
   SetSockOpt(fd, SO_BROADCAST, 1, "failed to set socket option broadcast");
 }
 
-void SocketPriv::SetSockOptNoSigPipe()
+void SocketImpl::SetSockOptNoSigPipe()
 {
 #ifdef SO_NOSIGPIPE
   // avoid SIGPIPE on connection closed (in OSX)
@@ -325,7 +325,7 @@ void SocketPriv::SetSockOptNoSigPipe()
 #endif // SO_NOSIGPIPE
 }
 
-size_t SocketPriv::GetSockOptRcvBuf() const
+size_t SocketImpl::GetSockOptRcvBuf() const
 {
   auto size = GetSockOpt<int>(fd, SO_RCVBUF, "failed to get socket receive buffer size");
   if(size < 0) {
@@ -334,7 +334,7 @@ size_t SocketPriv::GetSockOptRcvBuf() const
   return static_cast<size_t>(size);
 }
 
-std::shared_ptr<SockAddrStorage> SocketPriv::GetSockName() const
+std::shared_ptr<SockAddrStorage> SocketImpl::GetSockName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
   if(::getsockname(fd, sas->Addr(), sas->AddrLen())) {
@@ -343,7 +343,7 @@ std::shared_ptr<SockAddrStorage> SocketPriv::GetSockName() const
   return sas;
 }
 
-std::shared_ptr<SockAddrStorage> SocketPriv::GetPeerName() const
+std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
 {
   auto sas = std::make_shared<SockAddrStorage>();
   if(::getpeername(fd, sas->Addr(), sas->AddrLen())) {

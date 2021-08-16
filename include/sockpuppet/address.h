@@ -49,8 +49,8 @@ struct Address
   /// Return a list of the OS's network interface addresses.
   static std::vector<Address> LocalAddresses();
 
-  struct AddressPriv;
-  Address(std::shared_ptr<AddressPriv> other);
+  struct AddressImpl;
+  Address(std::shared_ptr<AddressImpl> other);
   Address(Address const &other);
   Address(Address &&other) noexcept;
   ~Address();
@@ -61,7 +61,7 @@ struct Address
   bool operator!=(Address const &other) const;
 
   /// Bridge to hide away the OS-specifics.
-  std::shared_ptr<AddressPriv> priv;
+  std::shared_ptr<AddressImpl> impl;
 };
 
 /// String format address as "host:port"

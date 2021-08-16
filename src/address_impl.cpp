@@ -1,4 +1,4 @@
-#include "address_priv.h"
+#include "address_impl.h"
 #include "error_code.h" // for AddressError
 
 #include <algorithm> // for std::count
@@ -160,11 +160,11 @@ bool SockAddrView::operator!=(SockAddrView const &other) const
 }
 
 
-Address::AddressPriv::AddressPriv() = default;
+Address::AddressImpl::AddressImpl() = default;
 
-Address::AddressPriv::~AddressPriv() = default;
+Address::AddressImpl::~AddressImpl() = default;
 
-std::string Address::AddressPriv::Host() const
+std::string Address::AddressImpl::Host() const
 {
   auto const sockAddr = ForAny();
 
@@ -181,7 +181,7 @@ std::string Address::AddressPriv::Host() const
   return host;
 }
 
-std::string Address::AddressPriv::Service() const
+std::string Address::AddressImpl::Service() const
 {
   auto const sockAddr = ForAny();
 
@@ -198,7 +198,7 @@ std::string Address::AddressPriv::Service() const
   return service;
 }
 
-uint16_t Address::AddressPriv::Port() const
+uint16_t Address::AddressImpl::Port() const
 {
   auto const sockAddr = ForAny();
   auto const num = IsV6() ?
@@ -207,45 +207,45 @@ uint16_t Address::AddressPriv::Port() const
   return ntohs(num); // careful; ntohs is a fragile macro in OSX
 }
 
-bool Address::AddressPriv::IsV6() const
+bool Address::AddressImpl::IsV6() const
 {
   return (Family() == AF_INET6);
 }
 
-bool Address::AddressPriv::operator<(
-    AddressPriv const &other) const
+bool Address::AddressImpl::operator<(
+    AddressImpl const &other) const
 {
   return (ForAny() < other.ForAny());
 }
 
-bool Address::AddressPriv::operator==(
-    AddressPriv const &other) const
+bool Address::AddressImpl::operator==(
+    AddressImpl const &other) const
 {
   return (ForAny() == other.ForAny());
 }
 
-bool Address::AddressPriv::operator!=(
-    AddressPriv const &other) const
+bool Address::AddressImpl::operator!=(
+    AddressImpl const &other) const
 {
   return (ForAny() != other.ForAny());
 }
 
 
 SockAddrInfo::SockAddrInfo(std::string const &uri)
-  : AddressPriv()
+  : AddressImpl()
   , info(ParseUri(uri))
 {
 }
 
 SockAddrInfo::SockAddrInfo(std::string const &host,
     std::string const &serv)
-  : AddressPriv()
+  : AddressImpl()
   , info(ParseHostServ(host, serv))
 {
 }
 
 SockAddrInfo::SockAddrInfo(uint16_t port)
-  : AddressPriv()
+  : AddressImpl()
   , info(ParsePort(std::to_string(port)))
 {
 }
@@ -304,14 +304,14 @@ int SockAddrInfo::Family() const
 
 
 SockAddrStorage::SockAddrStorage()
-  : AddressPriv()
+  : AddressImpl()
   , storage{}
   , size(sizeof(storage))
 {
 }
 
 SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
-  : AddressPriv()
+  : AddressImpl()
   , storage{}
   , size(static_cast<socklen_t>(addrLen))
 {
@@ -354,7 +354,7 @@ int SockAddrStorage::Family() const
 }
 
 
-std::string to_string(Address::AddressPriv const &sockAddr)
+std::string to_string(Address::AddressImpl const &sockAddr)
 {
   return to_string(sockAddr.ForAny());
 }

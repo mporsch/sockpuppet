@@ -1,10 +1,10 @@
-#ifndef SOCKPUPPET_DRIVER_PRIV_H
-#define SOCKPUPPET_DRIVER_PRIV_H
+#ifndef SOCKPUPPET_DRIVER_IMPL_H
+#define SOCKPUPPET_DRIVER_IMPL_H
 
-#include "socket_priv.h" // for SocketPriv
+#include "socket_impl.h" // for SocketImpl
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket_async.h" // for Driver
-#include "todo_priv.h" // for ToDos
+#include "todo_impl.h" // for ToDos
 
 #ifdef _WIN32
 # include <winsock2.h> // for pollfd
@@ -20,10 +20,10 @@
 
 namespace sockpuppet {
 
-struct Driver::DriverPriv
+struct Driver::DriverImpl
 {
-  using AddressShared = std::shared_ptr<Address::AddressPriv>;
-  using SocketRef = std::reference_wrapper<SocketAsyncPriv>;
+  using AddressShared = std::shared_ptr<Address::AddressImpl>;
+  using SocketRef = std::reference_wrapper<SocketAsyncImpl>;
 
   // StepGuard and StopGuard perform a handshake to obtain stepMtx
   // with pauseMtx used to force Step() to yield
@@ -33,7 +33,7 @@ struct Driver::DriverPriv
     std::unique_lock<std::recursive_mutex> stepLock;
     std::unique_lock<std::mutex> pauseLock;
 
-    StepGuard(DriverPriv &priv);
+    StepGuard(DriverImpl &impl);
     StepGuard(StepGuard const &) = delete;
     StepGuard(StepGuard &&) = delete;
     ~StepGuard();
@@ -45,7 +45,7 @@ struct Driver::DriverPriv
   {
     std::unique_lock<std::recursive_mutex> stepLock;
 
-    PauseGuard(DriverPriv &priv);
+    PauseGuard(DriverImpl &impl);
     PauseGuard(PauseGuard const &) = delete;
     PauseGuard(PauseGuard &&) = delete;
     ~PauseGuard();
@@ -55,8 +55,8 @@ struct Driver::DriverPriv
 
   /// internal signalling pipe for cancelling Step()
   AddressShared pipeToAddr;
-  SocketPriv pipeFrom;
-  SocketPriv pipeTo;
+  SocketImpl pipeFrom;
+  SocketImpl pipeTo;
 
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
@@ -66,12 +66,12 @@ struct Driver::DriverPriv
 
   std::atomic<bool> shouldStop; ///< flag for cancelling Run()
 
-  DriverPriv();
-  DriverPriv(DriverPriv const &) = delete;
-  DriverPriv(DriverPriv &&) = delete;
-  ~DriverPriv();
-  DriverPriv &operator=(DriverPriv const &) = delete;
-  DriverPriv &operator=(DriverPriv &&) = delete;
+  DriverImpl();
+  DriverImpl(DriverImpl const &) = delete;
+  DriverImpl(DriverImpl &&) = delete;
+  ~DriverImpl();
+  DriverImpl &operator=(DriverImpl const &) = delete;
+  DriverImpl &operator=(DriverImpl &&) = delete;
 
   void Step(Duration timeout);
   template<typename Deadline>
@@ -81,13 +81,13 @@ struct Driver::DriverPriv
   void Run();
   void Stop();
 
-  // interface for ToDoPriv
+  // interface for ToDoImpl
   void ToDoInsert(ToDoShared todo);
-  void ToDoRemove(ToDo::ToDoPriv *todo);
+  void ToDoRemove(ToDo::ToDoImpl *todo);
   void ToDoMove(ToDoShared todo, TimePoint when);
 
-  // interface for SocketAsyncPriv
-  void AsyncRegister(SocketAsyncPriv &sock);
+  // interface for SocketAsyncImpl
+  void AsyncRegister(SocketAsyncImpl &sock);
   void AsyncUnregister(SOCKET fd);
   void AsyncWantSend(SOCKET fd);
 
@@ -99,4 +99,4 @@ struct Driver::DriverPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_DRIVER_PRIV_H
+#endif // SOCKPUPPET_DRIVER_IMPL_H

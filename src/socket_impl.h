@@ -1,7 +1,7 @@
-#ifndef SOCKPUPPET_SOCKET_PRIV_H
-#define SOCKPUPPET_SOCKET_PRIV_H
+#ifndef SOCKPUPPET_SOCKET_IMPL_H
+#define SOCKPUPPET_SOCKET_IMPL_H
 
-#include "address_priv.h" // for SockAddrView
+#include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket.h" // for SocketTcpClient
 #include "winsock_guard.h" // for WinSockGuard
@@ -19,18 +19,18 @@ using SOCKET = int;
 
 namespace sockpuppet {
 
-struct SocketPriv
+struct SocketImpl
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
   SOCKET fd;  ///< Socket file descriptor
 
-  SocketPriv(int family,
+  SocketImpl(int family,
              int type,
              int protocol);
-  SocketPriv(SOCKET fd);
-  SocketPriv(SocketPriv const &) = delete;
-  SocketPriv(SocketPriv &&other) noexcept;
-  virtual ~SocketPriv();
+  SocketImpl(SOCKET fd);
+  SocketImpl(SocketImpl const &) = delete;
+  SocketImpl(SocketImpl &&other) noexcept;
+  virtual ~SocketImpl();
 
   // waits for readable
   virtual std::optional<size_t> Receive(char *data,
@@ -92,4 +92,4 @@ struct SocketPriv
 
 } // namespace sockpuppet
 
-#endif // SOCKPUPPET_SOCKET_PRIV_H
+#endif // SOCKPUPPET_SOCKET_IMPL_H
