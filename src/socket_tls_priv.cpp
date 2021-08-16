@@ -14,31 +14,28 @@ namespace {
 
 static Duration const noBlock(0);
 
-struct IgnoreSigPipeGuard
+void IgnoreSigPipe()
 {
-  IgnoreSigPipeGuard()
-  {
 #ifndef SO_NOSIGPIPE
 # ifdef SIGPIPE
-    // in Linux (where no other SIGPIPE workaround with OpenSSL
-    // is available) ignore signal once for each thread we run in
-    struct Shared
+  struct PerThread
+  {
+    PerThread()
     {
-      Shared()
-      {
-        // avoid SIGPIPE on connection closed
-        // which might occur during SSL_write() or SSL_do_handshake()
-        if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-          throw std::logic_error("failed to ignore SIGPIPE");
-        }
+      // avoid SIGPIPE on connection closed
+      // which might occur during SSL_write() or SSL_do_handshake()
+      if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+        throw std::logic_error("failed to ignore SIGPIPE");
       }
-    };
+    }
+  };
 
-    thread_local Shared const instance;
+  // in Linux (where no other SIGPIPE workaround with OpenSSL
+  // is available) ignore signal once for each thread we run in
+  thread_local PerThread const instance;
 # endif // SIGPIPE
 #endif // SO_NOSIGPIPE
-  }
-};
+}
 
 void ConfigureContext(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
@@ -76,8 +73,8 @@ SocketTlsServerPriv::CtxPtr CreateContext(SSL_METHOD const *method,
 void FreeSsl(SSL *ssl)
 {
   if(ssl) {
-      SSL_shutdown(ssl);
-      SSL_free(ssl);
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
   }
 }
 
@@ -143,7 +140,7 @@ template<typename Deadline>
 size_t SocketTlsClientPriv::Receive(char *data, size_t size,
     Deadline &&deadline)
 {
-  IgnoreSigPipeGuard const guard;
+  IgnoreSigPipe();
 
   // run in a loop, as OpenSSL might require a handshake at any time
   for(;;) {
@@ -180,9 +177,9 @@ template<typename Deadline>
 size_t SocketTlsClientPriv::SendSome(char const *data, size_t size,
     Deadline &&deadline)
 {
-  IgnoreSigPipeGuard const guard;
-  size_t sent = 0U;
+  IgnoreSigPipe();
 
+  size_t sent = 0U;
   // run in a loop, as OpenSSL might require a handshake at any time
   do {
     auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
@@ -197,7 +194,6 @@ size_t SocketTlsClientPriv::SendSome(char const *data, size_t size,
       sent += static_cast<size_t>(res);
     }
   } while(sent < size);
-
   return sent;
 }
 
@@ -212,7 +208,7 @@ void SocketTlsClientPriv::Connect(SockAddrView const &connectAddr)
   SocketPriv::SetSockOptNonBlocking();
 
   SSL_set_connect_state(ssl.get());
-  IgnoreSigPipeGuard const guard;
+  IgnoreSigPipe();
   (void)SSL_do_handshake(ssl.get()); // initiate the handshake
 }
 
@@ -260,7 +256,7 @@ SocketTlsServerPriv::Accept()
       ctx.get());
 
   SSL_set_accept_state(clientTls->ssl.get());
-  IgnoreSigPipeGuard const guard;
+  IgnoreSigPipe();
   (void)SSL_do_handshake(clientTls->ssl.get()); // initiate the handshake
 
   return {SocketTcpClient(std::move(clientTls)), std::move(addr)};

@@ -23,8 +23,7 @@ namespace {
       // we are the first instance -> initialize
       (void)SSL_library_init();
       SSL_load_error_strings();
-      // TODO OPENSSL_config / OPENSSL_noconfig
-      // no multithreading within the library, so no OpenSSL thread init
+      // XXX OpenSSL thread locking needed?
     } else if(prev == 1 && curr == 0) {
       // we are the last instance -> cleanup
       EVP_cleanup();
