@@ -9,7 +9,7 @@ endif()
 option(BUILD_TESTS "Build test executables" TRUE)
 option(BUILD_EXAMPLES "Build example executables" TRUE)
 option(BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
-option(WITH_TLS "Build with OpenSSL (or compatible)" FALSE)
+option(WITH_TLS "Build with support for encrypted connections using OpenSSL (or compatible)" FALSE)
 
 if(${BUILD_SHARED_LIBS})
   # auto-generate DLL exports for Windows
@@ -75,19 +75,19 @@ target_include_directories(sockpuppet PUBLIC
 )
 
 if(${WITH_TLS})
-    # LibreSSL works fine as well, just had to remove version suffix from installed libs filenames
-    message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
-    find_package(OpenSSL REQUIRED)
+  # LibreSSL works fine as well, just had to remove version suffix from installed lib filenames
+  message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
+  find_package(OpenSSL REQUIRED)
 
-    # add define for preprocessor switches in source files and public includes and export file
-    target_compile_definitions(sockpuppet PUBLIC SOCKPUPPET_WITH_TLS)
+  # add define for preprocessor switches in source files, public includes and export file
+  target_compile_definitions(sockpuppet PUBLIC SOCKPUPPET_WITH_TLS)
 
-    list(APPEND DEPENDENCIES
-      OpenSSL::SSL
-      OpenSSL::Crypto
-      $<$<PLATFORM_ID:Windows>:bcrypt>
-      $<$<PLATFORM_ID:Linux>:pthread>
-    )
+  list(APPEND DEPENDENCIES
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    $<$<PLATFORM_ID:Windows>:bcrypt>
+    $<$<PLATFORM_ID:Linux>:pthread>
+  )
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
