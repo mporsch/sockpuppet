@@ -11,7 +11,7 @@ using namespace sockpuppet;
 // socket driver to run multiple client connections in one thread
 static Driver driver;
 
-// storage for connected client sockets
+// storage for connected client connection sockets
 static std::map<Address, SocketTcpAsyncClient> clients;
 
 void HandleSignal(int)
@@ -59,7 +59,7 @@ void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
         HandleDisconnect);
 
   // store the augmented client socket
-  // (letting it go out of scope would otherwise close it immediately)
+  // (going out of scope would otherwise close it immediately)
   (void)clients.emplace(std::make_pair(std::move(clientAddr), std::move(clientAsync)));
 }
 

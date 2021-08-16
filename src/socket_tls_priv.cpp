@@ -249,21 +249,21 @@ SocketTlsServerPriv::SocketTlsServerPriv(int family, int type, int protocol,
 
 SocketTlsServerPriv::~SocketTlsServerPriv() = default;
 
-std::pair<std::unique_ptr<SocketPriv>, Address>
+std::pair<SocketTcpClient, Address>
 SocketTlsServerPriv::Accept()
 {
   auto [client, addr] = SocketPriv::Accept();
-  client->SetSockOptNonBlocking();
+  client.priv->SetSockOptNonBlocking();
 
   auto clientTls = std::make_unique<SocketTlsClientPriv>(
-      std::move(*client),
+      std::move(*client.priv),
       ctx.get());
 
   SSL_set_accept_state(clientTls->ssl.get());
   IgnoreSigPipeGuard const guard;
   (void)SSL_do_handshake(clientTls->ssl.get()); // initiate the handshake
 
-  return {std::move(clientTls), std::move(addr)};
+  return {SocketTcpClient(std::move(clientTls)), std::move(addr)};
 }
 
 } // namespace sockpuppet

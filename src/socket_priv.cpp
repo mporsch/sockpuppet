@@ -272,7 +272,7 @@ void SocketPriv::Listen()
   }
 }
 
-std::optional<std::pair<std::unique_ptr<SocketPriv>, Address>>
+std::optional<std::pair<SocketTcpClient, Address>>
 SocketPriv::Accept(Duration timeout)
 {
   if(!WaitReadable(timeout)) {
@@ -281,13 +281,13 @@ SocketPriv::Accept(Duration timeout)
   return Accept();
 }
 
-std::pair<std::unique_ptr<SocketPriv>, Address>
+std::pair<SocketTcpClient, Address>
 SocketPriv::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
   return {
-    std::make_unique<SocketPriv>(client),
+    SocketTcpClient(std::make_unique<SocketPriv>(client)),
     Address(std::move(sas))
   };
 }

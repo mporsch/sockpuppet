@@ -6,14 +6,16 @@
 
 namespace sockpuppet {
 
-SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketPriv> &&sock, DriverShared &driver, Handlers handlers)
+SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketPriv> &&sock,
+    DriverShared &driver, Handlers handlers)
   : SocketAsyncPriv(std::make_unique<SocketBufferedPriv>(std::move(sock), 0U, 0U),
                     driver,
                     std::move(handlers))
 {
 }
 
-SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff, DriverShared &driver, Handlers handlers)
+SocketAsyncPriv::SocketAsyncPriv(std::unique_ptr<SocketBufferedPriv> &&buff,
+    DriverShared &driver, Handlers handlers)
   : buff(std::move(buff))
   , driver(driver)
   , handlers(std::move(handlers))
@@ -75,9 +77,8 @@ try {
 
     handlers.connect(std::move(sock), std::move(addr));
   } else if(handlers.receive) {
-      // the TLS socket generates non-receipts during handshake
       auto buffer = buff->Receive();
-      if(!buffer->empty()) {
+      if(!buffer->empty()) { // TLS socket received handshake data only
         handlers.receive(std::move(buffer));
       }
   } else if(handlers.receiveFrom) {

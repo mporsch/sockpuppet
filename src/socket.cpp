@@ -130,13 +130,7 @@ std::optional<std::pair<SocketTcpClient, Address>>
 SocketTcpServer::Listen(Duration timeout)
 {
   priv->Listen();
-  if(auto client = priv->Accept(timeout)) {
-    return {{
-      SocketTcpClient(std::move(client->first)),
-      std::move(client->second)
-    }};
-  }
-  return std::nullopt;
+  return priv->Accept(timeout);
 }
 
 Address SocketTcpServer::LocalAddress() const

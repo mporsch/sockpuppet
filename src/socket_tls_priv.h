@@ -85,7 +85,7 @@ struct SocketTlsServerPriv : public SocketPriv
                       char const *keyFilePath);
   ~SocketTlsServerPriv() override;
 
-  std::pair<std::unique_ptr<SocketPriv>, Address>
+  std::pair<SocketTcpClient, Address>
   Accept() override;
 };
 

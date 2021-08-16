@@ -73,9 +73,9 @@ struct SocketPriv
 
   void Listen();
 
-  std::optional<std::pair<std::unique_ptr<SocketPriv>, Address>>
+  std::optional<std::pair<SocketTcpClient, Address>>
   Accept(Duration timeout);
-  virtual std::pair<std::unique_ptr<SocketPriv>, Address>
+  virtual std::pair<SocketTcpClient, Address>
   Accept();
 
   virtual bool WaitReadable(Duration timeout);
