@@ -1,5 +1,5 @@
 # sockpuppet
-Minimalistic and easy-to-use C++ socket and address library without external dependencies.
+Minimalistic and easy-to-use C++ socket and address library.
 
 ## About
 So you want to have network communication in your little program but boost seems just too much? And how hard can this socket stuff be anyhow, eh? - After being there more than once, I write this library with the hope that it spares me from future coding of half-assed single-use sockets.
@@ -13,9 +13,10 @@ So you want to have network communication in your little program but boost seems
 - [x] basic sockets with blocking and non-blocking IO using optional timeout parameter
 - [x] extended sockets with configurable internal resource pool eliminating the need for pre-allocated buffers
 - [x] extended sockets for asynchronous operation using driver thread interface (event handling using *poll*)
+- [x] TCP sockets can be augmented with TLS encryption
 - [x] scheduled tasks to be run at given point in time by driver thread
 - [x] exceptions with meaningful system-provided error messages
-- [x] library includes do not pull any system headers
+- [x] library includes do not pull any system or external headers
 - [x] static and dynamic library build targets
 - [x] some functional tests
 - [x] examples and demo project included
@@ -37,7 +38,9 @@ The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide differ
 * `SocketUdpBuffered` and `SocketTcpBuffered` add an internal receive buffer pool
 * `SocketUdpAsync`, `SocketTcpAsyncClient` and `SocketTcpAsyncServer` are driven by a `Driver` (i.e. a thread) providing asynchronous operation to one or multiple sockets
 
-The `ToDo` class is used for scheduling tasks to run at a given point in time, e.g. periodic heartbeat packet transmissions.
+If built with TLS support, all TCP socket classes can be instantiated with an SSL certificate and private key file to run encrypted connections.
+
+The `ToDo` class is used for scheduling tasks to run at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attemts.
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
