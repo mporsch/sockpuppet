@@ -1,48 +1,16 @@
-#include "sockpuppet/socket_async.h" // for SocketTcpAsyncServer
+#include "sockpuppet/socket.h" // for SocketTcpServer
 
-#include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
-#include <functional> // for std::bind
 #include <iostream> // for std::cout
-#include <map> // for std::map
+#include <string> // for std::string
 
 using namespace sockpuppet;
 
-// socket driver to run multiple client connections in one thread
-static Driver driver;
+void HandleConnect(std::pair<SocketTcpClient, Address> p)
+try {
+  auto &&clientSock = p.first;
+  auto &&clientAddr = p.second;
 
-// storage for connected client connection sockets
-static std::map<Address, SocketTcpAsyncClient> clients;
-
-void HandleSignal(int)
-{
-  driver.Stop();
-}
-
-void HandleReceive(Address clientAddr, BufferPtr buffer)
-{
-  // print whatever has just been received
-  std::cout << to_string(clientAddr)
-            << " says: "
-            << *buffer
-            << std::endl;
-}
-
-void HandleDisconnect(Address clientAddr)
-{
-  std::cout << "connection "
-            << to_string(clientAddr)
-            << " <- "
-            << to_string(clients.at(clientAddr).LocalAddress())
-            << " disconnected"
-            << std::endl;
-
-  // destroying the client socket closes the connection
-  clients.erase(clientAddr);
-}
-
-void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
-{
   std::cout << "connection "
             << to_string(clientAddr)
             << " <- "
@@ -50,43 +18,47 @@ void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
             << " accepted"
             << std::endl;
 
-  // augment the client socket to be an asynchronous one
-  // attached to the same driver as the server socket
-  SocketTcpAsyncClient clientAsync(
-        SocketTcpBuffered(std::move(clientSock)),
-        driver,
-        std::bind(HandleReceive, clientAddr, std::placeholders::_1),
-        HandleDisconnect);
+  // receive and print until Ctrl-C or client disconnect
+  for(;;) {
+    char buffer[256];
+    static Duration const noTimeout(-1);
 
-  // store the augmented client socket
-  // (going out of scope would otherwise close it immediately)
-  (void)clients.emplace(std::make_pair(std::move(clientAddr), std::move(clientAsync)));
+    // wait for and receive incoming data into provided buffer
+    // negative timeout -> blocking until receipt
+    size_t received = *clientSock.Receive(buffer,
+                                          sizeof(buffer),
+                                          noTimeout);
+
+    // print whatever has just been received
+    std::cout << std::string(buffer, received) << std::endl;
+  }
+} catch (std::exception const &e) {
+  // (most probably) client disconnected
+  std::cerr << e.what() << std::endl;
 }
 
 void Server(Address bindAddress)
 {
-  // set up the handler for Ctrl-C
-  if(std::signal(SIGINT, HandleSignal) == SIG_ERR) {
-    throw std::logic_error("failed to set signal handler");
-  }
-
   // bind a TCP server socket to given address
   // (you can turn this into a TLS-encrypted server
   // by adding arguments for certificate and key file path)
-  SocketTcpAsyncServer server(
-      SocketTcpServer(bindAddress),
-      driver,
-      HandleConnect);
+  SocketTcpServer server(bindAddress);
 
-  // print the bound TCP socket address
-  // (might have OS-assigned port number if
-  // it has not been explicitly set in the bind address)
-  std::cout << "listening at "
-            << to_string(server.LocalAddress())
-            << std::endl;
+  // listen for and accept incoming connections until Ctrl-C
+  for(;;) {
+    static Duration const noTimeout(-1);
 
-  // listen for, accept and serve incoming connections until Ctrl-C
-  driver.Run();
+    // print the bound TCP socket address
+    // (might have OS-assigned interface and port number if
+    // it has not been explicitly set in the bind address)
+    std::cout << "listening at "
+              << to_string(server.LocalAddress())
+              << std::endl;
+
+    // wait for and accept incoming connections
+    // negative timeout -> blocking until connection
+    HandleConnect(*server.Listen(noTimeout));
+  }
 }
 
 int main(int argc, char *argv[])

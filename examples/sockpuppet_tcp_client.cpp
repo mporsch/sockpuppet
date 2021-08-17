@@ -14,7 +14,7 @@ void Client(Address remoteAddress)
   SocketTcpClient client(remoteAddress);
 
   // print the bound TCP socket address
-  // (has OS-assigned interface and port number)
+  // (might have OS-assigned interface and port number)
   // and remote address
   std::cout << "established connection "
             << to_string(client.LocalAddress())
