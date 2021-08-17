@@ -76,12 +76,12 @@ struct SocketUdp
 /// TCP (reliable communication) socket class that is either
 /// connected to provided peer address or to a peer accepted
 /// by the TCP server socket.
-struct SocketTcpClient
+struct SocketTcp
 {
   /// Create a TCP socket connected to given address.
   /// @param  connectAddress  Peer address to connect to.
   /// @throws  If connect fails.
-  SocketTcpClient(Address const &connectAddress);
+  SocketTcp(Address const &connectAddress);
 
 #ifdef SOCKPUPPET_WITH_TLS
   /// Create a TLS-enabled TCP socket connected to given address.
@@ -91,9 +91,9 @@ struct SocketTcpClient
   /// @note  While the TCP connection is established immediately,
   ///        the TLS handshake is performed later with subsequent
   ///        send/receive operations.
-  SocketTcpClient(Address const &connectAddress,
-                  char const *certFilePath,
-                  char const *keyFilePath);
+  SocketTcp(Address const &connectAddress,
+            char const *certFilePath,
+            char const *keyFilePath);
 #endif // #ifdef SOCKPUPPET_WITH_TLS
 
   /// Reliably send data to connected peer.
@@ -133,12 +133,12 @@ struct SocketTcpClient
   /// @throws  If getting the socket parameter fails.
   size_t ReceiveBufferSize() const;
 
-  SocketTcpClient(std::unique_ptr<SocketImpl> &&other);
-  SocketTcpClient(SocketTcpClient const &other) = delete;
-  SocketTcpClient(SocketTcpClient &&other) noexcept;
-  ~SocketTcpClient();
-  SocketTcpClient &operator=(SocketTcpClient const &other) = delete;
-  SocketTcpClient &operator=(SocketTcpClient &&other) noexcept;
+  SocketTcp(std::unique_ptr<SocketImpl> &&other);
+  SocketTcp(SocketTcp const &other) = delete;
+  SocketTcp(SocketTcp &&other) noexcept;
+  ~SocketTcp();
+  SocketTcp &operator=(SocketTcp const &other) = delete;
+  SocketTcp &operator=(SocketTcp &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
   std::unique_ptr<SocketImpl> impl;
@@ -147,14 +147,14 @@ struct SocketTcpClient
 /// TCP (reliable communication) socket class that is
 /// bound to provided address and can create client sockets
 /// for incoming peer connections.
-struct SocketTcpServer
+struct Acceptor
 {
   /// Create a TCP server socket bound to given address.
   /// @param  bindAddress  Local interface address to bind to.
   ///                      Unspecified service or port number 0
   ///                      binds to an OS-assigned port.
   /// @throws  If binding fails.
-  SocketTcpServer(Address const &bindAddress);
+  Acceptor(Address const &bindAddress);
 
 #ifdef SOCKPUPPET_WITH_TLS
   /// Create a TLS-enabled TCP server socket bound to given address.
@@ -167,9 +167,9 @@ struct SocketTcpServer
   /// @note  While incoming TCP connections are established immediately,
   ///        their TLS handshake is performed later with subsequent
   ///        send/receive operations.
-  SocketTcpServer(Address const &bindAddress,
-                  char const *certFilePath,
-                  char const *keyFilePath);
+  Acceptor(Address const &bindAddress,
+           char const *certFilePath,
+           char const *keyFilePath);
 #endif // #ifdef SOCKPUPPET_WITH_TLS
 
   /// Listen and accept incoming TCP connections and report the source.
@@ -178,22 +178,26 @@ struct SocketTcpServer
   /// @return  Connected client and its peer address.
   ///          May return nullopt only if limited \p timeout is specified.
   /// @throws  If listen or accept fails.
-  std::optional<std::pair<SocketTcpClient, Address>>
+  std::optional<std::pair<SocketTcp, Address>>
   Listen(Duration timeout = Duration(-1));
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
   Address LocalAddress() const;
 
-  SocketTcpServer(SocketTcpServer const &other) = delete;
-  SocketTcpServer(SocketTcpServer &&other) noexcept;
-  ~SocketTcpServer();
-  SocketTcpServer &operator=(SocketTcpServer const &other) = delete;
-  SocketTcpServer &operator=(SocketTcpServer &&other) noexcept;
+  Acceptor(Acceptor const &other) = delete;
+  Acceptor(Acceptor &&other) noexcept;
+  ~Acceptor();
+  Acceptor &operator=(Acceptor const &other) = delete;
+  Acceptor &operator=(Acceptor &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
   std::unique_ptr<SocketImpl> impl;
 };
+
+// compatibility with legacy names
+using SocketTcpClient [[deprecated]] = SocketTcp;
+using SocketTcpServer [[deprecated]] = Acceptor;
 
 } // namespace sockpuppet
 

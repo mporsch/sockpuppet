@@ -1,6 +1,6 @@
 #include "sockpuppet_test_common.h" // for MakeTestSocket
 
-#include "sockpuppet/socket.h" // for SocketTcpClient
+#include "sockpuppet/socket.h" // for SocketTcp
 
 #include <atomic> // for std::atomic
 #include <cstdlib> // for EXIT_SUCCESS
@@ -16,7 +16,7 @@ static int const clientCount = 3;
 
 static std::atomic<bool> success(true);
 
-void ServerHandler(std::pair<SocketTcpClient, Address> p)
+void ServerHandler(std::pair<SocketTcp, Address> p)
 try {
   auto &&clientSock = p.first;
   auto &&clientAddr = p.second;
@@ -39,7 +39,7 @@ try {
 
 void Server(Address serverAddr)
 try {
-  auto server = MakeTestSocket<SocketTcpServer>(serverAddr);
+  auto server = MakeTestSocket<Acceptor>(serverAddr);
 
   std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
@@ -62,7 +62,7 @@ try {
 
 void Client(Address serverAddr)
 try {
-  auto client = MakeTestSocket<SocketTcpClient>(serverAddr);
+  auto client = MakeTestSocket<SocketTcp>(serverAddr);
   auto const clientAddr = client.LocalAddress();
 
   std::cout << "client " << to_string(clientAddr)

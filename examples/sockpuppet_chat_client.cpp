@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_async.h" // for SocketTcpAsyncClient
+#include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iomanip> // for std::setw
@@ -30,7 +30,7 @@ void PrintLine(std::string const &line)
 struct ReconnectClient
 {
   Driver &driver;
-  std::optional<SocketTcpAsyncClient> client = std::nullopt;
+  std::optional<SocketTcpAsync> client = std::nullopt;
 
   void Reconnect(Address remoteAddress, Duration delay = std::chrono::seconds(1))
   {
@@ -39,7 +39,7 @@ struct ReconnectClient
       // (you can connect to a TLS-encrypted server
       // by adding arguments for certificate and key file path)
       client.emplace(
-          SocketTcpClient(remoteAddress),
+          SocketTcp(remoteAddress),
           driver,
           std::bind(&ReconnectClient::HandleReceive, this, std::placeholders::_1),
           std::bind(&ReconnectClient::HandleDisconnect, this, std::placeholders::_1));

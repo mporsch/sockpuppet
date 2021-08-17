@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_async.h" // for SocketTcpAsyncServer
+#include "sockpuppet/socket_async.h" // for AcceptorAsync
 
 #include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
@@ -18,10 +18,10 @@ void HandleSignal(int)
 
 struct ChatServer
 {
-  SocketTcpAsyncServer server;
+  AcceptorAsync server;
 
   // storage for connected client connection sockets
-  std::map<Address, SocketTcpAsyncClient> clients;
+  std::map<Address, SocketTcpAsync> clients;
 
   // send buffer pool
   BufferPool pool;
@@ -45,7 +45,7 @@ struct ChatServer
               << std::endl;
   }
 
-  void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
+  void HandleConnect(SocketTcp clientSock, Address clientAddr)
   {
     std::cout << "connection "
               << to_string(clientAddr)
@@ -56,7 +56,7 @@ struct ChatServer
 
     // augment the client socket to be an asynchronous one
     // attached to the same driver as the server socket
-    SocketTcpAsyncClient clientAsync(
+    SocketTcpAsync clientAsync(
           {std::move(clientSock)},
           driver,
           std::bind(&ChatServer::HandleReceive, this, clientAddr, std::placeholders::_1),
@@ -64,7 +64,7 @@ struct ChatServer
 
     // store the augmented client socket
     // (going out of scope would otherwise close it immediately)
-    (void)clients.emplace(std::make_pair(std::move(clientAddr), std::move(clientAsync)));
+    (void)clients.emplace(std::move(clientAddr), std::move(clientAsync));
   }
 
   void HandleReceive(Address clientAddr, BufferPtr receiveBuffer)

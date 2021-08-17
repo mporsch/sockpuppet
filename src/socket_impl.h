@@ -3,7 +3,7 @@
 
 #include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
-#include "sockpuppet/socket.h" // for SocketTcpClient
+#include "sockpuppet/socket.h" // for SocketTcp
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
@@ -73,9 +73,9 @@ struct SocketImpl
 
   void Listen();
 
-  std::optional<std::pair<SocketTcpClient, Address>>
+  std::optional<std::pair<SocketTcp, Address>>
   Accept(Duration timeout);
-  virtual std::pair<SocketTcpClient, Address>
+  virtual std::pair<SocketTcp, Address>
   Accept();
 
   virtual bool WaitReadable(Duration timeout);

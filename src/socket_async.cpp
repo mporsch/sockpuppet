@@ -116,8 +116,7 @@ SocketUdpAsync::~SocketUdpAsync() = default;
 SocketUdpAsync &SocketUdpAsync::operator=(SocketUdpAsync &&other) noexcept = default;
 
 
-SocketTcpAsyncClient::SocketTcpAsyncClient(
-    SocketTcpBuffered &&buff, Driver &driver,
+SocketTcpAsync::SocketTcpAsync(SocketTcpBuffered &&buff, Driver &driver,
     ReceiveHandler handleReceive, DisconnectHandler handleDisconnect)
   : impl(std::make_unique<SocketAsyncImpl>(
       std::move(buff.impl),
@@ -131,30 +130,29 @@ SocketTcpAsyncClient::SocketTcpAsyncClient(
 {
 }
 
-std::future<void> SocketTcpAsyncClient::Send(BufferPtr &&buffer)
+std::future<void> SocketTcpAsync::Send(BufferPtr &&buffer)
 {
   return impl->Send(std::move(buffer));
 }
 
-Address SocketTcpAsyncClient::LocalAddress() const
+Address SocketTcpAsync::LocalAddress() const
 {
   return Address(impl->buff->sock->GetSockName());
 }
 
-Address SocketTcpAsyncClient::PeerAddress() const
+Address SocketTcpAsync::PeerAddress() const
 {
   return Address(impl->buff->sock->GetPeerName());
 }
 
-SocketTcpAsyncClient::SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept = default;
+SocketTcpAsync::SocketTcpAsync(SocketTcpAsync &&other) noexcept = default;
 
-SocketTcpAsyncClient::~SocketTcpAsyncClient() = default;
+SocketTcpAsync::~SocketTcpAsync() = default;
 
-SocketTcpAsyncClient &SocketTcpAsyncClient::operator=(SocketTcpAsyncClient &&other) noexcept = default;
+SocketTcpAsync &SocketTcpAsync::operator=(SocketTcpAsync &&other) noexcept = default;
 
 
-SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
-    Driver &driver, ConnectHandler handleConnect)
+AcceptorAsync::AcceptorAsync(Acceptor &&sock, Driver &driver, ConnectHandler handleConnect)
   : impl(std::make_unique<SocketAsyncImpl>(
       std::move(sock.impl),
       driver.impl,
@@ -168,15 +166,15 @@ SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpServer &&sock,
   impl->buff->sock->Listen();
 }
 
-Address SocketTcpAsyncServer::LocalAddress() const
+Address AcceptorAsync::LocalAddress() const
 {
   return Address(impl->buff->sock->GetSockName());
 }
 
-SocketTcpAsyncServer::SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept = default;
+AcceptorAsync::AcceptorAsync(AcceptorAsync &&other) noexcept = default;
 
-SocketTcpAsyncServer::~SocketTcpAsyncServer() = default;
+AcceptorAsync::~AcceptorAsync() = default;
 
-SocketTcpAsyncServer &SocketTcpAsyncServer::operator=(SocketTcpAsyncServer &&other) noexcept = default;
+AcceptorAsync &AcceptorAsync::operator=(AcceptorAsync &&other) noexcept = default;
 
 } // namespace sockpuppet

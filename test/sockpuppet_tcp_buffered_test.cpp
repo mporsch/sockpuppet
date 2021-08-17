@@ -12,7 +12,7 @@ using namespace sockpuppet;
 static TestData const testData(1000000U);
 static std::atomic<bool> success(true);
 
-void ServerHandler(std::pair<SocketTcpClient, Address> p)
+void ServerHandler(std::pair<SocketTcp, Address> p)
 {
   SocketTcpBuffered serverHandler(std::move(p.first), 0U, 1500U);
 
@@ -36,7 +36,7 @@ void ServerHandler(std::pair<SocketTcpClient, Address> p)
 
 void Server(Address serverAddress)
 try {
-  auto server = MakeTestSocket<SocketTcpServer>(serverAddress);
+  auto server = MakeTestSocket<Acceptor>(serverAddress);
 
   std::cout << "server listening at " << to_string(serverAddress)
             << std::endl;
@@ -49,7 +49,7 @@ try {
 
 void Client(Address serverAddress, Duration perPacketSendTimeout)
 try {
-  SocketTcpBuffered client(MakeTestSocket<SocketTcpClient>(serverAddress));
+  SocketTcpBuffered client(MakeTestSocket<SocketTcp>(serverAddress));
 
   std::cout << "client " << to_string(client.LocalAddress())
             << " connected to server " << to_string(serverAddress)

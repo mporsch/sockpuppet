@@ -85,7 +85,7 @@ struct SocketTlsServerImpl : public SocketImpl
                       char const *keyFilePath);
   ~SocketTlsServerImpl() override;
 
-  std::pair<SocketTcpClient, Address>
+  std::pair<SocketTcp, Address>
   Accept() override;
 };
 

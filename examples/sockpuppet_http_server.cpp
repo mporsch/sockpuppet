@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_async.h" // for SocketTcpAsyncServer
+#include "sockpuppet/socket_async.h" // for AcceptorAsync
 
 #include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
@@ -32,7 +32,7 @@ void SignalHandler(int)
   driver.Stop();
 }
 
-void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
+void HandleConnect(SocketTcp clientSock, Address clientAddr)
 try {
   // here we intentionally misuse the connect handler; instead of
   // only storing the client connection we do the whole HTTP handling and
@@ -74,14 +74,16 @@ try {
   }
 
   // prepare a server for each interface address
-  std::vector<SocketTcpAsyncServer> servers;
+  // (you can turn this into a TLS-encrypted server
+  // by adding arguments for certificate and key file path)
+  std::vector<AcceptorAsync> servers;
   {
     for(auto &&addr : addrs) {
       try {
         servers.emplace_back(
-              SocketTcpAsyncServer({addr},
-                                   driver,
-                                   HandleConnect));
+            Acceptor(addr),
+            driver,
+            HandleConnect);
       } catch(std::exception const &e) {
         // if binding one server fails, just go on
         std::cerr << e.what() << std::endl;

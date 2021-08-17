@@ -112,7 +112,7 @@ SocketUdpBuffered::~SocketUdpBuffered() = default;
 SocketUdpBuffered &SocketUdpBuffered::operator=(SocketUdpBuffered &&other) noexcept = default;
 
 
-SocketTcpBuffered::SocketTcpBuffered(SocketTcpClient &&sock,
+SocketTcpBuffered::SocketTcpBuffered(SocketTcp &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : impl(std::make_unique<SocketBufferedImpl>(
       std::move(sock.impl),

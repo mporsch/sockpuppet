@@ -245,7 +245,7 @@ SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
 
 SocketTlsServerImpl::~SocketTlsServerImpl() = default;
 
-std::pair<SocketTcpClient, Address>
+std::pair<SocketTcp, Address>
 SocketTlsServerImpl::Accept()
 {
   auto [client, addr] = SocketImpl::Accept();
@@ -259,7 +259,7 @@ SocketTlsServerImpl::Accept()
   IgnoreSigPipe();
   (void)SSL_do_handshake(clientTls->ssl.get()); // initiate the handshake
 
-  return {SocketTcpClient(std::move(clientTls)), std::move(addr)};
+  return {SocketTcp(std::move(clientTls)), std::move(addr)};
 }
 
 } // namespace sockpuppet

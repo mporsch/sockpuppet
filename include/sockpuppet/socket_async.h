@@ -130,7 +130,7 @@ using ReceiveHandler = std::function<void(BufferPtr)>;
 /// @param  Address of peer connected to local socket.
 /// @note  Obtained basic socket can be used as-is or may be upgraded
 ///        to async socket with same or different driver.
-using ConnectHandler = std::function<void(SocketTcpClient, Address)>;
+using ConnectHandler = std::function<void(SocketTcp, Address)>;
 
 /// Callback for TCP peer disconnect.
 /// @param  Address of peer that just disconnected from local socket.
@@ -177,7 +177,7 @@ struct SocketUdpAsync
 
 /// TCP (reliable communication) socket class that adds an interface for
 /// an external socket driver to the buffered TCP client class.
-struct SocketTcpAsyncClient
+struct SocketTcpAsync
 {
   /// Create a TCP client socket driven by given socket driver.
   /// @param  buff  Buffered TCP client socket to augment.
@@ -187,10 +187,10 @@ struct SocketTcpAsyncClient
   /// @param  handleDisconnect  (Bound) function to call when socket was
   ///                           disconnected and has become invalid.
   /// @throws  If an invalid handler is provided.
-  SocketTcpAsyncClient(SocketTcpBuffered &&buff,
-                       Driver &driver,
-                       ReceiveHandler handleReceive,
-                       DisconnectHandler handleDisconnect);
+  SocketTcpAsync(SocketTcpBuffered &&buff,
+                 Driver &driver,
+                 ReceiveHandler handleReceive,
+                 DisconnectHandler handleDisconnect);
 
   /// Enqueue data to reliably send to connected peer.
   /// @param  buffer  Borrowed buffer to enqueue for send and release after completition.
@@ -206,11 +206,11 @@ struct SocketTcpAsyncClient
   /// @throws  If the address lookup fails.
   Address PeerAddress() const;
 
-  SocketTcpAsyncClient(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient(SocketTcpAsyncClient &&other) noexcept;
-  ~SocketTcpAsyncClient();
-  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient const &other) = delete;
-  SocketTcpAsyncClient &operator=(SocketTcpAsyncClient &&other) noexcept;
+  SocketTcpAsync(SocketTcpAsync const &other) = delete;
+  SocketTcpAsync(SocketTcpAsync &&other) noexcept;
+  ~SocketTcpAsync();
+  SocketTcpAsync &operator=(SocketTcpAsync const &other) = delete;
+  SocketTcpAsync &operator=(SocketTcpAsync &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
   std::unique_ptr<SocketAsyncImpl> impl;
@@ -218,30 +218,34 @@ struct SocketTcpAsyncClient
 
 /// TCP (reliable communication) socket class that adds an interface for
 /// an external socket driver to the regular TCP server class.
-struct SocketTcpAsyncServer
+struct AcceptorAsync
 {
   /// Create a TCP server socket driven by given socket driver.
   /// @param  sock  TCP server socket to augment.
   /// @param  driver  Socket driver to run the socket.
   /// @param  handleConnect  (Bound) function to call when a TCP client connects.
   /// @throws  If an invalid handler is provided.
-  SocketTcpAsyncServer(SocketTcpServer &&sock,
-                       Driver &driver,
-                       ConnectHandler handleConnect);
+  AcceptorAsync(Acceptor &&sock,
+                Driver &driver,
+                ConnectHandler handleConnect);
 
   /// Get the local (bound-to) address of the socket.
   /// @throws  If the address lookup fails.
   Address LocalAddress() const;
 
-  SocketTcpAsyncServer(SocketTcpAsyncServer const &other) = delete;
-  SocketTcpAsyncServer(SocketTcpAsyncServer &&other) noexcept;
-  ~SocketTcpAsyncServer();
-  SocketTcpAsyncServer &operator=(SocketTcpAsyncServer const &other) = delete;
-  SocketTcpAsyncServer &operator=(SocketTcpAsyncServer &&other) noexcept;
+  AcceptorAsync(AcceptorAsync const &other) = delete;
+  AcceptorAsync(AcceptorAsync &&other) noexcept;
+  ~AcceptorAsync();
+  AcceptorAsync &operator=(AcceptorAsync const &other) = delete;
+  AcceptorAsync &operator=(AcceptorAsync &&other) noexcept;
 
   /// Bridge to hide away the OS-specifics.
   std::unique_ptr<SocketAsyncImpl> impl;
 };
+
+// compatibility with legacy names
+using SocketTcpAsyncClient [[deprecated]] = SocketTcpAsync;
+using SocketTcpAsyncServer [[deprecated]] = AcceptorAsync;
 
 } // namespace sockpuppet
 

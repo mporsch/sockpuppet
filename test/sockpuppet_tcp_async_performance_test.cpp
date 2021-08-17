@@ -21,9 +21,9 @@ struct Server
 {
   struct ClientSession
   {
-    SocketTcpAsyncClient client;
+    SocketTcpAsync client;
 
-    ClientSession(Server *parent, SocketTcpClient &&client)
+    ClientSession(Server *parent, SocketTcp &&client)
       : client({std::move(client)},
                parent->driver,
                std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
@@ -40,13 +40,13 @@ struct Server
     }
   };
 
-  SocketTcpAsyncServer server;
+  AcceptorAsync server;
   Driver &driver;
   std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
   Server(Address bindAddress,
          Driver &driver)
-    : server(MakeTestSocket<SocketTcpServer>(bindAddress),
+    : server(MakeTestSocket<Acceptor>(bindAddress),
              driver,
              std::bind(&Server::HandleConnect,
                        this,
@@ -58,7 +58,7 @@ struct Server
   Server(Server const &) = delete;
   Server(Server &&) = delete;
 
-  void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
+  void HandleConnect(SocketTcp clientSock, Address clientAddr)
   {
     (void)clientSessions.emplace(
           std::move(clientAddr),
@@ -80,11 +80,11 @@ struct Clients
   struct Client
   {
     Clients *parent;
-    SocketTcpAsyncClient client;
+    SocketTcpAsync client;
     size_t receivedSize;
     std::vector<BufferPtr> receivedData;
 
-    Client(Clients *parent, SocketTcpClient client, Driver &driver)
+    Client(Clients *parent, SocketTcp client, Driver &driver)
       : parent(parent)
       , client({std::move(client)},
                driver,
@@ -127,7 +127,7 @@ struct Clients
 
   void Add(Address serverAddr, Driver &driver)
   {
-    auto client = MakeTestSocket<SocketTcpClient>(serverAddr);
+    auto client = MakeTestSocket<SocketTcp>(serverAddr);
     auto clientAddr = client.LocalAddress();
 
     std::cout << "client " << to_string(clientAddr)
@@ -158,7 +158,7 @@ struct Clients
   }
 };
 
-void ClientSend(SocketTcpAsyncClient &client)
+void ClientSend(SocketTcpAsync &client)
 {
   testData.Send(client);
 }

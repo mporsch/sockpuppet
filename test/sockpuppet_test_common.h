@@ -1,4 +1,4 @@
-#include "sockpuppet/socket_async.h" // for SocketTcpAsyncClient
+#include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <algorithm> // for std::generate
 #include <iostream> // for std::cout
@@ -112,7 +112,7 @@ struct TestData
     DoSendTcp(send);
   }
 
-  inline void Send(SocketTcpAsyncClient &async) const
+  inline void Send(SocketTcpAsync &async) const
   {
     std::cout << "sending reference data from "
               << to_string(async.LocalAddress())

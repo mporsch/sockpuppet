@@ -48,7 +48,7 @@ SocketUdp::~SocketUdp() = default;
 SocketUdp &SocketUdp::operator=(SocketUdp &&other) noexcept = default;
 
 
-SocketTcpClient::SocketTcpClient(Address const &connectAddress)
+SocketTcp::SocketTcp(Address const &connectAddress)
   : impl(std::make_unique<SocketImpl>(
       connectAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
@@ -57,7 +57,7 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress)
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
-SocketTcpClient::SocketTcpClient(Address const &connectAddress,
+SocketTcp::SocketTcp(Address const &connectAddress,
     char const *certFilePath, char const *keyFilePath)
   : impl(std::make_unique<SocketTlsClientImpl>(
       connectAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
@@ -68,45 +68,45 @@ SocketTcpClient::SocketTcpClient(Address const &connectAddress,
 }
 #endif // SOCKPUPPET_WITH_TLS
 
-size_t SocketTcpClient::Send(char const *data, size_t size, Duration timeout)
+size_t SocketTcp::Send(char const *data, size_t size, Duration timeout)
 {
   return impl->Send(data, size, timeout);
 }
 
-std::optional<size_t> SocketTcpClient::Receive(char *data, size_t size, Duration timeout)
+std::optional<size_t> SocketTcp::Receive(char *data, size_t size, Duration timeout)
 {
   return impl->Receive(data, size, timeout);
 }
 
-Address SocketTcpClient::LocalAddress() const
+Address SocketTcp::LocalAddress() const
 {
   return Address(impl->GetSockName());
 }
 
-Address SocketTcpClient::PeerAddress() const
+Address SocketTcp::PeerAddress() const
 {
   return Address(impl->GetPeerName());
 }
 
-size_t SocketTcpClient::ReceiveBufferSize() const
+size_t SocketTcp::ReceiveBufferSize() const
 {
   return impl->GetSockOptRcvBuf();
 }
 
-SocketTcpClient::SocketTcpClient(std::unique_ptr<SocketImpl> &&other)
+SocketTcp::SocketTcp(std::unique_ptr<SocketImpl> &&other)
   : impl(std::move(other))
 {
   impl->SetSockOptNoSigPipe();
 }
 
-SocketTcpClient::SocketTcpClient(SocketTcpClient &&other) noexcept = default;
+SocketTcp::SocketTcp(SocketTcp &&other) noexcept = default;
 
-SocketTcpClient::~SocketTcpClient() = default;
+SocketTcp::~SocketTcp() = default;
 
-SocketTcpClient &SocketTcpClient::operator=(SocketTcpClient &&other) noexcept = default;
+SocketTcp &SocketTcp::operator=(SocketTcp &&other) noexcept = default;
 
 
-SocketTcpServer::SocketTcpServer(Address const &bindAddress)
+Acceptor::Acceptor(Address const &bindAddress)
   : impl(std::make_unique<SocketImpl>(
       bindAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP))
 {
@@ -115,7 +115,7 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress)
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
-SocketTcpServer::SocketTcpServer(Address const &bindAddress,
+Acceptor::Acceptor(Address const &bindAddress,
     char const *certFilePath, char const *keyFilePath)
   : impl(std::make_unique<SocketTlsServerImpl>(
       bindAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
@@ -126,22 +126,22 @@ SocketTcpServer::SocketTcpServer(Address const &bindAddress,
 }
 #endif // SOCKPUPPET_WITH_TLS
 
-std::optional<std::pair<SocketTcpClient, Address>>
-SocketTcpServer::Listen(Duration timeout)
+std::optional<std::pair<SocketTcp, Address>>
+Acceptor::Listen(Duration timeout)
 {
   impl->Listen();
   return impl->Accept(timeout);
 }
 
-Address SocketTcpServer::LocalAddress() const
+Address Acceptor::LocalAddress() const
 {
   return Address(impl->GetSockName());
 }
 
-SocketTcpServer::SocketTcpServer(SocketTcpServer &&other) noexcept = default;
+Acceptor::Acceptor(Acceptor &&other) noexcept = default;
 
-SocketTcpServer::~SocketTcpServer() = default;
+Acceptor::~Acceptor() = default;
 
-SocketTcpServer &SocketTcpServer::operator=(SocketTcpServer &&other) noexcept = default;
+Acceptor &Acceptor::operator=(Acceptor &&other) noexcept = default;
 
 } // namespace sockpuppet

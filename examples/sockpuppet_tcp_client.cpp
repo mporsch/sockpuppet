@@ -1,4 +1,4 @@
-#include "sockpuppet/socket.h" // for SocketTcpClient
+#include "sockpuppet/socket.h" // for SocketTcp
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
@@ -11,7 +11,7 @@ void Client(Address remoteAddress)
   // connect a TCP client socket to given address
   // (you can connect to a TLS-encrypted server
   // by adding arguments for certificate and key file path)
-  SocketTcpClient client(remoteAddress);
+  SocketTcp client(remoteAddress);
 
   // print the bound TCP socket address
   // (might have OS-assigned interface and port number)

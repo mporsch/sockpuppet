@@ -272,7 +272,7 @@ void SocketImpl::Listen()
   }
 }
 
-std::optional<std::pair<SocketTcpClient, Address>>
+std::optional<std::pair<SocketTcp, Address>>
 SocketImpl::Accept(Duration timeout)
 {
   if(!WaitReadable(timeout)) {
@@ -281,13 +281,13 @@ SocketImpl::Accept(Duration timeout)
   return Accept();
 }
 
-std::pair<SocketTcpClient, Address>
+std::pair<SocketTcp, Address>
 SocketImpl::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
   return {
-    SocketTcpClient(std::make_unique<SocketImpl>(client)),
+    SocketTcp(std::make_unique<SocketImpl>(client)),
     Address(std::move(sas))
   };
 }

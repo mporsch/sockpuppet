@@ -19,20 +19,20 @@ std::promise<void> promisedClientsConnect;
 std::promise<void> promisedClientsDisconnect;
 std::promise<void> promisedLoneClientConnect;
 
-std::unique_ptr<SocketTcpAsyncClient> loneClient;
+std::unique_ptr<SocketTcpAsync> loneClient;
 std::promise<void> promisedServerDisconnect;
 
 struct Server
 {
-  SocketTcpAsyncServer server;
+  AcceptorAsync server;
   Driver &driver;
   size_t bytesReceived;
-  std::map<Address, SocketTcpAsyncClient> serverHandlers;
+  std::map<Address, SocketTcpAsync> serverHandlers;
   std::mutex mtx;
 
   Server(Address bindAddress,
          Driver &driver)
-    : server(MakeTestSocket<SocketTcpServer>(bindAddress),
+    : server(MakeTestSocket<Acceptor>(bindAddress),
              driver,
              std::bind(&Server::HandleConnect,
                        this,
@@ -61,17 +61,17 @@ struct Server
     bytesReceived += ptr->size();
   }
 
-  void HandleConnect(SocketTcpClient clientSock, Address clientAddr)
+  void HandleConnect(SocketTcp clientSock, Address clientAddr)
   {
     std::lock_guard<std::mutex> lock(mtx);
 
     (void)serverHandlers.emplace(
           std::make_pair(
             std::move(clientAddr),
-            SocketTcpAsyncClient({std::move(clientSock)},
-                                 driver,
-                                 std::bind(&Server::HandleReceive, this, std::placeholders::_1),
-                                 std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
+            SocketTcpAsync({std::move(clientSock)},
+                           driver,
+                           std::bind(&Server::HandleReceive, this, std::placeholders::_1),
+                           std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
 
     if(serverHandlers.size() == clientCount) {
       promisedClientsConnect.set_value();
@@ -141,17 +141,17 @@ int main(int, char **)
 
   {
     BufferPool clientSendPool;
-    std::unique_ptr<SocketTcpAsyncClient> clients[clientCount];
+    std::unique_ptr<SocketTcpAsync> clients[clientCount];
 
     std::vector<std::future<void>> futures;
     futures.reserve(clientCount * clientSendCount);
     for(auto &&client : clients)
     {
-      client.reset(
-            new SocketTcpAsyncClient({MakeTestSocket<SocketTcpClient>(serverAddress)},
-                                     driver,
-                                     ReceiveDummy,
-                                     DisconnectDummy));
+      client.reset(new SocketTcpAsync(
+          {MakeTestSocket<SocketTcp>(serverAddress)},
+          driver,
+          ReceiveDummy,
+          DisconnectDummy));
 
       std::cout << "client " << to_string(client->LocalAddress())
                 << " connected and sending to server" << std::endl;
@@ -187,11 +187,11 @@ int main(int, char **)
               * clientSendSize);
 
   // try the disconnect the other way around
-  loneClient.reset(
-        new SocketTcpAsyncClient({MakeTestSocket<SocketTcpClient>(serverAddress)},
-                                 driver,
-                                 ReceiveDummy,
-                                 HandleDisconnect));
+  loneClient.reset(new SocketTcpAsync(
+      {MakeTestSocket<SocketTcp>(serverAddress)},
+      driver,
+      ReceiveDummy,
+      HandleDisconnect));
 
   // wait for client to connect
   success &= (futureLoneClientConnect.wait_for(seconds(1)) == std::future_status::ready);

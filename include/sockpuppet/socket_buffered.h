@@ -131,7 +131,7 @@ struct SocketTcpBuffered
   ///                     Careful! This might be outrageously more than
   ///                     what is actually needed.)
   /// @throws  If determining the receive buffer size fails.
-  SocketTcpBuffered(SocketTcpClient &&sock,
+  SocketTcpBuffered(SocketTcp &&sock,
                     size_t rxBufCount = 0U,
                     size_t rxBufSize = 0U);
 

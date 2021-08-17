@@ -1,4 +1,4 @@
-#include "sockpuppet/socket.h" // for SocketTcpServer
+#include "sockpuppet/socket.h" // for Acceptor
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
@@ -6,7 +6,7 @@
 
 using namespace sockpuppet;
 
-void HandleConnect(std::pair<SocketTcpClient, Address> p)
+void HandleConnect(std::pair<SocketTcp, Address> p)
 try {
   auto &&clientSock = p.first;
   auto &&clientAddr = p.second;
@@ -42,7 +42,7 @@ void Server(Address bindAddress)
   // bind a TCP server socket to given address
   // (you can turn this into a TLS-encrypted server
   // by adding arguments for certificate and key file path)
-  SocketTcpServer server(bindAddress);
+  Acceptor server(bindAddress);
 
   // listen for and accept incoming connections until Ctrl-C
   for(;;) {
