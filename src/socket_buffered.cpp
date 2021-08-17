@@ -56,7 +56,9 @@ BufferPool::BufferPtr BufferPool::Get()
 
 BufferPool::~BufferPool()
 {
-  assert(m_busy.empty()); // buffers still pending -> will segfault later
+  // buffers still pending -> will segfault later
+  // make sure pool is released after all of its users
+  assert(m_busy.empty());
 }
 
 void BufferPool::Recycle(Buffer *buf)
