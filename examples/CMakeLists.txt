@@ -1,7 +1,7 @@
 # link everything with the static/shared library
 link_libraries(sockpuppet)
 
-add_executable(sockpuppet_chat_client sockpuppet_chat_client.cpp)
+add_executable(sockpuppet_chat_client sockpuppet_chat_client.cpp sockpuppet_chat_io_print.h)
 add_executable(sockpuppet_chat_server sockpuppet_chat_server.cpp)
 add_executable(sockpuppet_http_client sockpuppet_http_client.cpp)
 add_executable(sockpuppet_http_server sockpuppet_http_server.cpp)

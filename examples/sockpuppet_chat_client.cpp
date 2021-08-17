@@ -1,36 +1,29 @@
+#include "sockpuppet_chat_io_print.h"
+
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <cstdlib> // for EXIT_SUCCESS
-#include <iomanip> // for std::setw
-#include <iostream> // for std::cout
 #include <functional> // for std::bind
+#include <iostream> // for std::cout
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
 
-static char const inputPrompt[] = "message to send? (empty for exit) - ";
-static size_t const inputPromptLength = sizeof(inputPrompt) - 1;
-
-void PrintInputPrompt()
-{
-  std::cout << inputPrompt << std::flush;
-}
-
-void PrintLine(std::string const &line)
-{
-  std::cout << '\r'
-            << std::setw(inputPromptLength)
-            << std::setfill(' ')
-            << std::left
-            << line
-            << std::endl;
-  PrintInputPrompt();
-}
-
 struct ReconnectClient
 {
   Driver &driver;
+  IOPrintBuffer &ioBuf;
   std::optional<SocketTcpAsync> client = std::nullopt;
+
+  ReconnectClient(Address remoteAddress, Driver &driver, IOPrintBuffer &ioBuf)
+    : driver(driver)
+    , ioBuf(ioBuf)
+  {
+    // delay initial connect to get the order of prints right
+    ToDo(driver,
+         [=]() { Reconnect(remoteAddress); },
+         std::chrono::milliseconds(500));
+  }
 
   void Reconnect(Address remoteAddress, Duration delay = std::chrono::seconds(1))
   {
@@ -47,17 +40,18 @@ struct ReconnectClient
       // print the bound TCP socket address
       // (might have OS-assigned interface and port number)
       // and remote address
-      std::cout << "(re)established connection "
-                << to_string(client->LocalAddress())
-                << " -> "
-                << to_string(remoteAddress)
-                << std::endl;
+      ioBuf.Print(
+          "(re)established connection " +
+          to_string(client->LocalAddress()) +
+          " -> " +
+          to_string(remoteAddress));
     } catch(std::exception const &) {
-      std::cout << "failed to (re)connect to "
-                << to_string(remoteAddress)
-                << " will retry in "
-                << delay.count() << "s "
-                << std::endl;
+      ioBuf.Print(
+          "failed to (re)connect to " +
+          to_string(remoteAddress) +
+          " will retry in " +
+          std::to_string(delay.count()) +
+          "s ");
 
       // schedule a reconnect attempt with increasing backoff delay
       ToDo(driver,
@@ -74,17 +68,16 @@ struct ReconnectClient
 
   void HandleReceive(BufferPtr buffer)
   {
-    // print whatever has just been received
-    PrintLine(*buffer);
+    ioBuf.Print(*buffer);
   }
 
   void HandleDisconnect(Address remoteAddress)
   {
-    std::cout << "closing connection "
-              << to_string(client->LocalAddress())
-              << " -> "
-              << to_string(remoteAddress)
-              << std::endl;
+    ioBuf.Print(
+        "closing connection " +
+        to_string(client->LocalAddress()) +
+        " -> " +
+        to_string(remoteAddress));
 
     client.reset();
     Reconnect(remoteAddress);
@@ -93,27 +86,30 @@ struct ReconnectClient
 
 void Client(Address remoteAddress)
 {
+  // prepare print buffer that shows receipt history and allows user inputs
+  IOPrintBuffer ioBuf(std::cout, 10U);
+
   // run socket in a separate thread as this one will be used for console input
   Driver driver;
   auto thread = std::thread(&Driver::Run, &driver);
 
+  // create and connect client
+  ReconnectClient client(remoteAddress, driver, ioBuf);
+
   // send buffer pool to be released after socket using it
   BufferPool pool;
 
-  ReconnectClient client{driver};
-  client.Reconnect(remoteAddress);
-
   // query and send until cancelled
   for(;;) {
-
     // query a string to send from the command line
-    PrintInputPrompt();
     auto line = pool.Get();
-    std::getline(std::cin, *line);
+    *line = ioBuf.Query("message to send? (empty for exit) - ");
 
     if(line->empty()) {
       break;
     } else {
+      ioBuf.Print("you said: " + *line);
+
       // enqueue the given string data to be sent to the connected peer
       (void)client.Send(std::move(line));
     }
