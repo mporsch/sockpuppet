@@ -4,24 +4,17 @@
 #include <cstdlib> // for EXIT_SUCCESS
 #include <functional> // for std::bind
 #include <iostream> // for std::cout
-#include <map> // for std::map
+#include <unordered_map> // for std::unordered_map
 
 using namespace sockpuppet;
-
-// socket driver to run multiple client connections in one thread
-static Driver driver;
-
-void HandleSignal(int)
-{
-  driver.Stop();
-}
 
 struct ChatServer
 {
   AcceptorAsync server;
+  Driver &driver;
 
   // storage for connected client connection sockets
-  std::map<Address, SocketTcpAsync> clients;
+  std::unordered_map<Address, SocketTcpAsync> clients;
 
   // send buffer pool
   BufferPool pool;
@@ -29,13 +22,14 @@ struct ChatServer
   // bind a TCP server socket to given address
   // (you can turn this into a TLS-encrypted server
   // by adding arguments for certificate and key file path)
-  ChatServer(Address bindAddress)
+  ChatServer(Address bindAddress, Driver &driver)
     : server({bindAddress},
              driver,
              std::bind(&ChatServer::HandleConnect,
                        this,
                        std::placeholders::_1,
                        std::placeholders::_2))
+    , driver(driver)
   {
     // print the bound TCP socket address
     // (might have OS-assigned port number if
@@ -99,16 +93,18 @@ struct ChatServer
   }
 };
 
-
 void Server(Address bindAddress)
 {
+  // socket driver to run multiple client connections in one thread
+  static Driver driver;
+
   // set up the handler for Ctrl-C
-  if(std::signal(SIGINT, HandleSignal) == SIG_ERR) {
+  if(std::signal(SIGINT, [](int) { driver.Stop(); }) == SIG_ERR) {
     throw std::logic_error("failed to set signal handler");
   }
 
   // create a server socket
-  ChatServer server(bindAddress);
+  ChatServer server(bindAddress, driver);
 
   // listen for, accept and serve incoming connections until Ctrl-C
   driver.Run();
