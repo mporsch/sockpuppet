@@ -81,3 +81,15 @@ std::string to_string(Address const &addr)
 }
 
 } // namespace sockpuppet
+
+namespace std {
+
+size_t hash<sockpuppet::Address>::operator()(sockpuppet::Address const &addr) const
+{
+  if(!addr.impl) {
+    return hash<sockpuppet::Address::AddressImpl *>()(nullptr);
+  }
+  return hash<sockpuppet::Address::AddressImpl>()(*addr.impl);
+}
+
+} // namespace std

@@ -2,6 +2,7 @@
 #define SOCKPUPPET_ADDRESS_H
 
 #include <cstdint> // for uint16_t
+#include <functional> // for std::hash
 #include <memory> // for std::shared_ptr
 #include <string> // for std::string
 #include <vector> // for std::vector
@@ -68,5 +69,15 @@ struct Address
 std::string to_string(Address const &addr);
 
 } // namespace sockpuppet
+
+namespace std {
+
+template<>
+struct hash<sockpuppet::Address>
+{
+  size_t operator()(sockpuppet::Address const &addr) const;
+};
+
+} // namespace std
 
 #endif // SOCKPUPPET_ADDRESS_H

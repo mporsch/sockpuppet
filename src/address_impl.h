@@ -95,4 +95,14 @@ std::string to_string(SockAddrView const &sockAddr);
 
 } // namespace sockpuppet
 
+namespace std {
+
+template<>
+struct hash<sockpuppet::Address::AddressImpl>
+{
+  size_t operator()(sockpuppet::Address::AddressImpl const &addr) const;
+};
+
+} // namespace std
+
 #endif // SOCKPUPPET_ADDRESS_IMPL_H

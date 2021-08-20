@@ -3,6 +3,7 @@
 
 #include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
+#include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
@@ -391,3 +392,18 @@ std::string to_string(SockAddrView const &sockAddr)
 }
 
 } // namespace sockpuppet
+
+namespace std {
+
+size_t hash<sockpuppet::Address::AddressImpl>::operator()(
+    sockpuppet::Address::AddressImpl const &addr) const
+{
+  auto sockAddr = addr.ForAny();
+
+  // bytewise hash using string_view
+  return hash<string_view>()(string_view(
+      reinterpret_cast<char const *>(sockAddr.addr),
+      static_cast<size_t>(sockAddr.addrLen)));
+}
+
+} // namespace std
