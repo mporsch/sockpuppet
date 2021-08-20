@@ -22,7 +22,7 @@ static bool const isAnsiCapable = []() -> bool {
 #else // _WIN32 // _WIN32
   return true;
 #endif // _WIN32 // _WIN32
-}() || true;
+}();
 
 struct ClearLine
 {
