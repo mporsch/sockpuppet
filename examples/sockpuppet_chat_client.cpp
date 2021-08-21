@@ -95,11 +95,11 @@ void Client(Address remoteAddress)
   Driver driver;
   auto thread = std::thread(&Driver::Run, &driver);
 
-  // create and connect client
-  ReconnectClient client(remoteAddress, driver, ioBuf);
-
   // send buffer pool to be released after socket using it
   BufferPool pool;
+
+  // create and connect client
+  ReconnectClient client(remoteAddress, driver, ioBuf);
 
   // query and send until cancelled
   for(;;) {
