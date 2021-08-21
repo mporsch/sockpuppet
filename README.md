@@ -34,13 +34,13 @@ The CMake install target prepares a CMake-based demo project suitable as a start
 The `Address` class represents localhost or remote UDP/TCP addresses and is used to create local and send/connect to remote sockets.
 
 The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide different levels of convenience around the raw OS socket representation:
-* `SocketUdp`, `SocketTcpClient` and `SocketTcpServer` allow basic functions like connect, send and receive
+* `SocketUdp` and `SocketTcp` allow basic functions like connect, send and receive, while `Acceptor` listens for incoming TCP connections
 * `SocketUdpBuffered` and `SocketTcpBuffered` add an internal receive buffer pool
-* `SocketUdpAsync`, `SocketTcpAsyncClient` and `SocketTcpAsyncServer` are driven by a `Driver` (i.e. a thread) providing asynchronous operation to one or multiple sockets
+* `SocketUdpAsync` and `SocketTcpAsync` as well as `AcceptorAsync` are run by a `Driver` (i.e. a thread) providing asynchronous operation to one or multiple sockets
 
 If built with TLS support, all TCP socket classes can be instantiated with an SSL certificate and private key file to run encrypted connections.
 
-The `ToDo` class is used for scheduling tasks to run at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attemts.
+The `ToDo` class is used for scheduling tasks to be run by a `Driver` at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attemts.
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
