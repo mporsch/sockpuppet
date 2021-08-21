@@ -75,7 +75,7 @@ struct Driver::DriverImpl
 
   void Step(Duration timeout);
   template<typename Deadline>
-  Duration StepTodos(Deadline);
+  Duration StepTodos(Deadline deadline);
   void StepFds(Duration timeout);
 
   void Run();

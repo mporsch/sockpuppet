@@ -52,9 +52,10 @@ struct SocketImpl
                  size_t size);
   // waits for writable repeatedly and
   // sends the max amount of data within the user-provided timeout
+  template<typename Deadline>
   size_t SendSome(char const *data,
                   size_t size,
-                  Duration timeout);
+                  Deadline deadline);
   // assumes a writable socket
   virtual size_t SendSome(char const *data,
                           size_t size);

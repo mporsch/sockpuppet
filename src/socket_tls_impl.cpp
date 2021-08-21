@@ -12,8 +12,6 @@ namespace sockpuppet {
 
 namespace {
 
-static Duration const noBlock(0);
-
 void IgnoreSigPipe()
 {
 #ifndef SO_NOSIGPIPE
@@ -118,22 +116,25 @@ SocketTlsClientImpl::~SocketTlsClientImpl() = default;
 std::optional<size_t> SocketTlsClientImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() >= 0) {
-    if(auto received = Receive(data, size, DeadlineLimited(timeout))) {
-      return {received};
-    } else {
-      return {std::nullopt};
-    }
-  } else {
-    auto received = Receive(data, size, DeadlineUnlimited());
-    assert(received > 0U);
+  auto received =
+      (timeout.count() < 0 ?
+         Receive(data, size, DeadlineUnlimited()) :
+         (timeout.count() == 0 ?
+            Receive(data, size, DeadlineZero()) :
+            Receive(data, size, DeadlineLimited(timeout))));
+
+  // unlimited timeout performs full handshake and subsequent receive
+  assert((received > 0U) || (timeout.count() >= 0));
+
+  if(received) {
     return {received};
   }
+  return {std::nullopt};
 }
 
 size_t SocketTlsClientImpl::Receive(char *data, size_t size)
 {
-  return Receive(data, size, DeadlineLimited(noBlock));
+  return Receive(data, size, DeadlineZero());
 }
 
 template<typename Deadline>
@@ -143,11 +144,11 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
   IgnoreSigPipe();
 
   // run in a loop, as OpenSSL might require a handshake at any time
-  for(;;) {
+  do {
     auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
     if(res < 0) {
       if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
-        return 0U; // timeout / socket was readable for TLS handshake only
+        break;
       }
       deadline.Tick();
     } else if(res == 0) {
@@ -155,7 +156,8 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
     } else {
       return static_cast<size_t>(res);
     }
-  }
+  } while(deadline.TimeLeft());
+  return 0U; // timeout / socket was readable for TLS handshake only
 }
 
 size_t SocketTlsClientImpl::Send(char const *data, size_t size,
@@ -163,7 +165,9 @@ size_t SocketTlsClientImpl::Send(char const *data, size_t size,
 {
   return (timeout.count() < 0 ?
             SendAll(data, size) :
-            SendSome(data, size, DeadlineLimited(timeout)));
+            (timeout.count() == 0 ?
+               SendSome(data, size, DeadlineZero()) :
+               SendSome(data, size, DeadlineLimited(timeout))));
 }
 
 size_t SocketTlsClientImpl::SendAll(char const *data, size_t size)
@@ -175,7 +179,7 @@ size_t SocketTlsClientImpl::SendAll(char const *data, size_t size)
 
 template<typename Deadline>
 size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
-    Deadline &&deadline)
+    Deadline deadline)
 {
   IgnoreSigPipe();
 
@@ -193,13 +197,13 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
     } else {
       sent += static_cast<size_t>(res);
     }
-  } while(sent < size);
+  } while((sent < size) && deadline.TimeLeft());
   return sent;
 }
 
 size_t SocketTlsClientImpl::SendSome(char const *data, size_t size)
 {
-  return SendSome(data, size, DeadlineLimited(noBlock));
+  return SendSome(data, size, DeadlineZero());
 }
 
 void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)

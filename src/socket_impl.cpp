@@ -189,7 +189,9 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 {
   return (timeout.count() < 0 ?
             SendAll(data, size) :
-            SendSome(data, size, timeout));
+            (timeout.count() == 0 ?
+               SendSome(data, size, DeadlineZero()) :
+               SendSome(data, size, DeadlineLimited(timeout))));
 }
 
 size_t SocketImpl::SendAll(char const *data, size_t size)
@@ -200,10 +202,11 @@ size_t SocketImpl::SendAll(char const *data, size_t size)
   return sent;
 }
 
-size_t SocketImpl::SendSome(char const *data, size_t size, Duration timeout)
+template<typename Deadline>
+size_t SocketImpl::SendSome(char const *data, size_t size,
+    Deadline deadline)
 {
   size_t sent = 0U;
-  DeadlineLimited deadline(timeout);
   do {
     if(!WaitWritable(deadline.Remaining())) {
       break; // timeout exceeded

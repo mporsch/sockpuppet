@@ -50,48 +50,6 @@ bool Wait(SOCKET fd, short events, Duration timeout)
 
 } // unnamed namespace
 
-DeadlineUnlimited::DeadlineUnlimited()
-  : now(Clock::now())
-{
-}
-
-void DeadlineUnlimited::Tick()
-{
-  now = Clock::now();
-}
-
-bool DeadlineUnlimited::TimeLeft() const
-{
-  return true;
-}
-
-Duration DeadlineUnlimited::Remaining() const
-{
-  return Duration(-1);
-}
-
-
-DeadlineLimited::DeadlineLimited(Duration timeout)
-  : DeadlineUnlimited()
-  , deadline(this->now + timeout)
-{
-}
-
-bool DeadlineLimited::TimeLeft() const
-{
-  return (this->now <= deadline);
-}
-
-Duration DeadlineLimited::Remaining() const
-{
-  auto remaining = std::chrono::duration_cast<Duration>(deadline - this->now);
-  if(remaining.count() < 0) {
-    return Duration(0); // must not turn timeout >=0 into <0
-  }
-  return remaining;
-}
-
-
 bool WaitReadableBlocking(SOCKET fd, Duration timeout)
 {
   return ((timeout.count() < 0) ||

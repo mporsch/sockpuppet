@@ -105,9 +105,12 @@ void Driver::DriverImpl::Step(Duration timeout)
     StepFds(timeout);
   } else {
     // execute due ToDos while keeping track of the time
-    auto remaining = (timeout.count() >= 0 ?
-        StepTodos(DeadlineLimited(timeout)) :
-        StepTodos(DeadlineUnlimited()));
+    auto remaining =
+        (timeout.count() < 0 ?
+           StepTodos(DeadlineUnlimitedTime()) :
+           (timeout.count() == 0 ?
+              StepTodos(DeadlineZeroTime()) :
+              StepTodos(DeadlineLimited(timeout))));
 
     // run sockets with remaining time
     StepFds(remaining);

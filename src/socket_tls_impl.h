@@ -54,7 +54,7 @@ struct SocketTlsClientImpl : public SocketImpl
   template<typename Deadline>
   size_t SendSome(char const *data,
                   size_t size,
-                  Deadline &&deadline);
+                  Deadline deadline);
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
