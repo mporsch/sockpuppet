@@ -1,4 +1,4 @@
-#include "sockpuppet_chat_io_print.h"
+#include "sockpuppet_chat_io_print.h" // for IOPrintBuffer
 
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
@@ -51,7 +51,7 @@ struct ReconnectClient
           to_string(remoteAddress) +
           " will retry in " +
           std::to_string(delay.count()) +
-          "s ");
+          "s");
 
       // schedule a reconnect attempt with increasing backoff delay
       ToDo(driver,
@@ -62,7 +62,9 @@ struct ReconnectClient
 
   void Send(BufferPtr buffer)
   {
-    (void)client->Send(std::move(buffer));
+    if(client) {
+      (void)client->Send(std::move(buffer));
+    }
     // TODO cache failed send attempts and send after reconnect
   }
 
