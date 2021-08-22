@@ -1,7 +1,7 @@
 #ifdef SOCKPUPPET_WITH_TLS
 
 #include "socket_tls_impl.h"
-#include "error_code.h" // for SslError
+#include "error_code.h" // for SocketError
 #include "wait.h" // for WaitReadableNonBlocking
 
 #include <cassert> // for assert
@@ -83,13 +83,6 @@ SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
     return ssl;
   }
   throw std::runtime_error("failed to create SSL structure");
-}
-
-std::system_error MakeSslError(SSL *ssl, int code, char const *message)
-{
-  return std::system_error(
-        SslError(SSL_get_error(ssl, code)),
-        message);
 }
 
 } // unnamed namespace
@@ -226,13 +219,21 @@ bool SocketTlsClientImpl::WaitWritable(Duration timeout)
 
 bool SocketTlsClientImpl::Wait(int code, Duration timeout)
 {
+  static char const errorMessage[] =
+      "failed to wait for TLS socket readable/writable";
+
   switch(code) {
   case SSL_ERROR_WANT_READ:
     return WaitReadable(timeout);
   case SSL_ERROR_WANT_WRITE:
     return WaitWritable(timeout);
+  case SSL_ERROR_SYSCALL:
+    throw std::system_error(SocketError(), errorMessage);
+  case SSL_ERROR_ZERO_RETURN:
+    throw std::runtime_error(errorMessage);
   default:
-    throw MakeSslError(ssl.get(), code, "failed to do TLS handshake");
+    assert(code != SSL_ERROR_NONE);
+    throw std::system_error(SslError(code), errorMessage);
   }
 }
 
