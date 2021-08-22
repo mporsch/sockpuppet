@@ -27,8 +27,18 @@ struct ssl_error_category : public std::error_category
 
   std::string message(int messageId) const override
   {
-    char buf[512];
-    ::ERR_error_string_n(messageId, buf, sizeof(buf));
+    // print human-readable reason string
+    if(auto reason = ERR_reason_error_string(static_cast<unsigned long>(messageId))) {
+      return {reason};
+    }
+
+    // fall back to OpenSSL error code gibberish
+    std::string buf;
+    buf.reserve(256U);
+    ERR_print_errors_cb([](char const *str, size_t len, void *buf) -> int {
+      static_cast<std::string *>(buf)->append(str, len);
+      return 1;
+    }, &buf);
     return buf;
   }
 };
