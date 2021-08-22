@@ -68,17 +68,9 @@ SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
   throw std::runtime_error("failed to create SSL context");
 }
 
-void FreeSsl(SSL *ssl)
-{
-  if(ssl) {
-    SSL_shutdown(ssl);
-    SSL_free(ssl);
-  }
-}
-
 SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), FreeSsl)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), SSL_free)) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }

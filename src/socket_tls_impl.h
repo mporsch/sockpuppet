@@ -19,7 +19,7 @@ namespace sockpuppet {
 // to maintain control of the timing behaviour during the TLS handshake
 struct SocketTlsClientImpl : public SocketImpl
 {
-  using SslPtr = std::unique_ptr<SSL, void (*)(SSL *)>;
+  using SslPtr = std::unique_ptr<SSL, decltype(&SSL_free)>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
