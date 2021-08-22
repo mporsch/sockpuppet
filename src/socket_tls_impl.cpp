@@ -35,7 +35,7 @@ void IgnoreSigPipe()
 #endif // SO_NOSIGPIPE
 }
 
-void ConfigureContext(SSL_CTX *ctx,
+void ConfigureCtx(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
   static int const flags =
@@ -58,11 +58,11 @@ void ConfigureContext(SSL_CTX *ctx,
   }
 }
 
-SocketTlsServerImpl::CtxPtr CreateContext(SSL_METHOD const *method,
+SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
     char const *certFilePath, char const *keyFilePath)
 {
   if(auto ctx = SocketTlsServerImpl::CtxPtr(SSL_CTX_new(method), SSL_CTX_free)) {
-    ConfigureContext(ctx.get(), certFilePath, keyFilePath);
+    ConfigureCtx(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
   throw std::runtime_error("failed to create SSL context");
@@ -85,11 +85,11 @@ SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
   throw std::runtime_error("failed to create SSL structure");
 }
 
-std::system_error MakeSslError(SSL *ssl, int code, char const *errorMessage)
+std::system_error MakeSslError(SSL *ssl, int code, char const *message)
 {
   return std::system_error(
         SslError(SSL_get_error(ssl, code)),
-        errorMessage);
+        message);
 }
 
 } // unnamed namespace
@@ -98,8 +98,8 @@ SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard()
-  , ssl(CreateSsl(
-          CreateContext(TLS_client_method(), certFilePath, keyFilePath).get(),
+  , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
+          CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
           this->fd))
 {
 }
@@ -126,10 +126,10 @@ std::optional<size_t> SocketTlsClientImpl::Receive(
   // unlimited timeout performs full handshake and subsequent receive
   assert((received > 0U) || (timeout.count() >= 0));
 
-  if(received) {
-    return {received};
+  if(!received) {
+    return {std::nullopt};
   }
-  return {std::nullopt};
+  return {received};
 }
 
 size_t SocketTlsClientImpl::Receive(char *data, size_t size)
@@ -139,12 +139,11 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size)
 
 template<typename Deadline>
 size_t SocketTlsClientImpl::Receive(char *data, size_t size,
-    Deadline &&deadline)
+    Deadline deadline)
 {
   IgnoreSigPipe();
 
-  // run in a loop, as OpenSSL might require a handshake at any time
-  do {
+  do { // run in a loop as OpenSSL might do a handshake at any time
     auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
     if(res < 0) {
       if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
@@ -184,8 +183,7 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
   IgnoreSigPipe();
 
   size_t sent = 0U;
-  // run in a loop, as OpenSSL might require a handshake at any time
-  do {
+  do { // run in a loop as OpenSSL might do a handshake at any time
     auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
     if(res < 0) {
       if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
@@ -243,7 +241,7 @@ SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard()
-  , ctx(CreateContext(TLS_server_method(), certFilePath, keyFilePath))
+  , ctx(CreateCtx(TLS_server_method(), certFilePath, keyFilePath))
 {
 }
 

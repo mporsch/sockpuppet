@@ -42,7 +42,7 @@ struct SocketTlsClientImpl : public SocketImpl
   template<typename Deadline>
   size_t Receive(char *data,
                  size_t size,
-                 Deadline &&deadline);
+                 Deadline deadline);
 
   size_t Send(char const *data,
               size_t size,
@@ -72,7 +72,6 @@ struct SocketTlsClientImpl : public SocketImpl
 
 struct SocketTlsServerImpl : public SocketImpl
 {
-  // context is reference-counted by itself: used for transport to sessions only
   using CtxPtr = std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
