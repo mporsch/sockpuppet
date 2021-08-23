@@ -11,6 +11,7 @@
 #include <mutex> // for std::mutex
 #include <queue> // for std::queue
 #include <tuple> // for std::tuple
+#include <variant> // for std::variant
 
 namespace sockpuppet {
 
@@ -33,10 +34,9 @@ struct SocketAsyncImpl
 
   std::unique_ptr<SocketBufferedImpl> buff;
   std::weak_ptr<Driver::DriverImpl> driver;
-  Handlers handlers;
   std::mutex sendQMtx;
-  SendQ sendQ;
-  SendToQ sendToQ;
+  std::variant<SendQ, SendToQ> sendQ;
+  Handlers handlers;
   std::shared_ptr<SockAddrStorage> peerAddr;
 
   SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock, DriverShared &driver, Handlers handlers);

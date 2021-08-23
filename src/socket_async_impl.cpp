@@ -3,6 +3,7 @@
 
 #include <cassert> // for assert
 #include <stdexcept> // for std::runtime_error
+#include <type_traits> // for std::is_same_v
 
 namespace sockpuppet {
 
@@ -18,6 +19,14 @@ SocketAsyncImpl::SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
     DriverShared &driver, Handlers handlers)
   : buff(std::move(buff))
   , driver(driver)
+  , sendQ(
+      [&handlers]() {
+        if(handlers.receive) { // TCP with Send and Receive
+          return std::variant<SendQ, SendToQ>(std::in_place_type<SendQ>);
+        } else { // UDP with SendTO and ReceiveFrom
+          return std::variant<SendQ, SendToQ>(std::in_place_type<SendToQ>);
+        }
+      }())
   , handlers(std::move(handlers))
 {
   driver->AsyncRegister(*this);
@@ -37,12 +46,15 @@ SocketAsyncImpl::~SocketAsyncImpl()
 
 std::future<void> SocketAsyncImpl::Send(BufferPtr &&buffer)
 {
-  return DoSend(sendQ, std::move(buffer));
+  return DoSend(std::get<SendQ>(sendQ),
+                std::move(buffer));
 }
 
 std::future<void> SocketAsyncImpl::SendTo(BufferPtr &&buffer, AddressShared dstAddr)
 {
-  return DoSend(sendToQ, std::move(buffer), std::move(dstAddr));
+  return DoSend(std::get<SendToQ>(sendQ),
+                std::move(buffer),
+                std::move(dstAddr));
 }
 
 template<typename Queue, typename... Args>
@@ -99,21 +111,23 @@ bool SocketAsyncImpl::DriverDoFdTaskWritable()
   // the previously empty queue has not been refilled asynchronously
   std::lock_guard<std::mutex> lock(sendQMtx);
 
-  // one queue must have data but not both,
-  // as socket uses either send or sendto
-  assert(sendQ.empty() != sendToQ.empty());
-
-  if(auto const sendQSize = sendQ.size()) {
-    if(DriverDoSend(sendQ.front())) {
-      sendQ.pop();
-      return (sendQSize == 1U);
+  return std::visit([this](auto &&q) -> bool {
+    using Q = std::decay_t<decltype(q)>;
+    if constexpr(std::is_same_v<Q, SendQ>) {
+      if(auto const sendQSize = q.size()) {
+        if(DriverDoSend(q.front())) {
+          q.pop();
+          return (sendQSize == 1U);
+        }
+      }
+    } else if constexpr(std::is_same_v<Q, SendToQ>) {
+      if(auto const sendToQSize = q.size()) {
+        DriverDoSendTo(q.front());
+        q.pop();
+        return (sendToQSize == 1U);
+      }
     }
-  } else if(auto const sendToQSize = sendToQ.size()) {
-    DriverDoSendTo(sendToQ.front());
-    sendToQ.pop();
-    return (sendToQSize == 1U);
-  }
-  return false;
+  }, sendQ);
 }
 
 bool SocketAsyncImpl::DriverDoSend(SendQElement &t)
