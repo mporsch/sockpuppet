@@ -46,32 +46,22 @@ SocketAsyncImpl::~SocketAsyncImpl()
 
 std::future<void> SocketAsyncImpl::Send(BufferPtr &&buffer)
 {
-  return DoSend(std::get<SendQ>(sendQ),
-                std::move(buffer));
+  return DoSend<SendQ>(std::move(buffer));
 }
 
 std::future<void> SocketAsyncImpl::SendTo(BufferPtr &&buffer, AddressShared dstAddr)
 {
-  return DoSend(std::get<SendToQ>(sendQ),
-                std::move(buffer),
-                std::move(dstAddr));
+  return DoSend<SendToQ>(std::move(buffer), std::move(dstAddr));
 }
 
 template<typename Queue, typename... Args>
-std::future<void> SocketAsyncImpl::DoSend(Queue &q, Args&&... args)
+std::future<void> SocketAsyncImpl::DoSend(Args&&... args)
 {
   std::promise<void> promise;
   auto ret = promise.get_future();
 
-  bool wasEmpty;
-  {
-    std::lock_guard<std::mutex> lock(sendQMtx);
-
-    wasEmpty = q.empty();
-    q.emplace(std::move(promise),
-              std::forward<Args>(args)...);
-  }
-
+  bool const wasEmpty = DoSendEnqueue<Queue>(
+      std::move(promise), std::forward<Args>(args)...);
   if(wasEmpty) {
     if(auto const ptr = driver.lock()) {
       ptr->AsyncWantSend(buff->sock->fd);
@@ -79,6 +69,19 @@ std::future<void> SocketAsyncImpl::DoSend(Queue &q, Args&&... args)
   }
 
   return ret;
+}
+
+template<typename Queue, typename... Args>
+bool SocketAsyncImpl::DoSendEnqueue(
+    std::promise<void> promise, Args&&... args)
+{
+  std::lock_guard<std::mutex> lock(sendQMtx);
+
+  auto &q = std::get<Queue>(sendQ);
+  bool const wasEmpty = q.empty();
+  q.emplace(std::move(promise),
+            std::forward<Args>(args)...);
+  return wasEmpty;
 }
 
 void SocketAsyncImpl::DriverDoFdTaskReadable()
@@ -114,28 +117,22 @@ bool SocketAsyncImpl::DriverDoFdTaskWritable()
   return std::visit([this](auto &&q) -> bool {
     using Q = std::decay_t<decltype(q)>;
     if constexpr(std::is_same_v<Q, SendQ>) {
-      if(auto const sendQSize = q.size()) {
-        if(DriverDoSend(q.front())) {
-          q.pop();
-          return (sendQSize == 1U);
-        }
-      }
+      return DriverDoSend(q);
     } else if constexpr(std::is_same_v<Q, SendToQ>) {
-      if(auto const sendToQSize = q.size()) {
-        DriverDoSendTo(q.front());
-        q.pop();
-        return (sendToQSize == 1U);
-      }
+      return DriverDoSendTo(q);
     }
   }, sendQ);
 }
 
-bool SocketAsyncImpl::DriverDoSend(SendQElement &t)
+bool SocketAsyncImpl::DriverDoSend(SendQ &q)
 {
-  auto &&promise = std::get<0>(t);
-  try {
-    auto &&buffer = std::get<1>(t);
+  auto const sendQSize = q.size();
+  if(!sendQSize) {
+    throw std::logic_error("uncalled send");
+  }
 
+  auto &&[promise, buffer] = q.front();
+  try {
     // allow partial send to avoid starving other
     // driver's sockets if this one is rate limited
     auto const sent = buff->sock->SendSome(buffer->data(), buffer->size());
@@ -148,15 +145,19 @@ bool SocketAsyncImpl::DriverDoSend(SendQElement &t)
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
-  return true;
+  q.pop();
+  return (sendQSize == 1U);
 }
 
-void SocketAsyncImpl::DriverDoSendTo(SendToQElement &t)
+bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
 {
-  auto &&promise = std::get<0>(t);
+  auto const sendToQSize = q.size();
+  if(!sendToQSize) {
+    throw std::logic_error("uncalled sendto");
+  }
+
+  auto &&[promise, buffer, addr] = q.front();
   try {
-    auto &&buffer = std::get<1>(t);
-    auto &&addr = std::get<2>(t);
     auto const sent = buff->sock->SendTo(buffer->data(), buffer->size(),
                                          addr->ForUdp());
     assert(sent == buffer->size());
@@ -164,6 +165,8 @@ void SocketAsyncImpl::DriverDoSendTo(SendToQElement &t)
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
+  q.pop();
+  return (sendToQSize == 1U);
 }
 
 void SocketAsyncImpl::DriverDoFdTaskError()

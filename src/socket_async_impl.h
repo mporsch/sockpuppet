@@ -51,15 +51,17 @@ struct SocketAsyncImpl
   std::future<void> SendTo(BufferPtr &&buffer, AddressShared dstAddr);
 
   template<typename Queue, typename... Args>
-  std::future<void> DoSend(Queue &q, Args&&... args);
+  std::future<void> DoSend(Args&&... args);
+  template<typename Queue, typename... Args>
+  bool DoSendEnqueue(std::promise<void> promise, Args&&... args);
 
   // in thread context of DriverImpl
   void DriverDoFdTaskReadable();
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
-  bool DriverDoSend(SendQElement &t);
-  void DriverDoSendTo(SendToQElement &t);
+  bool DriverDoSend(SendQ &q);
+  bool DriverDoSendTo(SendToQ &q);
 
   void DriverDoFdTaskError();
 };
