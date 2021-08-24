@@ -34,7 +34,7 @@ struct SocketAsyncImpl
 
   std::unique_ptr<SocketBufferedImpl> buff;
   std::weak_ptr<Driver::DriverImpl> driver;
-  std::mutex sendQMtx;
+  mutable std::mutex sendQMtx;
   std::variant<SendQ, SendToQ> sendQ;
   Handlers handlers;
   std::shared_ptr<SockAddrStorage> peerAddr;
@@ -54,6 +54,9 @@ struct SocketAsyncImpl
   std::future<void> DoSend(Args&&... args);
   template<typename Queue, typename... Args>
   bool DoSendEnqueue(std::promise<void> promise, Args&&... args);
+
+  template<typename Queue>
+  bool IsSendQueueEmpty() const;
 
   // in thread context of DriverImpl
   void DriverDoFdTaskReadable();

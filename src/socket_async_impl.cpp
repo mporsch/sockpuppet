@@ -84,6 +84,13 @@ bool SocketAsyncImpl::DoSendEnqueue(
   return wasEmpty;
 }
 
+template<typename Queue>
+bool SocketAsyncImpl::IsSendQueueEmpty() const
+{
+  std::lock_guard<std::mutex> lock(sendQMtx);
+  return std::get<Queue>(sendQ).empty();
+}
+
 void SocketAsyncImpl::DriverDoFdTaskReadable()
 try {
   if(handlers.connect) {
@@ -93,7 +100,16 @@ try {
     handlers.connect(std::move(sock), std::move(addr));
   } else if(handlers.receive) {
       auto buffer = buff->Receive();
-      if(!buffer->empty()) { // TLS socket received handshake data only
+      if(buffer->empty()) { // zero-size receipt
+        // TLS socket received handshake data only,
+        // if we previously attempted to send,
+        // there might still be data in the send queue now
+        if(!IsSendQueueEmpty<SendQ>()) {
+          if(auto const ptr = driver.lock()) {
+            ptr->AsyncWantSend(buff->sock->fd);
+          }
+        }
+      } else {
         handlers.receive(std::move(buffer));
       }
   } else if(handlers.receiveFrom) {
@@ -138,9 +154,13 @@ bool SocketAsyncImpl::DriverDoSend(SendQ &q)
     auto const sent = buff->sock->SendSome(buffer->data(), buffer->size());
     if(sent == buffer->size()) {
       promise.set_value();
-    } else {
+    } else if(sent != 0U) {
       buffer->erase(0, sent);
       return false;
+    } else { // zero-size sent data
+      // TLS socket can't send data as it has not received handshake data from peer yet,
+      // so give up sending now but keep the data in the send queue to retry after receipt
+      return true;
     }
   } catch(std::exception const &e) {
     promise.set_exception(std::make_exception_ptr(e));
