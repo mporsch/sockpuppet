@@ -7,34 +7,59 @@
 
 namespace sockpuppet {
 
-SocketAsyncImpl::SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock,
-    DriverShared &driver, Handlers handlers)
-  : SocketAsyncImpl(std::make_unique<SocketBufferedImpl>(std::move(sock), 0U, 0U),
-                    driver,
-                    std::move(handlers))
-{
-}
-
-SocketAsyncImpl::SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
-    DriverShared &driver, Handlers handlers)
+// UDP socket with ReceiveFrom and SendTo
+SocketAsyncImpl::SocketAsyncImpl(
+    std::unique_ptr<SocketBufferedImpl> &&buff,
+    DriverShared &driver,
+    ReceiveFromHandler receiveFromHandler)
   : buff(std::move(buff))
   , driver(driver)
-  , sendQ(
-      [&handlers]() {
-        if(handlers.receive) { // TCP with Send and Receive
-          return std::variant<SendQ, SendToQ>(std::in_place_type<SendQ>);
-        } else { // UDP with SendTO and ReceiveFrom
-          return std::variant<SendQ, SendToQ>(std::in_place_type<SendToQ>);
-        }
-      }())
-  , handlers(std::move(handlers))
+  , onReadable(std::bind(
+      &SocketAsyncImpl::DriverDoFdTaskReceiveFrom,
+      this,
+      std::move(receiveFromHandler)))
+  , onError([]() {}) // silently discard UDP receive errors
+  , sendQ(std::in_place_type<SendToQ>)
 {
   driver->AsyncRegister(*this);
+}
 
-  if(this->handlers.disconnect) {
-    // cache remote address as it will be unavailable after disconnect
-    peerAddr = this->buff->sock->GetPeerName();
-  }
+// TCP socket with Receive and Send
+SocketAsyncImpl::SocketAsyncImpl(
+    std::unique_ptr<SocketBufferedImpl> &&buff,
+    DriverShared &driver,
+    ReceiveHandler receiveHandler,
+    DisconnectHandler disconnectHandler)
+  : buff(std::move(buff))
+  , driver(driver)
+  , onReadable(std::bind(
+      &SocketAsyncImpl::DriverDoFdTaskReceive,
+      this,
+      std::move(receiveHandler)))
+  , onError(std::bind(
+      &SocketAsyncImpl::DriverDoFdTaskDisconnect,
+      this,
+      std::move(disconnectHandler),
+      this->buff->sock->GetPeerName())) // cache remote address now before disconnect
+  , sendQ(std::in_place_type<SendQ>)
+{
+  driver->AsyncRegister(*this);
+}
+
+// TCP acceptor with Listen/Accept
+SocketAsyncImpl::SocketAsyncImpl(
+    std::unique_ptr<SocketImpl> &&sock,
+    DriverShared &driver,
+    ConnectHandler connectHandler)
+  : buff(std::make_unique<SocketBufferedImpl>(std::move(sock), 0U, 0U))
+  , driver(driver)
+  , onReadable(std::bind(
+      &SocketAsyncImpl::DriverDoFdTaskConnect,
+      this,
+      std::move(connectHandler)))
+  , onError([]() {}) // silently discard TCP accept errors
+{
+  driver->AsyncRegister(*this);
 }
 
 SocketAsyncImpl::~SocketAsyncImpl()
@@ -72,15 +97,13 @@ std::future<void> SocketAsyncImpl::DoSend(Args&&... args)
 }
 
 template<typename Queue, typename... Args>
-bool SocketAsyncImpl::DoSendEnqueue(
-    std::promise<void> promise, Args&&... args)
+bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
 {
   std::lock_guard<std::mutex> lock(sendQMtx);
 
   auto &q = std::get<Queue>(sendQ);
   bool const wasEmpty = q.empty();
-  q.emplace(std::move(promise),
-            std::forward<Args>(args)...);
+  q.emplace(std::move(promise), std::forward<Args>(args)...);
   return wasEmpty;
 }
 
@@ -92,34 +115,50 @@ bool SocketAsyncImpl::IsSendQueueEmpty() const
 }
 
 void SocketAsyncImpl::DriverDoFdTaskReadable()
-try {
-  if(handlers.connect) {
+{
+  onReadable();
+}
+
+void SocketAsyncImpl::DriverDoFdTaskConnect(ConnectHandler const &onConnect)
+{
+  try {
     auto [sock, addr] = buff->sock->Accept();
     buff->sock->Listen();
 
-    handlers.connect(std::move(sock), std::move(addr));
-  } else if(handlers.receive) {
-      auto buffer = buff->Receive();
-      if(buffer->empty()) { // zero-size receipt
-        // TLS socket received handshake data only,
-        // if we previously attempted to send,
-        // there might still be data in the send queue now
-        if(!IsSendQueueEmpty<SendQ>()) {
-          if(auto const ptr = driver.lock()) {
-            ptr->AsyncWantSend(buff->sock->fd);
-          }
-        }
-      } else {
-        handlers.receive(std::move(buffer));
-      }
-  } else if(handlers.receiveFrom) {
-    auto [buffer, addr] = buff->ReceiveFrom();
-    handlers.receiveFrom(std::move(buffer), std::move(addr));
-  } else {
-    assert(false);
+    onConnect(std::move(sock), std::move(addr));
+  } catch(std::runtime_error const &) {
+    onError();
   }
-} catch(std::runtime_error const &) {
-  DriverDoFdTaskError();
+}
+
+void SocketAsyncImpl::DriverDoFdTaskReceive(ReceiveHandler const &onReceive)
+{
+  try {
+    auto buffer = buff->Receive();
+    if(buffer->empty()) { // zero-size receipt
+      // TLS socket received handshake data only: if we previously attempted
+      // to send, there might still be data in the send queue now
+      if(!IsSendQueueEmpty<SendQ>()) {
+        if(auto const ptr = driver.lock()) {
+          ptr->AsyncWantSend(buff->sock->fd);
+        }
+      }
+    } else {
+      onReceive(std::move(buffer));
+    }
+  } catch(std::runtime_error const &) {
+    onError();
+  }
+}
+
+void SocketAsyncImpl::DriverDoFdTaskReceiveFrom(ReceiveFromHandler const &onReceiveFrom)
+{
+  try {
+    auto [buffer, addr] = buff->ReceiveFrom();
+    onReceiveFrom(std::move(buffer), std::move(addr));
+  } catch(std::runtime_error const &) {
+    onError();
+  }
 }
 
 bool SocketAsyncImpl::DriverDoFdTaskWritable()
@@ -158,11 +197,11 @@ bool SocketAsyncImpl::DriverDoSend(SendQ &q)
       buffer->erase(0, sent);
       return false;
     } else { // zero-size sent data
-      // TLS socket can't send data as it has not received handshake data from peer yet,
-      // so give up sending now but keep the data in the send queue to retry after receipt
+      // TLS socket can't send data as it has not received handshake data from peer yet:
+      // give up sending now but keep the data in the send queue to retry after receipt
       return true;
     }
-  } catch(std::exception const &e) {
+  } catch(std::runtime_error const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
   q.pop();
@@ -178,11 +217,10 @@ bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
 
   auto &&[promise, buffer, addr] = q.front();
   try {
-    auto const sent = buff->sock->SendTo(buffer->data(), buffer->size(),
-                                         addr->ForUdp());
+    auto const sent = buff->sock->SendTo(buffer->data(), buffer->size(), addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();
-  } catch(std::exception const &e) {
+  } catch(std::runtime_error const &e) {
     promise.set_exception(std::make_exception_ptr(e));
   }
   q.pop();
@@ -191,11 +229,13 @@ bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
 
 void SocketAsyncImpl::DriverDoFdTaskError()
 {
-  if(handlers.disconnect) {
-    handlers.disconnect(Address(peerAddr));
-  } else {
-    // silently discard UDP receive errors
-  }
+  onError();
+}
+
+void SocketAsyncImpl::DriverDoFdTaskDisconnect(
+    DisconnectHandler const &onDisconnect, AddressShared peerAddr)
+{
+  onDisconnect(Address(std::move(peerAddr)));
 }
 
 } // namespace sockpuppet

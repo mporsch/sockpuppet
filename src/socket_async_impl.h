@@ -24,23 +24,23 @@ struct SocketAsyncImpl
   using SendToQElement = std::tuple<std::promise<void>, BufferPtr, AddressShared>;
   using SendToQ = std::queue<SendToQElement>;
 
-  struct Handlers
-  {
-    ReceiveHandler receive;
-    ReceiveFromHandler receiveFrom;
-    ConnectHandler connect;
-    DisconnectHandler disconnect;
-  };
-
   std::unique_ptr<SocketBufferedImpl> buff;
   std::weak_ptr<Driver::DriverImpl> driver;
+  std::function<void()> onReadable; // contains use-case-dependent data as bound arguments
+  std::function<void()> onError; // contains use-case-dependent data as bound arguments
   mutable std::mutex sendQMtx;
-  std::variant<SendQ, SendToQ> sendQ;
-  Handlers handlers;
-  std::shared_ptr<SockAddrStorage> peerAddr;
+  std::variant<SendQ, SendToQ> sendQ; // use-case dependent queue type
 
-  SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock, DriverShared &driver, Handlers handlers);
-  SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff, DriverShared &driver, Handlers handlers);
+  SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
+                  DriverShared &driver,
+                  ReceiveFromHandler receiveFromHandler);
+  SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
+                  DriverShared &driver,
+                  ReceiveHandler receiveHandler,
+                  DisconnectHandler disconnectHandler);
+  SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock,
+                  DriverShared &driver,
+                  ConnectHandler connectHandler);
   SocketAsyncImpl(SocketAsyncImpl const &) = delete;
   SocketAsyncImpl(SocketAsyncImpl &&) = delete;
   ~SocketAsyncImpl();
@@ -60,6 +60,9 @@ struct SocketAsyncImpl
 
   // in thread context of DriverImpl
   void DriverDoFdTaskReadable();
+  void DriverDoFdTaskConnect(ConnectHandler const &onConnect);
+  void DriverDoFdTaskReceive(ReceiveHandler const &onReceive);
+  void DriverDoFdTaskReceiveFrom(ReceiveFromHandler const &onReceiveFrom);
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverDoFdTaskWritable();
@@ -67,6 +70,8 @@ struct SocketAsyncImpl
   bool DriverDoSendTo(SendToQ &q);
 
   void DriverDoFdTaskError();
+  void DriverDoFdTaskDisconnect(DisconnectHandler const &onDisconnect,
+                                AddressShared peerAddr);
 };
 
 } // namespace sockpuppet

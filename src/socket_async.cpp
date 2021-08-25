@@ -89,12 +89,7 @@ SocketUdpAsync::SocketUdpAsync(SocketUdpBuffered &&buff,
   : impl(std::make_unique<SocketAsyncImpl>(
       std::move(buff.impl),
       driver.impl,
-      SocketAsyncImpl::Handlers{
-        nullptr
-      , std::move(checked(handleReceiveFrom))
-      , nullptr
-      , nullptr
-      }))
+      std::move(checked(handleReceiveFrom))))
 {
 }
 
@@ -121,12 +116,8 @@ SocketTcpAsync::SocketTcpAsync(SocketTcpBuffered &&buff, Driver &driver,
   : impl(std::make_unique<SocketAsyncImpl>(
       std::move(buff.impl),
       driver.impl,
-      SocketAsyncImpl::Handlers{
-        std::move(checked(handleReceive))
-      , nullptr
-      , nullptr
-      , std::move(checked(handleDisconnect))
-      }))
+      std::move(checked(handleReceive)),
+      std::move(checked(handleDisconnect))))
 {
 }
 
@@ -156,12 +147,7 @@ AcceptorAsync::AcceptorAsync(Acceptor &&sock, Driver &driver, ConnectHandler han
   : impl(std::make_unique<SocketAsyncImpl>(
       std::move(sock.impl),
       driver.impl,
-      SocketAsyncImpl::Handlers{
-        nullptr
-      , nullptr
-      , std::move(checked(handleConnect))
-      , nullptr
-      }))
+      std::move(checked(handleConnect))))
 {
   impl->buff->sock->Listen();
 }
