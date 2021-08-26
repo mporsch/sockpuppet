@@ -1,142 +1,124 @@
 #include "address_impl.h"
 #include "error_code.h" // for AddressError
 
-#include <algorithm> // for std::count
 #include <cstring> // for std::memcmp
+#include <regex> // for std::regex
 #include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
 namespace {
-  bool IsNumeric(char c)
-  {
-    return (c == '[' ||
-            c == ':' ||
-            (c >= '0' && c <= '9'));
+
+SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
+{
+  if(uri.empty()) {
+    throw std::invalid_argument("empty uri");
   }
 
-  bool IsNumeric(std::string const &host)
+  std::string serv;
+  std::string host;
+  bool isNumericServ = false;
+  bool isNumericHost = false;
   {
-    return (std::count(std::begin(host), std::end(host), ':') > 1);
-  }
-
-  SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
-  {
-    if(uri.empty()) {
-      throw std::invalid_argument("empty uri");
-    }
-
-    std::string serv;
-    std::string host;
-    bool isNumericServ = false;
-    bool isNumericHost = false;
-    {
-      auto posServ = uri.find("://");
-      if(posServ != std::string::npos) {
-        // uri of type serv://host/path
-        serv = uri.substr(0U, posServ);
-
-        if(uri.size() > posServ + 3U) {
-          host = uri.substr(posServ + 3U);
-          isNumericHost = IsNumeric(host[0]) || IsNumeric(host);
-        } else {
-          // uri of type serv://
-        }
+    std::smatch match;
+    static std::regex const reServ(R"((^.+)://([^/]+)/?.*)");
+    if(std::regex_match(uri, match, reServ)) {
+      // uri of type serv://host/path
+      serv = match[1].str();
+      host = match[2].str();
+      isNumericServ = false;
+    } else {
+      static std::regex const reBracket(R"(\[(.+)\]:(\d+)/?.*)");
+      if(std::regex_match(uri, match, reBracket)) {
+        // uri of type [IPv6-host]:serv/path
+        serv = match[2].str();
+        host = match[1].str();
+        isNumericServ = true;
+        isNumericHost = true;
       } else {
-        posServ = uri.find("]:");
-        if(posServ != std::string::npos &&
-           uri.size() > posServ + 2U) {
-          // uri of type [IPv6-host]:serv/path
-          serv = uri.substr(posServ + 2U);
+        static std::regex const rePort(R"(([^:]+):(\d+)/?.*)");
+        if(std::regex_match(uri, match, rePort)) {
+          // uri of type host:serv/path
+          serv = match[2].str();
+          host = match[1].str();
           isNumericServ = true;
-
-          host = uri.substr(1U, posServ - 1U);
-          isNumericHost = true;
         } else {
-          posServ = uri.find_last_of(':');
-          if(posServ != std::string::npos &&
-             uri.size() > posServ + 1U) {
-            if(uri.find(':') == posServ) {
-              // uri of type IPv4-host:serv/path
-              serv = uri.substr(posServ + 1U);
-              isNumericServ = true;
-
-              host = uri.substr(0U, posServ);
-              isNumericHost = IsNumeric(host[0]);
-            } else {
-              // uri of type IPv6-host/path
-              host = uri;
-              isNumericHost = true;
-            }
-          } else {
-            // uri of type host/path
-            host = uri;
-            isNumericHost = IsNumeric(host[0]) || IsNumeric(host);
-          }
+          // uri of type host/path
+          host = uri.substr(0, uri.find('/'));
         }
       }
-
-      auto const posPath = host.find_last_of('/');
-      if(posPath != std::string::npos) {
-        host.resize(posPath);
-      }
     }
 
-    addrinfo *info;
-    {
-      addrinfo hints{};
-      hints.ai_family = AF_UNSPEC;
-      hints.ai_flags = AI_PASSIVE |
-          (isNumericHost ? AI_NUMERICHOST : 0) |
-          (isNumericServ ? AI_NUMERICSERV : 0);
-      if(auto const result = ::getaddrinfo(
-           host.c_str(), serv.c_str(),
-           &hints, &info)) {
-        throw std::system_error(AddressError(result),
-              "failed to parse address \"" + uri + "\"");
+    if(!isNumericHost) {
+      if(host.find(':') != std::string::npos) {
+        // IPv6 host
+        isNumericHost = true;
+      } else {
+        static std::regex const reDotted(R"(\d+\.\d+\.\d+\.\d+)");
+        if(std::regex_match(host, match, reDotted)) {
+          // IPv4 host
+          isNumericHost = true;
+        }
       }
     }
-    return {info, ::freeaddrinfo};
   }
 
-  SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
-      std::string const &serv)
-  {
-    if(host.empty()) {
-      throw std::invalid_argument("empty host");
-    } else if(serv.empty()) {
-      throw std::invalid_argument("empty service");
-    }
-
-    addrinfo *info;
-    {
-      addrinfo hints{};
-      hints.ai_family = AF_UNSPEC;
-      hints.ai_flags = AI_PASSIVE;
-      if(auto const result = ::getaddrinfo(
-           host.c_str(), serv.c_str(),
-           &hints, &info)) {
-        throw std::system_error(AddressError(result),
-              "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
-      }
-    }
-    return {info, ::freeaddrinfo};
-  }
-
-  SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
+  addrinfo *info;
   {
     addrinfo hints{};
-    hints.ai_family = AF_INET; // force IPv4 here
-    hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
-    addrinfo *info;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_PASSIVE |
+        (isNumericHost ? AI_NUMERICHOST : 0) |
+        (isNumericServ ? AI_NUMERICSERV : 0);
     if(auto const result = ::getaddrinfo(
-         "localhost", port.c_str(),
+         host.c_str(), serv.c_str(),
          &hints, &info)) {
       throw std::system_error(AddressError(result),
-            "failed to parse port \"" + port + "\"");
+            "failed to parse address \"" + std::string(uri) + "\"");
     }
-    return {info, ::freeaddrinfo};
   }
+  return {info, ::freeaddrinfo};
+}
+
+SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
+    std::string const &serv)
+{
+  if(host.empty()) {
+    throw std::invalid_argument("empty host");
+  } else if(serv.empty()) {
+    throw std::invalid_argument("empty service");
+  }
+
+  addrinfo *info;
+  {
+    addrinfo hints{};
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_PASSIVE;
+    if(auto const result = ::getaddrinfo(
+         host.c_str(), serv.c_str(),
+         &hints, &info)) {
+      throw std::system_error(AddressError(result),
+            "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
+    }
+  }
+  return {info, ::freeaddrinfo};
+}
+
+SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
+{
+  addrinfo hints{};
+  hints.ai_family = AF_INET; // force IPv4 here
+  hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
+  addrinfo *info;
+  if(auto const result = ::getaddrinfo(
+       "localhost", port.c_str(),
+       &hints, &info)) {
+    throw std::system_error(AddressError(result),
+          "failed to parse port \"" + port + "\"");
+  }
+  return {info, ::freeaddrinfo};
+}
+
 } // unnamed namespace
 
 bool SockAddrView::operator<(SockAddrView const &other) const
