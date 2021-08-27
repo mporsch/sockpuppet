@@ -9,72 +9,64 @@ namespace sockpuppet {
 
 namespace {
 
+struct UriDissect
+{
+  std::string serv;
+  std::string host;
+  addrinfo hints = {};
+
+  UriDissect(std::string_view uri)
+  {
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_flags = AI_PASSIVE;
+
+    std::cmatch match;
+    static std::regex const reServ(R"(((^\w+)?://)?([^/]+)/?.*$)");
+    if(std::regex_match(std::begin(uri), std::end(uri), match, reServ)) {
+      if(match[1].matched) {
+        // URI of type serv://host/path
+        serv = match[2].str();
+      }
+
+      // trim serv + path
+      uri = {match[3].first, static_cast<size_t>(match[3].length())};
+
+      static std::regex const rePort(R"(((^\[?(.*:\w*:[^\]]*)\]?)|(^[^:]*))(:(\d+$))?)");
+      if(std::regex_match(std::begin(uri), std::end(uri), match, rePort)) {
+        if(match[6].matched) {
+          // URI with numeric port suffix
+          serv = match[6].str();
+          hints.ai_flags |= AI_NUMERICSERV;
+        }
+        if(match[3].matched) {
+          // URI with IPv6-host
+          host = match[3].str();
+          hints.ai_flags |= AI_NUMERICHOST;
+          return;
+        } else if(match[4].matched) {
+          host = match[4].str();
+          return;
+        }
+      }
+    }
+    throw std::logic_error("unexpected regex non-match");
+  }
+};
+
 SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
 {
   if(uri.empty()) {
     throw std::invalid_argument("empty uri");
   }
 
-  std::string serv;
-  std::string host;
-  bool isNumericServ = false;
-  bool isNumericHost = false;
-  {
-    std::smatch match;
-    static std::regex const reServ(R"((^.+)://([^/]+)/?.*)");
-    if(std::regex_match(uri, match, reServ)) {
-      // uri of type serv://host/path
-      serv = match[1].str();
-      host = match[2].str();
-      isNumericServ = false;
-    } else {
-      static std::regex const reBracket(R"(\[(.+)\]:(\d+)/?.*)");
-      if(std::regex_match(uri, match, reBracket)) {
-        // uri of type [IPv6-host]:serv/path
-        serv = match[2].str();
-        host = match[1].str();
-        isNumericServ = true;
-        isNumericHost = true;
-      } else {
-        static std::regex const rePort(R"(([^:]+):(\d+)/?.*)");
-        if(std::regex_match(uri, match, rePort)) {
-          // uri of type host:serv/path
-          serv = match[2].str();
-          host = match[1].str();
-          isNumericServ = true;
-        } else {
-          // uri of type host/path
-          host = uri.substr(0, uri.find('/'));
-        }
-      }
-    }
-
-    if(!isNumericHost) {
-      if(host.find(':') != std::string::npos) {
-        // IPv6 host
-        isNumericHost = true;
-      } else {
-        static std::regex const reDotted(R"(\d+\.\d+\.\d+\.\d+)");
-        if(std::regex_match(host, match, reDotted)) {
-          // IPv4 host
-          isNumericHost = true;
-        }
-      }
-    }
-  }
-
   addrinfo *info;
   {
-    addrinfo hints{};
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_flags = AI_PASSIVE |
-        (isNumericHost ? AI_NUMERICHOST : 0) |
-        (isNumericServ ? AI_NUMERICSERV : 0);
+    auto dissect = UriDissect(uri);
     if(auto const result = ::getaddrinfo(
-         host.c_str(), serv.c_str(),
-         &hints, &info)) {
+         dissect.host.c_str(), dissect.serv.c_str(),
+         &dissect.hints, &info)) {
       throw std::system_error(AddressError(result),
-            "failed to parse address \"" + std::string(uri) + "\"");
+            "failed to parse address \"" + uri + "\"");
     }
   }
   return {info, ::freeaddrinfo};
