@@ -11,8 +11,8 @@ namespace {
 
 struct UriDissect
 {
-  std::string serv;
   std::string host;
+  std::string serv;
   addrinfo hints = {};
 
   UriDissect(std::string_view uri)
@@ -31,25 +31,20 @@ struct UriDissect
       // trim serv + path
       uri = {match[3].first, static_cast<size_t>(match[3].length())};
 
-      static std::regex const rePort(R"(((^\[?(.*:\w*:[^\]]*)\]?)|(^[^:]*))(:(\d+$))?)");
-      if(std::regex_match(std::begin(uri), std::end(uri), match, rePort)) {
-        if(match[6].matched) {
-          // URI with numeric port suffix
-          serv = match[6].str();
-          hints.ai_flags |= AI_NUMERICSERV;
-        }
-        if(match[3].matched) {
-          // URI with IPv6-host
-          host = match[3].str();
-          hints.ai_flags |= AI_NUMERICHOST;
-          return;
-        } else if(match[4].matched) {
-          host = match[4].str();
-          return;
-        }
+      static std::regex const rePortBracket(R"(^\[(.*)\]:(\d+$))");
+      static std::regex const rePort(R"((^[^:]+):(\d+$))");
+      if(std::regex_match(std::begin(uri), std::end(uri), match, rePortBracket) ||
+         std::regex_match(std::begin(uri), std::end(uri), match, rePort)) {
+        // URI of type [IPv6-host]:port or host:port
+        host = match[1].str();
+        serv = match[2].str();
+        hints.ai_flags |= AI_NUMERICSERV;
+      } else {
+        host = uri;
       }
+    } else {
+      throw std::logic_error("unexpected regex non-match");
     }
-    throw std::logic_error("unexpected regex non-match");
   }
 };
 
