@@ -33,6 +33,7 @@ try {
   // localhost URI with port/protocol
   Test("localhost:554");
   Test("http://localhost");
+  Test("http://localhost:8080");
 
   // localhost host with port/protocol
   Test("localhost", "554");
@@ -42,16 +43,18 @@ try {
   Test("91.198.174.192");
 
   // IPv4 URI with port/protocol
-  Test("http://91.198.174.192");
   Test("91.198.174.192:80");
+  Test("http://91.198.174.192");
+  Test("http://91.198.174.192:8080");
 
   // IPv4 URI with port/protocol and path
-  Test("https://91.198.174.192/wiki/Wikipedia:Hauptseite");
-  Test("91.198.174.192:443/wiki/Wikipedia:Hauptseite");
+  Test("91.198.174.192:8080/wiki/Wikipedia:Hauptseite");
+  Test("http://91.198.174.192/wiki/Wikipedia:Hauptseite");
+  Test("http://91.198.174.192:8080/wiki/Wikipedia:Hauptseite");
 
   // IPv4 host with port/protocol
-  Test("91.198.174.192", "http");
   Test("91.198.174.192", "80");
+  Test("91.198.174.192", "http");
 
   // IPv6 URI without port/protocol
   Test("::1");
@@ -62,10 +65,13 @@ try {
   Test("[a:b::c:1]:554");
   Test("http://::1");
   Test("http://a:b::c:1");
+  Test("http://[::1]:8080");
+  Test("http://[a:b::c:1]:8080");
 
   // IPv6 URI with port/protocol and path
-  Test("https://::/wiki/Wikipedia:Hauptseite");
-  Test("[::]:443/wiki/Wikipedia:Hauptseite");
+  Test("[::]:80/wiki/Wikipedia:Hauptseite");
+  Test("http://::/wiki/Wikipedia:Hauptseite");
+  Test("http://[::]:8080/wiki/Wikipedia:Hauptseite");
 
   // IPv6 host without port/protocol
   Test("::1", "554");
