@@ -23,7 +23,7 @@ struct UriDissect
     std::cmatch match;
     static std::regex const reServ(R"(((^\w+)?://)?([^/]+)/?.*$)");
     if(std::regex_match(std::begin(uri), std::end(uri), match, reServ)) {
-      if(match[1].matched) {
+      if(match[2].matched) {
         // URI of type serv://host/path
         serv = match[2].str();
       }
