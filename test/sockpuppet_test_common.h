@@ -144,7 +144,7 @@ struct TestData
       }
     }
 
-    return true;
+    return (pos == referenceData.size());
   }
 };
 
