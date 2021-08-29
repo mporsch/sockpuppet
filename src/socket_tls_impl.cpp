@@ -68,9 +68,22 @@ SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
   throw std::runtime_error("failed to create SSL context");
 }
 
+void ShutdownAndFreeSsl(SSL *ssl)
+{
+  if(ssl) {
+    // see https://github.com/openssl/openssl/issues/6904
+    // or https://github.com/curl/curl/commit/cc37f0ee67e1918e8dbe3ac5204648edc9322da2
+    char buf[32];
+    (void)SSL_read(ssl, buf, sizeof(buf));
+    SSL_shutdown(ssl);
+
+    SSL_free(ssl);
+  }
+}
+
 SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), SSL_free)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), ShutdownAndFreeSsl)) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
@@ -220,9 +233,15 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
   case SSL_ERROR_WANT_WRITE:
     return WaitWritable(timeout);
   case SSL_ERROR_SYSCALL:
+    // SSL_shutdown must not be called after SSL_ERROR_SYSCALL
+    ssl.get_deleter() = &SSL_free;
     throw std::system_error(SocketError(), errorMessage);
   case SSL_ERROR_ZERO_RETURN:
     throw std::runtime_error(errorMessage);
+  case SSL_ERROR_SSL:
+    // SSL_shutdown must not be called after SSL_ERROR_SSL
+    ssl.get_deleter() = &SSL_free;
+    [[fallthrough]];
   default:
     assert(code != SSL_ERROR_NONE);
     throw std::system_error(SslError(code), errorMessage);
