@@ -144,7 +144,17 @@ struct TestData
       }
     }
 
-    return (pos == referenceData.size());
+    if(pos != referenceData.size()) {
+      std::cout << "received only "
+                << pos
+                << " of "
+                << referenceData.size()
+                << " bytes"
+                << std::endl;
+      return false;
+    }
+
+    return true;
   }
 };
 
