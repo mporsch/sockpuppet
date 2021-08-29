@@ -22,7 +22,7 @@ struct UriDissect
 
     std::cmatch match;
     static std::regex const reServ(R"(((^\w+)?://)?([^/]+)/?.*$)");
-    if(std::regex_match(std::begin(uri), std::end(uri), match, reServ)) {
+    if(std::regex_match(uri.data(), uri.data() + uri.size(), match, reServ)) {
       if(match[2].matched) {
         // URI of type serv://host/path
         serv = match[2].str();
@@ -33,8 +33,8 @@ struct UriDissect
 
       static std::regex const rePortBracket(R"(^\[(.*)\]:(\d+$))");
       static std::regex const rePort(R"((^[^:]+):(\d+$))");
-      if(std::regex_match(std::begin(uri), std::end(uri), match, rePortBracket) ||
-         std::regex_match(std::begin(uri), std::end(uri), match, rePort)) {
+      if(std::regex_match(uri.data(), uri.data() + uri.size(), match, rePortBracket) ||
+         std::regex_match(uri.data(), uri.data() + uri.size(), match, rePort)) {
         // URI of type [IPv6-host]:port or host:port
         host = match[1].str();
         serv = match[2].str();
