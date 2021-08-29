@@ -68,22 +68,9 @@ SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
   throw std::runtime_error("failed to create SSL context");
 }
 
-void ShutdownAndFreeSsl(SSL *ssl)
-{
-  if(ssl) {
-    // see https://github.com/openssl/openssl/issues/6904
-    // or https://github.com/curl/curl/commit/cc37f0ee67e1918e8dbe3ac5204648edc9322da2
-    char buf[32];
-    (void)SSL_read(ssl, buf, sizeof(buf));
-    SSL_shutdown(ssl);
-
-    SSL_free(ssl);
-  }
-}
-
 SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), ShutdownAndFreeSsl)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), &SSL_free)) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
@@ -99,6 +86,7 @@ SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
   , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
           CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
           this->fd))
+  , properShutdown(true)
 {
 }
 
@@ -106,10 +94,16 @@ SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
+  , properShutdown(true)
 {
 }
 
-SocketTlsClientImpl::~SocketTlsClientImpl() = default;
+SocketTlsClientImpl::~SocketTlsClientImpl()
+{
+  if(properShutdown) {
+    Shutdown();
+  }
+}
 
 std::optional<size_t> SocketTlsClientImpl::Receive(
     char *data, size_t size, Duration timeout)
@@ -212,6 +206,29 @@ void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)
   (void)SSL_do_handshake(ssl.get()); // initiate the handshake
 }
 
+void SocketTlsClientImpl::Shutdown()
+{
+  IgnoreSigPipe();
+
+  if(SSL_shutdown(ssl.get()) <= 0) {
+    char buf[32];
+    DeadlineLimited deadline(std::chrono::milliseconds(100));
+    do {
+      auto res = SSL_read(ssl.get(), buf, sizeof(buf));
+      if(res < 0) {
+        if(!WaitShutdown(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+          break;
+        }
+      } else if(res == 0) {
+        break;
+      }
+      deadline.Tick();
+    } while(deadline.TimeLeft());
+
+    (void)SSL_shutdown(ssl.get());
+  }
+}
+
 bool sockpuppet::SocketTlsClientImpl::WaitReadable(Duration timeout)
 {
   return WaitReadableNonBlocking(this->fd, timeout);
@@ -234,17 +251,29 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
     return WaitWritable(timeout);
   case SSL_ERROR_SYSCALL:
     // SSL_shutdown must not be called after SSL_ERROR_SYSCALL
-    ssl.get_deleter() = &SSL_free;
+    properShutdown = false;
     throw std::system_error(SocketError(), errorMessage);
   case SSL_ERROR_ZERO_RETURN:
     throw std::runtime_error(errorMessage);
   case SSL_ERROR_SSL:
     // SSL_shutdown must not be called after SSL_ERROR_SSL
-    ssl.get_deleter() = &SSL_free;
+    properShutdown = false;
     [[fallthrough]];
   default:
     assert(code != SSL_ERROR_NONE);
     throw std::system_error(SslError(code), errorMessage);
+  }
+}
+
+bool SocketTlsClientImpl::WaitShutdown(int code, Duration timeout)
+{
+  switch(code) {
+  case SSL_ERROR_WANT_READ:
+    return WaitReadable(timeout);
+  case SSL_ERROR_WANT_WRITE:
+    return WaitWritable(timeout);
+  default:
+    return false;
   }
 }
 

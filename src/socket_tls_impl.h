@@ -23,6 +23,7 @@ struct SocketTlsClientImpl : public SocketImpl
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
+  bool properShutdown;  ///< Flag whether proper OpenSSL shutdown shall be performed
 
   SocketTlsClientImpl(int family,
                       int type,
@@ -65,9 +66,12 @@ struct SocketTlsClientImpl : public SocketImpl
 
   void Connect(SockAddrView const &connectAddr) override;
 
+  void Shutdown();
+
   bool WaitReadable(Duration timeout) override;
   bool WaitWritable(Duration timeout) override;
   bool Wait(int code, Duration timeout);
+  bool WaitShutdown(int code, Duration timeout);
 };
 
 struct SocketTlsServerImpl : public SocketImpl
