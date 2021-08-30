@@ -16,6 +16,7 @@ size_t const testDataSize = 10000000U;
 TestData const testData(testDataSize);
 
 std::promise<void> promiseClientsDone;
+bool success = true;
 
 struct Server
 {
@@ -44,8 +45,7 @@ struct Server
   Driver &driver;
   std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
-  Server(Address bindAddress,
-         Driver &driver)
+  Server(Address bindAddress, Driver &driver)
     : server(MakeTestSocket<Acceptor>(bindAddress),
              driver,
              std::bind(&Server::HandleConnect,
@@ -72,6 +72,11 @@ struct Server
               << " closed connection to server" << std::endl;
 
     clientSessions.erase(clientAddress);
+
+    // fulfill done promise after all clients have received, verified and disconnected
+    if(clientSessions.empty()) {
+      promiseClientsDone.set_value();
+    }
   }
 };
 
@@ -81,6 +86,7 @@ struct Clients
   {
     Clients *parent;
     SocketTcpAsync client;
+    Driver &driver;
     size_t receivedSize;
     std::vector<BufferPtr> receivedData;
 
@@ -90,6 +96,7 @@ struct Clients
                driver,
                std::bind(&Client::HandleReceive, this, std::placeholders::_1),
                std::bind(&Clients::HandleDisconnect, parent, std::placeholders::_1))
+      , driver(driver)
       , receivedSize(0U)
     {
     }
@@ -103,25 +110,23 @@ struct Clients
       receivedData.emplace_back(std::move(buffer));
 
       if(receivedSize == testDataSize) {
-        if(++parent->clientsDone == clientCount) {
-          promiseClientsDone.set_value();
-        }
-      }
-    }
+        success &= testData.Verify(receivedData);
 
-    bool Verify() const
-    {
-      return testData.Verify(receivedData);
+        // schedule our own disconnect
+        // (so we don't destroy our instance from within itself)
+        ToDo(
+          driver,
+          [this]() {
+            parent->HandleDisconnect(client.LocalAddress());
+          },
+          Duration(0));
+      }
     }
   };
 
   std::map<Address, std::unique_ptr<Client>> clients;
-  size_t clientsDone;
 
-  Clients()
-    : clientsDone(0U)
-  {
-  }
+  Clients() = default;
   Clients(Clients const &) = delete;
   Clients(Clients &&) = delete;
 
@@ -146,21 +151,48 @@ struct Clients
 
     clients.erase(clientAddr);
   }
-
-  bool Verify() const
-  {
-    return std::all_of(
-          std::begin(clients),
-          std::end(clients),
-          [](decltype(clients)::value_type const &p) -> bool {
-      return p.second->Verify();
-    });
-  }
 };
 
 void ClientSend(SocketTcpAsync &client)
 {
   testData.Send(client);
+}
+
+void RunServer(Address serverAddr, Driver &driver)
+{
+  Server server(serverAddr, driver);
+
+  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
+
+  // run server until stopped by main thread
+  driver.Run();
+}
+
+void RunClients(Address serverAddr, Driver &driver)
+{
+  Clients clients;
+  for(size_t i = 0U; i < clientCount; ++i) {
+    clients.Add(serverAddr, driver);
+  }
+
+  // trigger sending from clients to server from multiple threads
+  std::thread clientSendThreads[clientCount];
+  for(size_t i = 0U; i < clientCount; ++i) {
+    auto &&t = clientSendThreads[i];
+    auto &&client = std::next(std::begin(clients.clients), i)->second->client;
+
+    t = std::thread(ClientSend, std::ref(client));
+  }
+
+  // run clients until stopped by main thread
+  driver.Run();
+
+  // wait for the sending threads to finish
+  for(auto &&t : clientSendThreads) {
+    if(t.joinable()) {
+      t.join();
+    }
+  }
 }
 
 } // unnamed namespace
@@ -171,61 +203,32 @@ try {
 
   Driver serverDriver;
   Driver clientDriver;
-  std::thread serverThread;
-  std::thread clientThread;
 
-  {
-    // set up a server that echoes all input data on multiple sessions
-    Address serverAddr("localhost:8554");
-    Server server(serverAddr, serverDriver);
-    serverThread = std::thread(&Driver::Run, &serverDriver);
+  Address serverAddr("localhost:8554");
 
-    std::cout << "server listening at " << to_string(serverAddr) << std::endl;
+  // set up a server that echoes all input data on multiple sessions
+  auto serverThread = std::thread(RunServer, serverAddr, std::ref(serverDriver));
 
-    // set up clients that send to the server and receive the echo
-    Clients clients;
-    for(size_t i = 0U; i < clientCount; ++i) {
-      clients.Add(serverAddr, clientDriver);
-    }
-    clientThread = std::thread(&Driver::Run, &clientDriver);
+  // set up clients that send to the server and wait for their echo
+  // after all data is received back and verified, the connections are closed
+  auto clientThread = std::thread(RunClients, serverAddr, std::ref(clientDriver));
 
-    // trigger sending from clients to server from multiple threads
-    std::thread clientSendThreads[clientCount];
-    for(size_t i = 0U; i < clientCount; ++i) {
-      auto &&t = clientSendThreads[i];
-      auto &&client = std::next(std::begin(clients.clients), i)->second->client;
-
-      t = std::thread(ClientSend, std::ref(client));
-    }
-
-    // wait for the sending threads to finish
-    for(auto &&t : clientSendThreads) {
-      if(t.joinable()) {
-        t.join();
-      }
-    }
-
-    // wait to finish echo and receipt
-    if(futureClientsDone.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
-      throw std::runtime_error("clients did not receive reference data on time");
-    }
-
-    if(!clients.Verify()) {
-      throw std::runtime_error("received corrupted/truncated reference data");
-    }
+  // wait until either the server sessions are closed by the clients or we hit the timeout
+  if(futureClientsDone.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
+    throw std::runtime_error("clients did not receive echoed reference data on time");
   }
 
   // stop the drivers after the sockets have been shut down to allow proper TLS shutdown
-  serverDriver.Stop();
   clientDriver.Stop();
-  if(serverThread.joinable()) {
-    serverThread.join();
-  }
   if(clientThread.joinable()) {
     clientThread.join();
   }
+  serverDriver.Stop();
+  if(serverThread.joinable()) {
+    serverThread.join();
+  }
 
-  return EXIT_SUCCESS;
+  return (success ? EXIT_SUCCESS : EXIT_FAILURE);
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   return EXIT_FAILURE;
