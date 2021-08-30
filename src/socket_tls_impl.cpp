@@ -212,7 +212,7 @@ void SocketTlsClientImpl::Shutdown()
 
   if(SSL_shutdown(ssl.get()) <= 0) {
     char buf[32];
-    DeadlineLimited deadline(std::chrono::milliseconds(100));
+    DeadlineLimited deadline(std::chrono::seconds(1));
     do {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
