@@ -169,54 +169,63 @@ int main(int, char **)
 try {
   auto futureClientsDone = promiseClientsDone.get_future();
 
-  // set up a server that echoes all input data on multiple sessions
   Driver serverDriver;
-  Address serverAddr("localhost:8554");
-  Server server(serverAddr, serverDriver);
-  auto serverThread = std::thread(&Driver::Run, &serverDriver);
-
-  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
-
-  // set up clients that send to the server and receive the echo
   Driver clientDriver;
-  Clients clients;
-  for(size_t i = 0U; i < clientCount; ++i) {
-    clients.Add(serverAddr, clientDriver);
-  }
-  auto clientThread = std::thread(&Driver::Run, &clientDriver);
+  std::thread serverThread;
+  std::thread clientThread;
 
-  // trigger sending from clients to server from multiple threads
-  std::thread clientSendThreads[clientCount];
-  for(size_t i = 0U; i < clientCount; ++i) {
-    auto &&t = clientSendThreads[i];
-    auto &&client = std::next(std::begin(clients.clients), i)->second->client;
+  {
+    // set up a server that echoes all input data on multiple sessions
+    Address serverAddr("localhost:8554");
+    Server server(serverAddr, serverDriver);
+    serverThread = std::thread(&Driver::Run, &serverDriver);
 
-    t = std::thread(ClientSend, std::ref(client));
-  }
+    std::cout << "server listening at " << to_string(serverAddr) << std::endl;
 
-  // wait for the sending threads to finish
-  for(auto &&t : clientSendThreads) {
-    if(t.joinable()) {
-      t.join();
+    // set up clients that send to the server and receive the echo
+    Clients clients;
+    for(size_t i = 0U; i < clientCount; ++i) {
+      clients.Add(serverAddr, clientDriver);
+    }
+    clientThread = std::thread(&Driver::Run, &clientDriver);
+
+    // trigger sending from clients to server from multiple threads
+    std::thread clientSendThreads[clientCount];
+    for(size_t i = 0U; i < clientCount; ++i) {
+      auto &&t = clientSendThreads[i];
+      auto &&client = std::next(std::begin(clients.clients), i)->second->client;
+
+      t = std::thread(ClientSend, std::ref(client));
+    }
+
+    // wait for the sending threads to finish
+    for(auto &&t : clientSendThreads) {
+      if(t.joinable()) {
+        t.join();
+      }
+    }
+
+    // wait to finish echo and receipt
+    if(futureClientsDone.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
+      throw std::runtime_error("clients did not receive reference data on time");
+    }
+
+    if(!clients.Verify()) {
+      throw std::runtime_error("received corrupted/truncated reference data");
     }
   }
 
-  // wait to finish echo and receipt
-  bool success = (futureClientsDone.wait_for(std::chrono::seconds(60)) == std::future_status::ready);
-
+  // stop the drivers after the sockets have been shut down to allow proper TLS shutdown
+  serverDriver.Stop();
+  clientDriver.Stop();
   if(serverThread.joinable()) {
-    serverDriver.Stop();
     serverThread.join();
   }
-
   if(clientThread.joinable()) {
-    clientDriver.Stop();
     clientThread.join();
   }
 
-  success &= clients.Verify();
-
-  return (success ? EXIT_SUCCESS : EXIT_FAILURE);
+  return EXIT_SUCCESS;
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   return EXIT_FAILURE;
