@@ -209,6 +209,9 @@ try {
   // set up a server that echoes all input data on multiple sessions
   auto serverThread = std::thread(RunServer, serverAddr, std::ref(serverDriver));
 
+  // wait for server to come up
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
   // set up clients that send to the server and wait for their echo
   // after all data is received back and verified, the connections are closed
   auto clientThread = std::thread(RunClients, serverAddr, std::ref(clientDriver));
