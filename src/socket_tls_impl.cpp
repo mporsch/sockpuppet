@@ -77,6 +77,18 @@ SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
   throw std::runtime_error("failed to create SSL structure");
 }
 
+bool WaitShutdown(int code, SOCKET fd, Duration timeout)
+{
+  switch(code) {
+  case SSL_ERROR_WANT_READ:
+    return WaitReadableNonBlockingNoThrow(fd, timeout);
+  case SSL_ERROR_WANT_WRITE:
+    return WaitWritableNonBlockingNoThrow(fd, timeout);
+  default:
+    return false;
+  }
+}
+
 } // unnamed namespace
 
 SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
@@ -216,7 +228,7 @@ void SocketTlsClientImpl::Shutdown()
     do {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!WaitShutdown(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+        if(!WaitShutdown(SSL_get_error(ssl.get(), res), fd, deadline.Remaining())) {
           break;
         }
       } else if(res == 0) {
@@ -262,18 +274,6 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
   default:
     assert(code != SSL_ERROR_NONE);
     throw std::system_error(SslError(code), errorMessage);
-  }
-}
-
-bool SocketTlsClientImpl::WaitShutdown(int code, Duration timeout)
-{
-  switch(code) {
-  case SSL_ERROR_WANT_READ:
-    return WaitReadable(timeout);
-  case SSL_ERROR_WANT_WRITE:
-    return WaitWritable(timeout);
-  default:
-    return false;
   }
 }
 
