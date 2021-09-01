@@ -48,11 +48,6 @@ bool Wait(SOCKET fd, short events, Duration timeout)
   return false; // timeout exceeded
 }
 
-bool WaitNoThrow(SOCKET fd, short events, Duration timeout)
-{
-  return (DoPoll(pollfd{fd, events, 0}, ToMsec(timeout)) > 0);
-}
-
 } // unnamed namespace
 
 bool WaitReadableBlocking(SOCKET fd, Duration timeout)
@@ -66,11 +61,6 @@ bool WaitReadableNonBlocking(SOCKET fd, Duration timeout)
   return Wait(fd, POLLIN, timeout);
 }
 
-bool WaitReadableNonBlockingNoThrow(SOCKET fd, Duration timeout)
-{
-  return WaitNoThrow(fd, POLLIN, timeout);
-}
-
 bool WaitWritableBlocking(SOCKET fd, Duration timeout)
 {
   return ((timeout.count() < 0) ||
@@ -80,11 +70,6 @@ bool WaitWritableBlocking(SOCKET fd, Duration timeout)
 bool WaitWritableNonBlocking(SOCKET fd, Duration timeout)
 {
   return Wait(fd, POLLOUT, timeout);
-}
-
-bool WaitWritableNonBlockingNoThrow(SOCKET fd, Duration timeout)
-{
-  return WaitNoThrow(fd, POLLOUT, timeout);
 }
 
 bool Wait(std::vector<pollfd> &pfds, Duration timeout)

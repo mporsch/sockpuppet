@@ -18,10 +18,8 @@ namespace sockpuppet {
 // return true if readable/writable or false if timeout exceeded
 bool WaitReadableBlocking(SOCKET fd, Duration timeout);
 bool WaitReadableNonBlocking(SOCKET fd, Duration timeout);
-bool WaitReadableNonBlockingNoThrow(SOCKET fd, Duration timeout);
 bool WaitWritableBlocking(SOCKET fd, Duration timeout);
 bool WaitWritableNonBlocking(SOCKET fd, Duration timeout);
-bool WaitWritableNonBlockingNoThrow(SOCKET fd, Duration timeout);
 
 // readable/writable socket will be marked accordingly
 bool Wait(std::vector<pollfd> &pfds, Duration timeout);

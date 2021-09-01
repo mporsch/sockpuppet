@@ -70,23 +70,11 @@ SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
 
 SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), &SSL_free)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), SSL_free)) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
   throw std::runtime_error("failed to create SSL structure");
-}
-
-bool WaitShutdown(int code, SOCKET fd, Duration timeout)
-{
-  switch(code) {
-  case SSL_ERROR_WANT_READ:
-    return WaitReadableNonBlockingNoThrow(fd, timeout);
-  case SSL_ERROR_WANT_WRITE:
-    return WaitWritableNonBlockingNoThrow(fd, timeout);
-  default:
-    return false;
-  }
 }
 
 } // unnamed namespace
@@ -113,7 +101,10 @@ SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
 SocketTlsClientImpl::~SocketTlsClientImpl()
 {
   if(properShutdown) {
-    Shutdown();
+    try {
+      Shutdown();
+    } catch(...) {
+    }
   }
 }
 
@@ -228,7 +219,7 @@ void SocketTlsClientImpl::Shutdown()
     do {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!WaitShutdown(SSL_get_error(ssl.get(), res), fd, deadline.Remaining())) {
+        if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
           break;
         }
       } else if(res == 0) {
@@ -258,9 +249,9 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
 
   switch(code) {
   case SSL_ERROR_WANT_READ:
-    return WaitReadable(timeout);
+    return WaitReadableNonBlocking(this->fd, timeout);
   case SSL_ERROR_WANT_WRITE:
-    return WaitWritable(timeout);
+    return WaitWritableNonBlocking(this->fd, timeout);
   case SSL_ERROR_SYSCALL:
     // SSL_shutdown must not be called after SSL_ERROR_SYSCALL
     properShutdown = false;
