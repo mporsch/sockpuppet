@@ -139,13 +139,13 @@ struct TestData
            referenceData.data() + pos + packet->size())) {
         pos += packet->size();
       } else {
-        std::cout << "error at byte " << pos << std::endl;
+        std::cerr << "error at byte " << pos << std::endl;
         return false;
       }
     }
 
     if(pos != referenceData.size()) {
-      std::cout << "received only "
+      std::cerr << "received only "
                 << pos
                 << " of "
                 << referenceData.size()

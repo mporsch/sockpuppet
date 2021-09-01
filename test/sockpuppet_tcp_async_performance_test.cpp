@@ -2,6 +2,7 @@
 
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
+#include <atomic> // for std::atomic
 #include <iostream> // for std::cout
 #include <map> // for std::map
 #include <thread> // for std::thread
@@ -16,7 +17,7 @@ size_t const testDataSize = 10000000U;
 TestData const testData(testDataSize);
 
 std::promise<void> promiseClientsDone;
-bool success = true;
+std::atomic<bool> success = true;
 
 struct Server
 {
@@ -110,7 +111,9 @@ struct Clients
       receivedData.emplace_back(std::move(buffer));
 
       if(receivedSize == testDataSize) {
-        success &= testData.Verify(receivedData);
+        if(!testData.Verify(receivedData)) {
+          success = false;
+        }
 
         // schedule our own disconnect
         // (so we don't destroy our instance from within itself)
@@ -218,7 +221,9 @@ try {
 
   // wait until either the server sessions are closed by the clients or we hit the timeout
   if(futureClientsDone.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
-    throw std::runtime_error("clients did not receive echoed reference data on time");
+    std::cerr << "clients did not receive echoed reference data on time"
+              << std::endl;
+    success = false;
   }
 
   // stop the drivers after the sockets have been shut down to allow proper TLS shutdown
