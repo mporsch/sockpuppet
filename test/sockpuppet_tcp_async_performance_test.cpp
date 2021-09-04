@@ -133,7 +133,7 @@ struct Clients
   Clients(Clients const &) = delete;
   Clients(Clients &&) = delete;
 
-  void Add(Address serverAddr, Driver &driver)
+  SocketTcpAsync &Add(Address serverAddr, Driver &driver)
   {
     auto client = MakeTestSocket<SocketTcp>(serverAddr);
     auto clientAddr = client.LocalAddress();
@@ -141,9 +141,10 @@ struct Clients
     std::cout << "client " << to_string(clientAddr)
               << " connected to server" << std::endl;
 
-    (void)clients.emplace(
+    auto p = clients.emplace(
           std::move(clientAddr),
           std::make_unique<Client>(this, std::move(client), driver));
+    return p.first->second->client;
   }
 
   void HandleDisconnect(Address clientAddr)
@@ -178,22 +179,21 @@ void RunServer(Address serverAddr, Driver &driver)
 
 void RunClients(Address serverAddr, Driver &driver)
 {
-  Clients clients;
-  for(size_t i = 0U; i < clientCount; ++i) {
-    clients.Add(serverAddr, driver);
-  }
-
-  // trigger sending from clients to server from multiple threads
   std::thread clientSendThreads[clientCount];
-  for(size_t i = 0U; i < clientCount; ++i) {
-    auto &&t = clientSendThreads[i];
-    auto &&client = std::next(std::begin(clients.clients), i)->second->client;
 
-    t = std::thread(ClientSend, std::ref(client));
-  }
+  {
+    Clients clients;
 
-  // run clients until stopped by main thread
-  driver.Run();
+    // create multiple client connections and
+    // trigger sending to server from multiple threads
+    for(size_t i = 0U; i < clientCount; ++i) {
+      auto &client = clients.Add(serverAddr, driver);
+      clientSendThreads[i] = std::thread(ClientSend, std::ref(client));
+    }
+
+    // run clients until stopped by main thread
+    driver.Run();
+  } // release clients to break pending send promises
 
   // wait for the sending threads to finish
   for(auto &&t : clientSendThreads) {
@@ -207,6 +207,8 @@ void RunClients(Address serverAddr, Driver &driver)
 
 int main(int, char **)
 try {
+  using namespace std::chrono_literals;
+
   auto futureClientsDone = promiseClientsDone.get_future();
 
   Driver serverDriver;
@@ -218,14 +220,14 @@ try {
   auto serverThread = std::thread(RunServer, serverAddr, std::ref(serverDriver));
 
   // wait for server to come up
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(1s);
 
   // set up clients that send to the server and wait for their echo
   // after all data is received back and verified, the connections are closed
   auto clientThread = std::thread(RunClients, serverAddr, std::ref(clientDriver));
 
   // wait until either the server sessions are closed by the clients or we hit the timeout
-  if(futureClientsDone.wait_for(std::chrono::seconds(60)) != std::future_status::ready) {
+  if(futureClientsDone.wait_for(60s) != std::future_status::ready) {
     std::cerr << "clients did not receive echoed reference data on time"
               << std::endl;
     success = false;
