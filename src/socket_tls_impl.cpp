@@ -12,6 +12,10 @@ namespace sockpuppet {
 
 namespace {
 
+// loop over OpenSSL calls that might perform a handshake at any time
+// the number is arbitrary and used only to avoid/detect infinite loops
+static int const handshakeStepsMax = 10;
+
 void IgnoreSigPipe()
 {
 #ifndef SO_NOSIGPIPE
@@ -138,19 +142,20 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
 {
   IgnoreSigPipe();
 
-  do { // run in a loop as OpenSSL might do a handshake at any time
+  for(int i = 1; i <= handshakeStepsMax; ++i) {
     auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
     if(res < 0) {
       if(!Wait(res, deadline.Remaining())) {
         break;
-      }
+      } // assume that in non-blocking mode everything except Wait is instantaneous
       deadline.Tick();
     } else if(res == 0) {
       throw std::runtime_error("TLS connection closed");
     } else {
       return static_cast<size_t>(res);
     }
-  } while(deadline.TimeLeft());
+    assert(i < handshakeStepsMax);
+  }
   return 0U; // timeout / socket was readable for TLS handshake only
 }
 
@@ -178,19 +183,20 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
   IgnoreSigPipe();
 
   size_t sent = 0U;
-  do { // run in a loop as OpenSSL might do a handshake at any time
+  for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
     auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
     if(res < 0) {
       if(!Wait(res, deadline.Remaining())) {
         break; // timeout / socket was writable for TLS handshake only
-      }
+      } // assume that in non-blocking mode everything except Wait is instantaneous
       deadline.Tick();
     } else if((res == 0) && (size > 0U)) {
       throw std::logic_error("unexpected TLS send result");
     } else {
       sent += static_cast<size_t>(res);
     }
-  } while((sent < size) && deadline.TimeLeft());
+    assert(i < handshakeStepsMax);
+  }
   return sent;
 }
 
@@ -216,17 +222,18 @@ void SocketTlsClientImpl::Shutdown()
   if(SSL_shutdown(ssl.get()) <= 0) {
     char buf[32];
     DeadlineLimited deadline(std::chrono::seconds(1));
-    do {
+    for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
         if(!Wait(res, deadline.Remaining())) {
           break;
-        }
+        } // assume that in non-blocking mode everything except Wait is instantaneous
+        deadline.Tick();
       } else if(res == 0) {
         break;
       }
-      deadline.Tick();
-    } while(deadline.TimeLeft());
+      assert(i < handshakeStepsMax);
+    }
 
     (void)SSL_shutdown(ssl.get());
   }
