@@ -141,7 +141,7 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
   do { // run in a loop as OpenSSL might do a handshake at any time
     auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
     if(res < 0) {
-      if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+      if(!Wait(res, deadline.Remaining())) {
         break;
       }
       deadline.Tick();
@@ -181,7 +181,7 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
   do { // run in a loop as OpenSSL might do a handshake at any time
     auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
     if(res < 0) {
-      if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+      if(!Wait(res, deadline.Remaining())) {
         break; // timeout / socket was writable for TLS handshake only
       }
       deadline.Tick();
@@ -219,7 +219,7 @@ void SocketTlsClientImpl::Shutdown()
     do {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!Wait(SSL_get_error(ssl.get(), res), deadline.Remaining())) {
+        if(!Wait(res, deadline.Remaining())) {
           break;
         }
       } else if(res == 0) {
@@ -247,7 +247,7 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
   static char const errorMessage[] =
       "failed to wait for TLS socket readable/writable";
 
-  switch(code) {
+  switch(SSL_get_error(ssl.get(), code)) {
   case SSL_ERROR_WANT_READ:
     return WaitReadableNonBlocking(this->fd, timeout);
   case SSL_ERROR_WANT_WRITE:
