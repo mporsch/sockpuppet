@@ -10,9 +10,31 @@
 #include <thread> // for std::this_thread::get_id
 #include <stdexcept> // for std::logic_error
 
-namespace sockpuppet {
+struct CRYPTO_dynlock_value
+{
+  std::mutex mtx;
+};
 
 namespace {
+
+CRYPTO_dynlock_value *DynlockCreate(char const *, int)
+{
+  return new CRYPTO_dynlock_value;
+}
+
+void DynlockLock(int mode, CRYPTO_dynlock_value *v, char const *, int)
+{
+  if(mode & CRYPTO_LOCK) {
+    v->mtx.lock();
+  } else {
+    v->mtx.unlock();
+  }
+}
+
+void DynlockDestroy(CRYPTO_dynlock_value *v, char const *, int)
+{
+  delete v;
+}
 
 std::mutex &Mutex(size_t n)
 {
@@ -56,15 +78,23 @@ void UpdateInstanceCount(int modifier)
     SSL_load_error_strings();
     CRYPTO_set_id_callback(Id);
     CRYPTO_set_locking_callback(Locking);
+    CRYPTO_set_dynlock_create_callback(DynlockCreate);
+    CRYPTO_set_dynlock_lock_callback(DynlockLock);
+    CRYPTO_set_dynlock_destroy_callback(DynlockDestroy);
   } else if(prev == 1 && curr == 0) {
     // we are the last instance -> cleanup
-    CRYPTO_set_id_callback(nullptr);
+    CRYPTO_set_dynlock_destroy_callback(nullptr);
+    CRYPTO_set_dynlock_lock_callback(nullptr);
+    CRYPTO_set_dynlock_create_callback(nullptr);
     CRYPTO_set_locking_callback(nullptr);
+    CRYPTO_set_id_callback(nullptr);
     EVP_cleanup();
   }
 }
 
 } // unnamed namespace
+
+namespace sockpuppet {
 
 SslGuard::SslGuard()
 {
