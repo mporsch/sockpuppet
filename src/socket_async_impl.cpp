@@ -107,13 +107,6 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
   return wasEmpty;
 }
 
-template<typename Queue>
-bool SocketAsyncImpl::IsSendQueueEmpty() const
-{
-  std::lock_guard<std::mutex> lock(sendQMtx);
-  return std::get<Queue>(sendQ).empty();
-}
-
 void SocketAsyncImpl::DriverDoFdTaskReadable()
 {
   onReadable();
@@ -133,16 +126,26 @@ void SocketAsyncImpl::DriverDoFdTaskConnect(ConnectHandler const &onConnect)
 
 void SocketAsyncImpl::DriverDoFdTaskReceive(ReceiveHandler const &onReceive)
 {
+  if(pendingTlsSend) {
+    pendingTlsSend = false;
+
+    // a previous TLS send failed because handshake receipt was pending
+    // which probably arrived now: repeat the same send call to handle
+    // the handshake and continue where it left off sending
+    // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
+    if(!DriverDoFdTaskWritable()) {
+      if(auto const ptr = driver.lock()) {
+        ptr->AsyncWantSend(buff->sock->fd);
+      }
+    }
+
+    return;
+  }
+
   try {
     auto buffer = buff->Receive();
-    if(buffer->empty()) { // zero-size receipt
-      // TLS socket received handshake data only: if we previously attempted
-      // to send, there might still be data in the send queue now
-      if(!IsSendQueueEmpty<SendQ>()) {
-        if(auto const ptr = driver.lock()) {
-          ptr->AsyncWantSend(buff->sock->fd);
-        }
-      }
+    if(buffer->empty()) {
+      // TLS socket received handshake data only
     } else {
       onReceive(std::move(buffer));
     }
@@ -197,8 +200,10 @@ bool SocketAsyncImpl::DriverDoSend(SendQ &q)
       buffer->erase(0, sent);
       return false;
     } else { // zero-size sent data
-      // TLS socket can't send data as it has not received handshake data from peer yet:
-      // give up sending now but keep the data in the send queue to retry after receipt
+      // TLS can't send while handshake receipt pending:
+      // give up for now but keep the data in the send
+      // queue and retry the exact same call on readable
+      pendingTlsSend = true;
       return true;
     }
   } catch(std::runtime_error const &e) {
