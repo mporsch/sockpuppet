@@ -15,6 +15,58 @@ using SOCKET = int;
 
 namespace sockpuppet {
 
+namespace wait_detail {
+
+struct Unclocked
+{
+  inline void Tick()
+  {
+  }
+};
+
+struct Clocked
+{
+  TimePoint now;
+
+  Clocked()
+    : now(Clock::now())
+  {
+  }
+
+  inline void Tick()
+  {
+    now = Clock::now();
+  }
+};
+
+struct Unlimited
+{
+  inline bool TimeLeft() const
+  {
+    return true;
+  }
+
+  inline Duration Remaining() const
+  {
+    return Duration(-1);
+  }
+};
+
+struct ZeroLimited
+{
+  inline bool TimeLeft() const
+  {
+    return false;
+  }
+
+  inline Duration Remaining() const
+  {
+    return Duration(0);
+  }
+};
+
+} // namespace wait_detail
+
 // return true if readable/writable or false if timeout exceeded
 bool WaitReadableBlocking(SOCKET fd, Duration timeout);
 bool WaitReadableNonBlocking(SOCKET fd, Duration timeout);
@@ -27,75 +79,35 @@ bool Wait(std::vector<pollfd> &pfds, Duration timeout);
 // different deadline specializations that share a common interface
 // suitable for use as templated parameter
 struct DeadlineUnlimited
+  : public wait_detail::Unclocked
+  , public wait_detail::Unlimited
 {
-  DeadlineUnlimited() = default;
-
-  inline void Tick()
-  {
-  }
-
-  inline bool TimeLeft() const
-  {
-    return true;
-  }
-
-  inline Duration Remaining() const
-  {
-    return Duration(-1);
-  }
 };
 
-struct DeadlineUnlimitedTime : public DeadlineUnlimited
+struct DeadlineUnlimitedTime
+  : public wait_detail::Clocked
+  , public wait_detail::Unlimited
 {
-  TimePoint now;
-
-  DeadlineUnlimitedTime()
-    : now(Clock::now())
-  {
-  }
-
-  inline void Tick()
-  {
-    now = Clock::now();
-  }
 };
 
-struct DeadlineZero : public DeadlineUnlimited
+struct DeadlineZero
+  : public wait_detail::Unclocked
+  , public wait_detail::ZeroLimited
 {
-  DeadlineZero() = default;
-
-  inline bool TimeLeft() const
-  {
-    return false;
-  }
-
-  inline Duration Remaining() const
-  {
-    return Duration(0);
-  }
 };
 
-struct DeadlineZeroTime : public DeadlineZero
+struct DeadlineZeroTime
+  : public wait_detail::Clocked
+  , public wait_detail::ZeroLimited
 {
-  TimePoint now;
-
-  DeadlineZeroTime()
-    : now(Clock::now())
-  {
-  }
-
-  inline void Tick()
-  {
-    now = Clock::now();
-  }
 };
 
-struct DeadlineLimited : public DeadlineUnlimitedTime
+struct DeadlineLimited : public wait_detail::Clocked
 {
   TimePoint deadline;
 
   DeadlineLimited(Duration timeout)
-    : DeadlineUnlimitedTime()
+    : wait_detail::Clocked()
     , deadline(this->now + timeout)
   {
   }
