@@ -19,6 +19,9 @@ Socket MakeTestSocket(Args&&... args)
 
 struct TestData
 {
+  static size_t const tcpPacketSizeMin = 100U;
+  static size_t const tcpPacketSizeMax = 10000U;
+
   std::vector<char> const referenceData;
 
   TestData(size_t size)
@@ -74,7 +77,8 @@ struct TestData
   {
     // send in randomly sized packets
     std::default_random_engine generator;
-    std::uniform_int_distribution<size_t> distribution(100U, 10000U);
+    std::uniform_int_distribution<size_t> distribution(
+          tcpPacketSizeMin, tcpPacketSizeMax);
     auto gen = [&]() -> size_t { return distribution(generator); };
 
     size_t pos = 0;
@@ -119,11 +123,21 @@ struct TestData
               << " to " << to_string(async.PeerAddress())
               << std::endl;
 
+    std::vector<std::future<void>> futures;
+    futures.reserve(referenceData.size() / tcpPacketSizeMin);
+
     auto send = [&](char const *data, size_t size) -> size_t {
-      (void)async.Send(ToBufferPtr(data, size));
+      futures.push_back(
+            async.Send(ToBufferPtr(data, size)));
       return size;
     };
     DoSendTcp(send);
+
+    // wait until everything is sent and
+    // throw exception if there was any
+    for(auto &&f : futures) {
+      f.get();
+    }
   }
 
   inline bool Verify(std::vector<BufferPtr> const &storage) const

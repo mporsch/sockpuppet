@@ -158,7 +158,12 @@ struct Clients
 
 void ClientSend(SocketTcpAsync &client)
 {
-  testData.Send(client);
+  try {
+    testData.Send(client);
+  } catch(std::exception const &e) {
+    std::cerr << e.what() << std::endl;
+    success = false;
+  }
 }
 
 void RunServer(Address serverAddr, Driver &driver)
