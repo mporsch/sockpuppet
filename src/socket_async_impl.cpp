@@ -11,14 +11,14 @@ namespace sockpuppet {
 SocketAsyncImpl::SocketAsyncImpl(
     std::unique_ptr<SocketBufferedImpl> &&buff,
     DriverShared &driver,
-    ReceiveFromHandler receiveFromHandler)
+    ReceiveFromHandler onReceiveFrom)
   : buff(std::move(buff))
   , driver(driver)
   , onReadable(std::bind(
-      &SocketAsyncImpl::DriverDoFdTaskReceiveFrom,
+      &SocketAsyncImpl::DriverReceiveFrom,
       this,
-      std::move(receiveFromHandler)))
-  , onError([]() {}) // silently discard UDP receive errors
+      std::move(onReceiveFrom)))
+  , onError([](char const *) {}) // silently discard UDP receive errors
   , sendQ(std::in_place_type<SendToQ>)
 {
   driver->AsyncRegister(*this);
@@ -28,19 +28,20 @@ SocketAsyncImpl::SocketAsyncImpl(
 SocketAsyncImpl::SocketAsyncImpl(
     std::unique_ptr<SocketBufferedImpl> &&buff,
     DriverShared &driver,
-    ReceiveHandler receiveHandler,
-    DisconnectHandler disconnectHandler)
+    ReceiveHandler onReceive,
+    DisconnectHandler onDisconnect)
   : buff(std::move(buff))
   , driver(driver)
   , onReadable(std::bind(
-      &SocketAsyncImpl::DriverDoFdTaskReceive,
+      &SocketAsyncImpl::DriverReceive,
       this,
-      std::move(receiveHandler)))
+      std::move(onReceive)))
   , onError(std::bind(
-      &SocketAsyncImpl::DriverDoFdTaskDisconnect,
+      &SocketAsyncImpl::DriverDisconnect,
       this,
-      std::move(disconnectHandler),
-      this->buff->sock->GetPeerName())) // cache remote address now before disconnect
+      std::move(onDisconnect),
+      this->buff->sock->GetPeerName(), // cache remote address now before disconnect
+      std::placeholders::_1))
   , sendQ(std::in_place_type<SendQ>)
 {
   driver->AsyncRegister(*this);
@@ -50,14 +51,14 @@ SocketAsyncImpl::SocketAsyncImpl(
 SocketAsyncImpl::SocketAsyncImpl(
     std::unique_ptr<SocketImpl> &&sock,
     DriverShared &driver,
-    ConnectHandler connectHandler)
+    ConnectHandler onConnect)
   : buff(std::make_unique<SocketBufferedImpl>(std::move(sock), 0U, 0U))
   , driver(driver)
   , onReadable(std::bind(
-      &SocketAsyncImpl::DriverDoFdTaskConnect,
+      &SocketAsyncImpl::DriverConnect,
       this,
-      std::move(connectHandler)))
-  , onError([]() {}) // silently discard TCP accept errors
+      std::move(onConnect)))
+  , onError([](char const *) {}) // silently discard TCP accept errors
 {
   driver->AsyncRegister(*this);
 }
@@ -85,8 +86,7 @@ std::future<void> SocketAsyncImpl::DoSend(Args&&... args)
   std::promise<void> promise;
   auto ret = promise.get_future();
 
-  bool const wasEmpty = DoSendEnqueue<Queue>(
-      std::move(promise), std::forward<Args>(args)...);
+  bool wasEmpty = DoSendEnqueue<Queue>(std::move(promise), std::forward<Args>(args)...);
   if(wasEmpty) {
     if(auto const ptr = driver.lock()) {
       ptr->AsyncWantSend(buff->sock->fd);
@@ -107,24 +107,24 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
   return wasEmpty;
 }
 
-void SocketAsyncImpl::DriverDoFdTaskReadable()
+void SocketAsyncImpl::DriverOnReadable()
 {
   onReadable();
 }
 
-void SocketAsyncImpl::DriverDoFdTaskConnect(ConnectHandler const &onConnect)
+void SocketAsyncImpl::DriverConnect(ConnectHandler const &onConnect)
 {
   try {
     auto [sock, addr] = buff->sock->Accept();
     buff->sock->Listen();
 
     onConnect(std::move(sock), std::move(addr));
-  } catch(std::runtime_error const &) {
-    onError();
+  } catch(std::runtime_error const &e) {
+    onError(e.what());
   }
 }
 
-void SocketAsyncImpl::DriverDoFdTaskReceive(ReceiveHandler const &onReceive)
+void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
 {
   if(pendingTlsSend) {
     pendingTlsSend = false;
@@ -133,7 +133,8 @@ void SocketAsyncImpl::DriverDoFdTaskReceive(ReceiveHandler const &onReceive)
     // which probably arrived now: repeat the same send call to handle
     // the handshake and continue where it left off sending
     // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
-    if(!DriverDoFdTaskWritable()) {
+    bool isSendQueueEmpty = DriverOnWritable();
+    if(!isSendQueueEmpty) {
       if(auto const ptr = driver.lock()) {
         ptr->AsyncWantSend(buff->sock->fd);
       }
@@ -149,22 +150,22 @@ void SocketAsyncImpl::DriverDoFdTaskReceive(ReceiveHandler const &onReceive)
     } else {
       onReceive(std::move(buffer));
     }
-  } catch(std::runtime_error const &) {
-    onError();
+  } catch(std::runtime_error const &e) {
+    onError(e.what());
   }
 }
 
-void SocketAsyncImpl::DriverDoFdTaskReceiveFrom(ReceiveFromHandler const &onReceiveFrom)
+void SocketAsyncImpl::DriverReceiveFrom(ReceiveFromHandler const &onReceiveFrom)
 {
   try {
     auto [buffer, addr] = buff->ReceiveFrom();
     onReceiveFrom(std::move(buffer), std::move(addr));
-  } catch(std::runtime_error const &) {
-    onError();
+  } catch(std::runtime_error const &e) {
+    onError(e.what());
   }
 }
 
-bool SocketAsyncImpl::DriverDoFdTaskWritable()
+bool SocketAsyncImpl::DriverOnWritable()
 {
   // hold the lock during send/sendto
   // as we already checked that the socket will not block and
@@ -175,14 +176,14 @@ bool SocketAsyncImpl::DriverDoFdTaskWritable()
   return std::visit([this](auto &&q) -> bool {
     using Q = std::decay_t<decltype(q)>;
     if constexpr(std::is_same_v<Q, SendQ>) {
-      return DriverDoSend(q);
+      return DriverSend(q);
     } else if constexpr(std::is_same_v<Q, SendToQ>) {
-      return DriverDoSendTo(q);
+      return DriverSendTo(q);
     }
   }, sendQ);
 }
 
-bool SocketAsyncImpl::DriverDoSend(SendQ &q)
+bool SocketAsyncImpl::DriverSend(SendQ &q)
 {
   auto const sendQSize = q.size();
   if(!sendQSize) {
@@ -191,14 +192,14 @@ bool SocketAsyncImpl::DriverDoSend(SendQ &q)
 
   auto &&[promise, buffer] = q.front();
   try {
-    // allow partial send to avoid starving other
-    // driver's sockets if this one is rate limited
-    auto const sent = buff->sock->SendSome(buffer->data(), buffer->size());
-    if(sent == buffer->size()) {
-      promise.set_value();
-    } else if(sent != 0U) {
-      buffer->erase(0, sent);
-      return false;
+    if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
+      if(sent == buffer->size()) {
+        promise.set_value();
+      } else {
+        // allow partial send to avoid starving other driver's sockets if this one is rate limited
+        buffer->erase(0, sent);
+        return false;
+      }
     } else { // zero-size sent data
       // TLS can't send while handshake receipt pending:
       // give up for now but keep the data in the send
@@ -213,7 +214,7 @@ bool SocketAsyncImpl::DriverDoSend(SendQ &q)
   return (sendQSize == 1U);
 }
 
-bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
+bool SocketAsyncImpl::DriverSendTo(SendToQ &q)
 {
   auto const sendToQSize = q.size();
   if(!sendToQSize) {
@@ -222,7 +223,7 @@ bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
 
   auto &&[promise, buffer, addr] = q.front();
   try {
-    auto const sent = buff->sock->SendTo(buffer->data(), buffer->size(), addr->ForUdp());
+    auto sent = buff->sock->SendTo(buffer->data(), buffer->size(), addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();
   } catch(std::runtime_error const &e) {
@@ -232,15 +233,16 @@ bool SocketAsyncImpl::DriverDoSendTo(SendToQ &q)
   return (sendToQSize == 1U);
 }
 
-void SocketAsyncImpl::DriverDoFdTaskError()
+void SocketAsyncImpl::DriverOnError(char const *message)
 {
-  onError();
+  onError(message);
 }
 
-void SocketAsyncImpl::DriverDoFdTaskDisconnect(
-    DisconnectHandler const &onDisconnect, AddressShared peerAddr)
+void SocketAsyncImpl::DriverDisconnect(DisconnectHandler const &onDisconnect,
+    AddressShared peerAddr, char const *)
 {
   onDisconnect(Address(std::move(peerAddr)));
 }
+
 
 } // namespace sockpuppet

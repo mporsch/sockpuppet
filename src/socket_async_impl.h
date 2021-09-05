@@ -27,21 +27,21 @@ struct SocketAsyncImpl
   std::unique_ptr<SocketBufferedImpl> buff;
   std::weak_ptr<Driver::DriverImpl> driver;
   std::function<void()> onReadable; // contains use-case-dependent data as bound arguments
-  std::function<void()> onError; // contains use-case-dependent data as bound arguments
+  std::function<void(char const *)> onError; // contains use-case-dependent data as bound arguments
   mutable std::mutex sendQMtx;
   std::variant<SendQ, SendToQ> sendQ; // use-case dependent queue type
   bool pendingTlsSend = false; // flag to satisfy OpenSSL_write retry requirements
 
   SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
                   DriverShared &driver,
-                  ReceiveFromHandler receiveFromHandler);
+                  ReceiveFromHandler onReceiveFrom);
   SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
                   DriverShared &driver,
-                  ReceiveHandler receiveHandler,
-                  DisconnectHandler disconnectHandler);
+                  ReceiveHandler onReceive,
+                  DisconnectHandler onDisconnect);
   SocketAsyncImpl(std::unique_ptr<SocketImpl> &&sock,
                   DriverShared &driver,
-                  ConnectHandler connectHandler);
+                  ConnectHandler onConnect);
   SocketAsyncImpl(SocketAsyncImpl const &) = delete;
   SocketAsyncImpl(SocketAsyncImpl &&) = delete;
   ~SocketAsyncImpl();
@@ -57,19 +57,20 @@ struct SocketAsyncImpl
   bool DoSendEnqueue(std::promise<void> promise, Args&&... args);
 
   // in thread context of DriverImpl
-  void DriverDoFdTaskReadable();
-  void DriverDoFdTaskConnect(ConnectHandler const &onConnect);
-  void DriverDoFdTaskReceive(ReceiveHandler const &onReceive);
-  void DriverDoFdTaskReceiveFrom(ReceiveFromHandler const &onReceiveFrom);
+  void DriverOnReadable();
+  void DriverConnect(ConnectHandler const &onConnect);
+  void DriverReceive(ReceiveHandler const &onReceive);
+  void DriverReceiveFrom(ReceiveFromHandler const &onReceiveFrom);
 
   /// @return  true if there is no more data to send, false otherwise
-  bool DriverDoFdTaskWritable();
-  bool DriverDoSend(SendQ &q);
-  bool DriverDoSendTo(SendToQ &q);
+  bool DriverOnWritable();
+  bool DriverSend(SendQ &q);
+  bool DriverSendTo(SendToQ &q);
 
-  void DriverDoFdTaskError();
-  void DriverDoFdTaskDisconnect(DisconnectHandler const &onDisconnect,
-                                AddressShared peerAddr);
+  void DriverOnError(char const *message);
+  void DriverDisconnect(DisconnectHandler const &onDisconnect,
+                        AddressShared peerAddr,
+                        char const *errorMessage);
 };
 
 } // namespace sockpuppet

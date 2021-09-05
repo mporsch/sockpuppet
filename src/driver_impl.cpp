@@ -259,15 +259,15 @@ void Driver::DriverImpl::DoOneFdTask()
     assert(pfd.fd == sock.buff->sock->fd);
 
     if(pfd.revents & POLLIN) {
-      sock.DriverDoFdTaskReadable();
+      sock.DriverOnReadable();
       return;
     } else if(pfd.revents & POLLOUT) {
-      if(sock.DriverDoFdTaskWritable()) {
+      if(sock.DriverOnWritable()) {
         pfd.events &= ~POLLOUT;
       }
       return;
     } else if(pfd.revents & (POLLHUP | POLLERR)) {
-      sock.DriverDoFdTaskError();
+      sock.DriverOnError("poll hangup/error");
       return;
     }
   }
