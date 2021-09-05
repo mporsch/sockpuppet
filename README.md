@@ -24,7 +24,7 @@ So you want to have network communication in your little program but boost seems
 - [ ] UDP multicast
 - [ ] address arithmetic/lookup for network/broadcast addresses
 
-## Build [![Build Status](https://travis-ci.com/mporsch/sockpuppet.svg?branch=master)](https://travis-ci.com/mporsch/sockpuppet)
+## Build [![Build Status](https://app.travis-ci.com/mporsch/sockpuppet.svg?branch=master)](https://app.travis-ci.com/mporsch/sockpuppet)
 Configure and build library/examples/demo/tests using CMake.
 
 ## Quickstart
