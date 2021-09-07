@@ -6,6 +6,8 @@
 using namespace sockpuppet;
 
 static auto promisedReceipt = std::make_unique<std::promise<void>>();
+static size_t const clientSendCount = 5U;
+static size_t const clientSendSize = 100U;
 
 void HandleReceiveFrom(BufferPtr, Address addr)
 {
@@ -26,8 +28,6 @@ int main(int, char **)
 {
   using namespace std::chrono;
 
-  int const sendCount = 5;
-
   bool success = true;
 
   Driver driver;
@@ -35,7 +35,9 @@ int main(int, char **)
 
   {
     Address serverAddress("localhost:8554");
-    SocketUdpAsync server({serverAddress}, driver, HandleReceiveFrom);
+    SocketUdpAsync server({serverAddress, 1U, 1500U},
+                          driver,
+                          HandleReceiveFrom);
 
     std::cout << "waiting for receipt at " << to_string(serverAddress)
               << std::endl;
@@ -43,7 +45,7 @@ int main(int, char **)
     auto futureReceipt = promisedReceipt->get_future();
 
     {
-      BufferPool sendPool;
+      BufferPool sendPool(clientSendCount, clientSendSize);
 
       SocketUdpAsync client({Address("localhost")},
                             driver,
@@ -53,10 +55,10 @@ int main(int, char **)
                 << " to " << to_string(serverAddress) << std::endl;
 
       std::vector<std::future<void>> futuresSend;
-      futuresSend.reserve(sendCount);
-      for(int i = 0; i < sendCount; ++i) {
+      futuresSend.reserve(clientSendCount);
+      for(size_t i = 0U; i < clientSendCount; ++i) {
         auto buffer = sendPool.Get();
-        buffer->resize(100U);
+        buffer->assign(clientSendSize, 'a');
         futuresSend.emplace_back(
               client.SendTo(std::move(buffer), serverAddress));
       }

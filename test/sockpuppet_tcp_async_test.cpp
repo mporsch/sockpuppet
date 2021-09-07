@@ -68,7 +68,7 @@ struct Server
     (void)serverHandlers.emplace(
           std::make_pair(
             std::move(clientAddr),
-            SocketTcpAsync({std::move(clientSock)},
+            SocketTcpAsync({std::move(clientSock), 1U},
                            driver,
                            std::bind(&Server::HandleReceive, this, std::placeholders::_1),
                            std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
@@ -140,7 +140,7 @@ int main(int, char **)
             << std::endl;
 
   {
-    BufferPool clientSendPool;
+    BufferPool clientSendPool(clientCount * clientSendCount, clientSendSize);
     std::unique_ptr<SocketTcpAsync> clients[clientCount];
 
     std::vector<std::future<void>> futures;
@@ -158,7 +158,7 @@ int main(int, char **)
 
       for(size_t i = 0U; i < clientSendCount; ++i) {
         auto buffer = clientSendPool.Get();
-        buffer->resize(clientSendSize);
+        buffer->assign(clientSendSize, 'a');
         futures.push_back(
               client->Send(std::move(buffer)));
       }
