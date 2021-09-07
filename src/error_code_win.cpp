@@ -32,15 +32,15 @@ struct win32_error_category : public std::error_category
   /// Return what each error code means in text.
   std::string message(int messageId) const override
   {
-    char buffer[256];
-    if(DWORD const len = ::FormatMessage(
+    std::string message(256U, '\0');
+    if(auto len = ::FormatMessage(
          FORMAT_MESSAGE_FROM_SYSTEM,
          nullptr,
          static_cast<DWORD>(messageId),
          0U,
-         buffer, sizeof(buffer),
+         message.data(), static_cast<DWORD>(message.size()),
          nullptr)) {
-      std::string message(buffer, len);
+      message.resize(len);
 
       // trim trailing newline
       while(!message.empty() &&
