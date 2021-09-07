@@ -52,7 +52,10 @@ SocketAsyncImpl::SocketAsyncImpl(
     std::unique_ptr<SocketImpl> &&sock,
     DriverShared &driver,
     ConnectHandler onConnect)
-  : buff(std::make_unique<SocketBufferedImpl>(std::move(sock), 0U, 0U))
+  : buff(std::make_unique<SocketBufferedImpl>(
+      std::move(sock),
+      0U, // no receive buffers needed
+      1U)) // don't query SockOptRcvBuf
   , driver(driver)
   , onReadable(std::bind(
       &SocketAsyncImpl::DriverConnect,
