@@ -16,12 +16,13 @@ void BufferPool::Recycler::operator()(Buffer *buf)
 }
 
 
-BufferPool::BufferPool(size_t maxSize)
-  : m_maxSize(maxSize - 1U)
+BufferPool::BufferPool(size_t maxCount, size_t reserveSize)
+  : m_maxCount(maxCount - 1U)
 {
   // with given limit, pre-allocate the buffers now
-  for(size_t i = 0U; i < maxSize; ++i) {
-    m_idle.emplace(std::make_unique<Buffer>());
+  for(size_t i = 0U; i < maxCount; ++i) {
+    auto &&buf = m_idle.emplace(std::make_unique<Buffer>());
+    buf->reserve(reserveSize);
   }
 }
 
@@ -30,7 +31,7 @@ BufferPool::BufferPtr BufferPool::Get()
   std::lock_guard<std::mutex> lock(m_mtx);
 
   if(m_idle.empty()) {
-    if(m_busy.size() <= m_maxSize) {
+    if(m_busy.size() <= m_maxCount) {
       // allocate a new buffer already in the busy list
       m_busy.emplace_front(
         std::make_unique<Buffer>());

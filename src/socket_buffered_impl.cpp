@@ -5,10 +5,10 @@ namespace sockpuppet {
 SocketBufferedImpl::SocketBufferedImpl(std::unique_ptr<SocketImpl> &&sock,
     size_t rxBufCount, size_t rxBufSize)
   : sock(std::move(sock))
-  , pool(std::make_unique<BufferPool>(rxBufCount))
-  , rxBufSize((rxBufSize ?
-                 rxBufSize :
-                 this->sock->GetSockOptRcvBuf()))
+  , rxBufSize(rxBufSize ?
+                rxBufSize :
+                this->sock->GetSockOptRcvBuf())
+  , pool(std::make_unique<BufferPool>(rxBufCount, this->rxBufSize))
 {
 }
 

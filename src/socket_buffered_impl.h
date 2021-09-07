@@ -15,8 +15,8 @@ namespace sockpuppet {
 struct SocketBufferedImpl
 {
   std::unique_ptr<SocketImpl> sock;
-  std::unique_ptr<BufferPool> pool;
   size_t rxBufSize;
+  std::unique_ptr<BufferPool> pool;
 
   SocketBufferedImpl(std::unique_ptr<SocketImpl> &&sock,
                      size_t rxBufCount,

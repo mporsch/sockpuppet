@@ -32,8 +32,10 @@ struct BufferPool
   using BufferPtr = std::unique_ptr<Buffer, Recycler>;
 
   /// Create a pool with given maximum number of buffers.
-  /// @param  maxSize  Maximum number of buffers to maintain (0 -> unlimited).
-  BufferPool(size_t maxSize = 0U);
+  /// @param  maxCount  Maximum number of buffers to maintain (0 -> unlimited) and pre-allocate.
+  /// @param  reserveSize  Size to pre-allocate each buffer with if \p maxCount is given.
+  BufferPool(size_t maxCount = 0U,
+             size_t reserveSize = 0U);
 
   /// Obtain an idle buffer.
   /// @return  Pointer to borrowed buffer still owned by
@@ -54,7 +56,7 @@ private:
 private:
   using BufferStorage = std::unique_ptr<Buffer>;
 
-  size_t m_maxSize;
+  size_t m_maxCount;
   std::mutex m_mtx;
   std::stack<BufferStorage> m_idle;
   std::deque<BufferStorage> m_busy;
@@ -69,12 +71,12 @@ struct SocketUdpBuffered
 {
   /// Create a UDP socket with additional internal buffer pool.
   /// @param  sock  UDP socket to augment.
-  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited) and pre-allocate.
   ///                     Do not keep hold of more than this number of receive buffers!
-  /// @param  rxBufSize  Size of each receive buffer.
+  /// @param  rxBufSize  Maximum receive size available in buffers returned from ReceiveFrom().
+  ///                    Buffers are pre-allocated if \p rxBufCount is given.
   ///                    (0 -> use OS-determined maximum receive size.
-  ///                     Careful! This might be outrageously more than
-  ///                     what is actually needed.)
+  ///                     Careful! This might be outrageously more than what is actually needed.)
   /// @throws  If determining the receive buffer size fails.
   SocketUdpBuffered(SocketUdp &&sock,
                     size_t rxBufCount = 0U,
@@ -124,12 +126,12 @@ struct SocketTcpBuffered
 {
   /// Create a TCP socket with additional internal buffer pool.
   /// @param  sock  TCP client socket to augment.
-  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited).
+  /// @param  rxBufCount  Number of receive buffers to maintain (0 -> unlimited) and pre-allocate.
   ///                     Do not keep hold of more than this number of receive buffers!
-  /// @param  rxBufSize  Size of each receive buffer.
+  /// @param  rxBufSize  Maximum receive size available in buffers returned from Receive().
+  ///                    Buffers are pre-allocated if \p rxBufCount is given.
   ///                    (0 -> use OS-determined maximum receive size.
-  ///                     Careful! This might be outrageously more than
-  ///                     what is actually needed.)
+  ///                     Careful! This might be outrageously more than what is actually needed.)
   /// @throws  If determining the receive buffer size fails.
   SocketTcpBuffered(SocketTcp &&sock,
                     size_t rxBufCount = 0U,
