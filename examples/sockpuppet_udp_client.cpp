@@ -8,17 +8,14 @@
 
 using namespace sockpuppet;
 
-static std::atomic<bool> shouldStop = false;
-
-void SignalHandler(int)
-{
-  shouldStop = true;
-}
-
 void Client(Address bindAddress, Address remoteAddress)
 {
   // set up the handler for Ctrl-C
-  if(std::signal(SIGINT, SignalHandler) == SIG_ERR) {
+  static std::atomic<bool> shouldStop = false;
+  auto signalHandler = [](int) {
+    shouldStop = true;
+  };
+  if(std::signal(SIGINT, signalHandler) == SIG_ERR) {
     throw std::logic_error("failed to set signal handler");
   }
 

@@ -24,14 +24,6 @@ std::string const response =
   </body>
 </html>)";
 
-// socket driver to run multiple servers in one thread
-Driver driver;
-
-void SignalHandler(int)
-{
-  driver.Stop();
-}
-
 void HandleConnect(SocketTcp clientSock, Address clientAddr)
 try {
   // here we intentionally misuse the connect handler; instead of
@@ -60,8 +52,14 @@ try {
 
 int main(int, char **)
 try {
+  // socket driver to run multiple servers in one thread
+  static Driver driver;
+
   // set up the handler for Ctrl-C
-  if(std::signal(SIGINT, SignalHandler) == SIG_ERR) {
+  auto signalHandler = [](int) {
+    driver.Stop();
+  };
+  if(std::signal(SIGINT, signalHandler) == SIG_ERR) {
     throw std::logic_error("failed to set signal handler");
   }
 

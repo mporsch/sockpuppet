@@ -13,20 +13,6 @@ using namespace sockpuppet;
 
 namespace {
 
-Driver driver;
-
-void Shutdown(int)
-{
-  driver.Stop();
-}
-
-void Fin()
-{
-  std::cout << "~~FIN~~" << std::endl;
-
-  Shutdown(0);
-}
-
 Duration ParseMinutes(std::string str)
 {
   using namespace std::chrono;
@@ -79,13 +65,17 @@ void Sing(Duration time, std::string text)
             << std::endl;
 }
 
-void ParseAndSchedule(std::ifstream ifs)
+void ParseAndSchedule(Driver &driver, std::ifstream ifs)
 {
   std::regex const lrcLineRegex(R"(\[([0-9]+):([0-9.]+)\](.*))");
 
   // schedule a task for stopping the driver loop
   // the task will be shifted back according to the LRC timings
-  ToDo finale(driver, Fin, Duration(0));
+  auto fin = [&driver]() {
+    std::cout << "~~FIN~~" << std::endl;
+    driver.Stop();
+  };
+  ToDo finale(driver, fin, Duration(0));
 
   std::string line;
   while(std::getline(ifs, line)) {
@@ -112,13 +102,19 @@ void ParseAndSchedule(std::ifstream ifs)
 
 void Run(std::ifstream ifs)
 {
+  // socket driver to handle timing
+  static Driver driver;
+
   // set up the handler for Ctrl-C
-  if(std::signal(SIGINT, Shutdown) == SIG_ERR) {
+  auto signalHandler = [](int) {
+    driver.Stop();
+  };
+  if(std::signal(SIGINT, signalHandler) == SIG_ERR) {
     throw std::logic_error("failed to set signal handler");
   }
 
   // read LRC lines and schedule printouts
-  ParseAndSchedule(std::move(ifs));
+  ParseAndSchedule(driver, std::move(ifs));
 
   // start driver/timer loop
   driver.Run();
