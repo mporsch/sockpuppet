@@ -94,7 +94,7 @@ struct SocketTcp
   SocketTcp(Address const &connectAddress,
             char const *certFilePath,
             char const *keyFilePath);
-#endif // #ifdef SOCKPUPPET_WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS
 
   /// Reliably send data to connected peer.
   /// @param  data  Pointer to data to send.
@@ -170,7 +170,7 @@ struct Acceptor
   Acceptor(Address const &bindAddress,
            char const *certFilePath,
            char const *keyFilePath);
-#endif // #ifdef SOCKPUPPET_WITH_TLS
+#endif // SOCKPUPPET_WITH_TLS
 
   /// Listen and accept incoming TCP connections and report the source.
   /// @param  timeout  Timeout to use; non-null causes blocking listen,
