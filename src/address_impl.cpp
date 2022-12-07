@@ -64,7 +64,7 @@ SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
             "failed to parse address \"" + uri + "\"");
     }
   }
-  return {info, ::freeaddrinfo};
+  return SockAddrInfo::AddrInfoPtr(info);
 }
 
 SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
@@ -88,7 +88,7 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
             "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
     }
   }
-  return {info, ::freeaddrinfo};
+  return SockAddrInfo::AddrInfoPtr(info);
 }
 
 SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
@@ -103,7 +103,7 @@ SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
     throw std::system_error(AddressError(result),
           "failed to parse port \"" + port + "\"");
   }
-  return {info, ::freeaddrinfo};
+  return SockAddrInfo::AddrInfoPtr(info);
 }
 
 } // unnamed namespace
@@ -200,6 +200,11 @@ bool Address::AddressImpl::operator!=(
   return (ForAny() != other.ForAny());
 }
 
+
+void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo *ptr) const noexcept
+{
+  ::freeaddrinfo(ptr);
+}
 
 SockAddrInfo::SockAddrInfo(std::string const &uri)
   : AddressImpl()

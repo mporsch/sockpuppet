@@ -54,7 +54,11 @@ struct Address::AddressImpl
 
 struct SockAddrInfo : public Address::AddressImpl
 {
-  using AddrInfoPtr = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>;
+  struct AddrInfoDeleter
+  {
+    void operator()(addrinfo *ptr) const noexcept;
+  };
+  using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
 
   AddrInfoPtr info;
 

@@ -65,7 +65,7 @@ void ConfigureCtx(SSL_CTX *ctx,
 SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
     char const *certFilePath, char const *keyFilePath)
 {
-  if(auto ctx = SocketTlsServerImpl::CtxPtr(SSL_CTX_new(method), SSL_CTX_free)) {
+  if(auto ctx = SocketTlsServerImpl::CtxPtr(SSL_CTX_new(method))) {
     ConfigureCtx(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
@@ -74,7 +74,7 @@ SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
 
 SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx), SSL_free)) {
+  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx))) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
@@ -82,6 +82,11 @@ SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 }
 
 } // unnamed namespace
+
+void SocketTlsClientImpl::SslDeleter::operator()(SSL *ptr) const noexcept
+{
+  SSL_free(ptr);
+}
 
 SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
@@ -275,6 +280,11 @@ bool SocketTlsClientImpl::Wait(int code, Duration timeout)
   }
 }
 
+
+void SocketTlsServerImpl::CtxDeleter::operator()(SSL_CTX *ptr) const noexcept
+{
+  SSL_CTX_free(ptr);
+}
 
 SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
