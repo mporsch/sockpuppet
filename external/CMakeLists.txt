@@ -4,8 +4,8 @@ project(sockpuppet-dependencies CXX)
 
 include(ExternalProject)
 ExternalProject_Add(libressl
-  URL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.3.3.tar.gz
-  URL_MD5 c4a3a25c89cacf19fa36470ab69624e4
+  URL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.6.1.tar.gz
+  URL_MD5 c8fe1a75c5c781fccf75853dbd5e10ec
   PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libressl
   SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/libressl/src
   STAMP_DIR ${CMAKE_CURRENT_BINARY_DIR}/libressl/stamp
@@ -16,9 +16,9 @@ ExternalProject_Add(libressl
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   add_custom_target(libressl-rename ALL
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}crypto-46${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}crypto${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}ssl-48${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}ssl${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}tls-20${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}tls${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}crypto-50${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}crypto${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}ssl-53${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}ssl${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}tls-26${CMAKE_STATIC_LIBRARY_SUFFIX}" "${CMAKE_CURRENT_BINARY_DIR}/libressl/install/lib/${CMAKE_SHARED_LIBRARY_PREFIX}tls${CMAKE_STATIC_LIBRARY_SUFFIX}"
     DEPENDS libressl
     COMMENT "renaming, to make libressl build compatible with FindOpenSSL.cmake's OPENSSL_ROOT_DIR"
   )
