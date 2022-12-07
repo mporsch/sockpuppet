@@ -13,12 +13,11 @@ struct Address
 {
   /// Create a local/remote host address from given URI.
   /// @param  uri  URI in one of the following formats:
-  ///              host/path
   ///              service://host/path
-  ///              service://
-  ///              IPv4-host:service/path
+  ///              host:service/path
   ///              [IPv6-host]:service/path
-  ///              IPv6-host/path
+  ///              host/path
+  ///              service://
   /// @throws  If parsing or host/service lookup fails.
   Address(std::string const &uri);
 

@@ -35,13 +35,14 @@ Address::AddressImpl::LocalAddresses()
   ret.reserve(count);
   for(auto it = ifAddrs.get(); it != nullptr; it = it->ifa_next) {
     if((it->ifa_addr != nullptr) &&
-       (it->ifa_addr->sa_family == AF_INET || it->ifa_addr->sa_family == AF_INET6) &&
        ((it->ifa_flags & IFF_LOOPBACK) == 0)) {
-      ret.emplace_back(std::make_shared<SockAddrStorage>(
-                         it->ifa_addr,
-                         it->ifa_addr->sa_family == AF_INET ?
-                           sizeof(sockaddr_in) :
-                           sizeof(sockaddr_in6)));
+      if(it->ifa_addr->sa_family == AF_INET) {
+        ret.emplace_back(std::make_shared<SockAddrStorage>(
+              it->ifa_addr, sizeof(sockaddr_in)));
+      } else if(it->ifa_addr->sa_family == AF_INET6) {
+        ret.emplace_back(std::make_shared<SockAddrStorage>(
+              it->ifa_addr, sizeof(sockaddr_in6)));
+      }
     }
   }
   return ret;

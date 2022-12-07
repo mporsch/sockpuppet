@@ -113,7 +113,7 @@ void Client(Address remoteAddress)
       ioBuf.Print("you said: " + *line);
 
       // enqueue the given string data to be sent to the connected peer
-      (void)client.Send(std::move(line));
+      client.Send(std::move(line));
     }
   }
 
