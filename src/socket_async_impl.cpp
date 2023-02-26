@@ -226,7 +226,9 @@ bool SocketAsyncImpl::DriverSendTo(SendToQ &q)
 
   auto &&[promise, buffer, addr] = q.front();
   try {
-    auto sent = buff->sock->SendTo(buffer->data(), buffer->size(), addr->ForUdp());
+    [[maybe_unused]] auto sent = buff->sock->SendTo(
+          buffer->data(), buffer->size(),
+          addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();
   } catch(std::runtime_error const &e) {

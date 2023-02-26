@@ -120,6 +120,7 @@ SocketTlsClientImpl::~SocketTlsClientImpl()
 std::optional<size_t> SocketTlsClientImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
+  // unlimited timeout performs full handshake and subsequent receive
   auto received =
       (timeout.count() < 0 ?
          Receive(data, size, DeadlineUnlimited()) :
@@ -127,13 +128,12 @@ std::optional<size_t> SocketTlsClientImpl::Receive(
             Receive(data, size, DeadlineZero()) :
             Receive(data, size, DeadlineLimited(timeout))));
 
-  // unlimited timeout performs full handshake and subsequent receive
-  assert((received > 0U) || (timeout.count() >= 0));
-
-  if(!received) {
-    return {std::nullopt};
+  if(received) {
+    return {received};
   }
-  return {received};
+
+  assert(timeout.count() >= 0);
+  return {std::nullopt};
 }
 
 size_t SocketTlsClientImpl::Receive(char *data, size_t size)

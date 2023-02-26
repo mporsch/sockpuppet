@@ -52,7 +52,7 @@ int DoSetBlocking(SOCKET fd, bool blocking)
   return ::ioctlsocket(fd, static_cast<int>(FIONBIO), &enable);
 #else
   int flags = ::fcntl(fd, F_GETFL, 0);
-  if (flags == -1) {
+  if(flags == -1) {
     return flags;
   }
   flags = (blocking ? flags & ~O_NONBLOCK : flags | O_NONBLOCK);

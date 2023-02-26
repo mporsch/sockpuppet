@@ -236,9 +236,10 @@ void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 void Driver::DriverImpl::Bump()
 {
   static char const one = '1';
-  auto const sent = pipeFrom.SendTo(&one, sizeof(one),
-                                    pipeToAddr->ForUdp(),
-                                    noTimeout);
+ [[maybe_unused]] auto sent = pipeFrom.SendTo(
+        &one, sizeof(one),
+        pipeToAddr->ForUdp(),
+        noTimeout);
   assert(sent == sizeof(one));
 }
 
