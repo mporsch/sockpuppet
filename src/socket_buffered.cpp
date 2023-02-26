@@ -125,7 +125,8 @@ SocketTcpBuffered::SocketTcpBuffered(SocketTcp &&sock,
 size_t SocketTcpBuffered::Send(char const *data, size_t size,
     Duration timeout)
 {
-  return impl->sock->Send(data, size, timeout);
+  Views buf(data, size);
+  return impl->sock->Send(buf, timeout);
 }
 
 std::optional<BufferPtr> SocketTcpBuffered::Receive(Duration timeout)

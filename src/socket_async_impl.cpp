@@ -195,7 +195,8 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
 
   auto &&[promise, buffer] = q.front();
   try {
-    if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
+    Views buf(buffer->data(), buffer->size());
+    if(auto sent = buff->sock->SendSome(buf)) {
       if(sent == buffer->size()) {
         promise.set_value();
       } else {

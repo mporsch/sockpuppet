@@ -70,7 +70,14 @@ SocketTcp::SocketTcp(Address const &connectAddress,
 
 size_t SocketTcp::Send(char const *data, size_t size, Duration timeout)
 {
-  return impl->Send(data, size, timeout);
+  Views buf(data, size);
+  return impl->Send(buf, timeout);
+}
+
+size_t SocketTcp::Send(std::initializer_list<std::string_view> ilist, Duration timeout)
+{
+  Views buf(std::move(ilist));
+  return impl->Send(buf, timeout);
 }
 
 std::optional<size_t> SocketTcp::Receive(char *data, size_t size, Duration timeout)

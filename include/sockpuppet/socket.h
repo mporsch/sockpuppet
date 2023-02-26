@@ -7,6 +7,7 @@
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
 #include <optional> // for std::optional
+#include <string_view>
 #include <utility> // for std::pair
 
 namespace sockpuppet {
@@ -105,6 +106,9 @@ struct SocketTcp
   /// @throws  If sending fails locally or the peer closes the connection.
   size_t Send(char const *data,
               size_t size,
+              Duration timeout = Duration(-1));
+
+  size_t Send(std::initializer_list<std::string_view>,
               Duration timeout = Duration(-1));
 
   /// Reliably receive data from connected peer.

@@ -19,6 +19,37 @@ using SOCKET = int;
 
 namespace sockpuppet {
 
+struct View : public
+    #ifdef _WIN32
+      WSABUF
+    #else // _WIN32
+      iovec
+    #endif // _WIN32
+{
+  View(char const *data, size_t size);
+
+  char const *Data() const;
+  size_t Size() const;
+
+  void Advance(size_t count);
+};
+#ifdef _WIN32
+static_assert(sizeof(View) == sizeof(WSABUF), "mismatching wrapper size");
+#else // _WIN32
+static_assert(sizeof(View) == sizeof(iovec), "mismatching wrapper size");
+#endif // _WIN32
+
+using ViewsBackend = std::vector<View>;
+
+struct Views : public ViewsBackend
+{
+  Views(char const *data, size_t size);
+  Views(std::initializer_list<std::string_view>);
+
+  void Advance(size_t count);
+  size_t OverallSize() const;
+};
+
 struct SocketImpl
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
@@ -45,20 +76,14 @@ struct SocketImpl
   std::pair<size_t, Address>
   ReceiveFrom(char *data, size_t size);
 
-  virtual size_t Send(char const *data,
-                      size_t size,
-                      Duration timeout);
-  size_t SendAll(char const *data,
-                 size_t size);
+  virtual size_t Send(Views &, Duration timeout);
+  size_t SendAll(Views &);
   // waits for writable repeatedly and
   // sends the max amount of data within the user-provided timeout
   template<typename Deadline>
-  size_t SendSome(char const *data,
-                  size_t size,
-                  Deadline deadline);
+  size_t SendSome(Views &, Deadline deadline);
   // assumes a writable socket
-  virtual size_t SendSome(char const *data,
-                          size_t size);
+  virtual size_t SendSome(Views &);
 
   size_t SendTo(char const *data,
                 size_t size,

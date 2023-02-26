@@ -8,7 +8,10 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
+#include <algorithm>
 #include <cassert> // for assert
+#include <numeric>
+#include <string_view>
 
 namespace sockpuppet {
 
@@ -67,16 +70,36 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
   }
 }
 
-size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
+size_t DoSend(SOCKET fd, Views &buf, int flags)
 {
-  auto const sent = ::send(fd,
-                           data, size,
-                           flags);
-  if(sent < 0) {
-    throw std::system_error(SocketError(), "failed to send");
-  } else if((sent == 0) && (size > 0U)) {
+#ifdef _WIN32
+  DWORD sent;
+  auto res = ::WSASend(fd,
+                       buf.data(), static_cast<DWORD>(buf.size()),
+                       &sent,
+                       static_cast<DWORD>(flags),
+                       nullptr,
+                       nullptr);
+  if(res != 0) {
+    throw std::system_error(SocketError(res), "failed to send");
+  } else if((sent == 0) && (buf.OverallSize() > 0U)) {
     throw std::logic_error("unexpected send result");
   }
+#else // _WIN32
+  msghdr msg = {
+    nullptr, 0U,
+    buf.bufs.data(), buf.bufs.size(),
+    nullptr, 0U,
+    0
+  };
+  auto sent = ::sendmsg(fd, &msg, flags);
+  if(sent < 0) {
+    throw std::system_error(SocketError(), "failed to send");
+  } else if((sent == 0) && (buf.OverallSize() > 0U)) {
+    throw std::logic_error("unexpected send result");
+  }
+#endif // _WIN32
+
   return static_cast<size_t>(sent);
 }
 
@@ -102,6 +125,94 @@ T GetSockOpt(SOCKET fd, int id, char const *errorMessage)
 }
 
 } // unnamed namespace
+
+View::View(char const *data, size_t size)
+#ifdef _WIN32
+  : WSABUF{static_cast<u_long>(size), const_cast<char*>(data)}
+#else
+  :iovec{const_cast<char*>(data), size}
+#endif // _WIN32
+{
+}
+
+char const *View::Data() const
+{
+#ifdef _WIN32
+  return this->buf;
+#else
+  return static_cast<char*>(this->iov_base);
+#endif // _WIN32
+}
+
+size_t View::Size() const
+{
+#ifdef _WIN32
+  return this->len;
+#else
+  return this->iov_len;
+#endif // _WIN32
+}
+
+void View::Advance(size_t count)
+{
+#ifdef _WIN32
+  assert(count < this->len);
+  this->buf += count;
+  this->len -= count;
+#else
+  assert(count < this->iov_len);
+  this->iov_base = static_cast<char*>(this->iov_base) + count;
+  this->iov_len -= count;
+#endif // _WIN32
+}
+
+
+Views::Views(char const *data, size_t size)
+  : ViewsBackend(1U, View(data, size))
+{
+}
+
+Views::Views(std::initializer_list<std::string_view> ilist)
+{
+  auto count = std::distance(std::begin(ilist), std::end(ilist));
+  this->reserve(static_cast<size_t>(count));
+  (void)std::transform(
+        std::begin(ilist), std::end(ilist),
+        std::back_inserter(*this),
+        [](std::string_view str) -> View {
+          return View(str.data(), str.size());
+        });
+}
+
+void Views::Advance(size_t count)
+{
+  if(count > OverallSize()) {
+    throw std::logic_error("invalid advance size");
+  }
+
+  this->erase(this->begin(), std::remove_if(
+    this->begin(), this->end(),
+    [&](ViewsBackend::const_reference buf) -> bool {
+      if(count >= buf.Size()) {
+        count -= buf.Size();
+        return true;
+      }
+      return false;
+    }));
+  assert(count < OverallSize());
+  if(count > 0) {
+    this->front().Advance(count);
+  }
+}
+
+size_t Views::OverallSize() const
+{
+  return std::accumulate(this->begin(), this->end(), size_t(0U),
+    [](size_t sum, ViewsBackend::const_reference buf) -> size_t {
+      return sum + buf.len;
+    });
+}
+
 
 SocketImpl::SocketImpl(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
@@ -185,42 +296,43 @@ SocketImpl::ReceiveFrom(char *data, size_t size)
 //   the user enqueues faster than the NIC can send or the peer can process
 //   network losses/delay causes retransmissions
 // causing the OS send buffer to fill up
-size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
+size_t SocketImpl::Send(Views &buf, Duration timeout)
 {
   return (timeout.count() < 0 ?
-            SendAll(data, size) :
+            SendAll(buf) :
             (timeout.count() == 0 ?
-               SendSome(data, size, DeadlineZero()) :
-               SendSome(data, size, DeadlineLimited(timeout))));
+               SendSome(buf, DeadlineZero()) :
+               SendSome(buf, DeadlineLimited(timeout))));
 }
 
-size_t SocketImpl::SendAll(char const *data, size_t size)
+size_t SocketImpl::SendAll(Views &buf)
 {
   // set flags to block until everything is sent
-  auto const sent = DoSend(fd, data, size, sendAllFlags);
+  auto const sent = DoSend(fd, buf, sendAllFlags);
   assert(sent == size);
   return sent;
 }
 
 template<typename Deadline>
-size_t SocketImpl::SendSome(char const *data, size_t size,
-    Deadline deadline)
+size_t SocketImpl::SendSome(Views &buf, Deadline deadline)
 {
-  size_t sent = 0U;
+  size_t sentOverall = 0U;
   do {
     if(!WaitWritable(deadline.Remaining())) {
       break; // timeout exceeded
     }
-    sent += SendSome(data + sent, size - sent);
+    auto sent = SendSome(buf);
+    buf.Advance(sent);
+    sentOverall += sent;
     deadline.Tick();
-  } while((sent < size) && deadline.TimeLeft());
-  return sent;
+  } while(!buf.empty() && deadline.TimeLeft());
+  return sentOverall;
 }
 
-size_t SocketImpl::SendSome(char const *data, size_t size)
+size_t SocketImpl::SendSome(Views &buf)
 {
   // set flags to send only what can be sent without blocking
-  return DoSend(fd, data, size, sendSomeFlags);
+  return DoSend(fd, buf, sendSomeFlags);
 }
 
 // UDP send will block only rarely,
