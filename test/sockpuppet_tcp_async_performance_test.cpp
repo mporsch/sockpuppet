@@ -61,6 +61,9 @@ struct Server
 
   void HandleConnect(SocketTcp clientSock, Address clientAddr)
   {
+    std::cout << "client " << to_string(clientAddr)
+              << " connected to server" << std::endl;
+
     (void)clientSessions.emplace(
           std::move(clientAddr),
           std::make_unique<ClientSession>(this, std::move(clientSock)));
@@ -68,8 +71,7 @@ struct Server
 
   void HandleDisconnect(Address clientAddress)
   {
-    std::cout << "client "
-              << to_string(clientAddress)
+    std::cout << "client " << to_string(clientAddress)
               << " closed connection to server" << std::endl;
 
     clientSessions.erase(clientAddress);
@@ -139,7 +141,7 @@ struct Clients
     auto clientAddr = client.LocalAddress();
 
     std::cout << "client " << to_string(clientAddr)
-              << " connected to server" << std::endl;
+              << " connecting to server" << std::endl;
 
     auto p = clients.emplace(
           std::move(clientAddr),
@@ -149,9 +151,8 @@ struct Clients
 
   void HandleDisconnect(Address clientAddr)
   {
-    std::cout << "client "
-              << to_string(clientAddr)
-              << " closed connection to server" << std::endl;
+    std::cout << "client " << to_string(clientAddr)
+              << " closing connection to server" << std::endl;
 
     clients.erase(clientAddr);
   }
