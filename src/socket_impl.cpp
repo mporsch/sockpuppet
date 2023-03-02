@@ -190,15 +190,17 @@ void Views::Advance(size_t count)
     throw std::logic_error("invalid advance size");
   }
 
-  this->erase(this->begin(), std::remove_if(
-    this->begin(), this->end(),
-    [&](ViewsBackend::const_reference buf) -> bool {
-      if(count >= buf.Size()) {
-        count -= buf.Size();
-        return true;
-      }
-      return false;
-    }));
+  this->erase(
+    std::remove_if(
+      this->begin(), this->end(),
+      [&](ViewsBackend::const_reference buf) -> bool {
+        if(count >= buf.Size()) {
+          count -= buf.Size();
+          return true;
+        }
+        return false;
+      }),
+    this->end());
   assert(count < OverallSize());
   if(count > 0) {
     this->front().Advance(count);
