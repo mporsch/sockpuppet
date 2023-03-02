@@ -88,7 +88,7 @@ size_t DoSend(SOCKET fd, Views &buf, int flags)
 #else // _WIN32
   msghdr msg = {
     nullptr, 0U,
-    buf.bufs.data(), buf.bufs.size(),
+    buf.data(), buf.size(),
     nullptr, 0U,
     0
   };
@@ -209,7 +209,7 @@ size_t Views::OverallSize() const
 {
   return std::accumulate(this->begin(), this->end(), size_t(0U),
     [](size_t sum, ViewsBackend::const_reference buf) -> size_t {
-      return sum + buf.len;
+      return sum + buf.Size();
     });
 }
 
