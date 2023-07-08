@@ -2,12 +2,26 @@
 #include "error_code.h" // for AddressError
 
 #include <cstring> // for std::memcmp
+#include <limits> // for std::numeric_limits
 #include <regex> // for std::regex
 #include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
 namespace {
+
+bool IsServiceNumeric(std::string const &serv)
+{
+  static std::regex const reNumeric(R"(^\d+$)");
+  return std::regex_match(serv, reNumeric);
+}
+
+void CheckServiceNumericOutOfRange(std::string const &serv)
+{
+  if(std::stoll(serv) > std::numeric_limits<uint16_t>::max()) {
+    throw std::runtime_error("numeric service " + serv + " out of range");
+  }
+}
 
 struct UriDissect
 {
@@ -38,6 +52,7 @@ struct UriDissect
         // URI of type [IPv6-host]:port or host:port
         host = match[1].str();
         serv = match[2].str();
+        CheckServiceNumericOutOfRange(serv);
         hints.ai_flags |= AI_NUMERICSERV;
       } else {
         host = uri;
@@ -74,6 +89,8 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
     throw std::invalid_argument("empty host");
   } else if(serv.empty()) {
     throw std::invalid_argument("empty service");
+  } else if(IsServiceNumeric(serv)) {
+    CheckServiceNumericOutOfRange(serv);
   }
 
   addrinfo *info;
@@ -91,17 +108,19 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
   return SockAddrInfo::AddrInfoPtr(info);
 }
 
-SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
+SockAddrInfo::AddrInfoPtr ParsePort(uint16_t port)
 {
+  auto serv = std::to_string(port);
+
   addrinfo hints{};
   hints.ai_family = AF_INET; // force IPv4 here
   hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
   addrinfo *info;
   if(auto const result = ::getaddrinfo(
-       "localhost", port.c_str(),
+       "localhost", serv.c_str(),
        &hints, &info)) {
     throw std::system_error(AddressError(result),
-          "failed to parse port \"" + port + "\"");
+          "failed to parse port \"" + serv + "\"");
   }
   return SockAddrInfo::AddrInfoPtr(info);
 }
@@ -221,7 +240,7 @@ SockAddrInfo::SockAddrInfo(std::string const &host,
 
 SockAddrInfo::SockAddrInfo(uint16_t port)
   : AddressImpl()
-  , info(ParsePort(std::to_string(port)))
+  , info(ParsePort(port))
 {
 }
 
