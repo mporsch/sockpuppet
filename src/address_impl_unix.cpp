@@ -9,15 +9,26 @@
 namespace sockpuppet {
 
 namespace {
-  std::unique_ptr<ifaddrs, decltype(&::freeifaddrs)> GetIfAddrs()
+
+struct IfAddrsDeleter
+{
+  void operator()(ifaddrs *ptr) const noexcept
   {
-    ifaddrs *addrs;
-    if(::getifaddrs(&addrs)) {
-      throw std::system_error(SocketError(),
-            "failed to get local interface addresses");
-    }
-    return {addrs, ::freeifaddrs};
+    ::freeifaddrs(ptr);
   }
+};
+using IfAddrsPtr = std::unique_ptr<ifaddrs, IfAddrsDeleter>;
+
+IfAddrsPtr GetIfAddrs()
+{
+  ifaddrs *addrs;
+  if(::getifaddrs(&addrs)) {
+    throw std::system_error(SocketError(),
+          "failed to get local interface addresses");
+  }
+  return IfAddrsPtr(addrs);
+}
+
 } // unnamed namespace
 
 std::vector<Address>
