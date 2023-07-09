@@ -12,13 +12,15 @@ namespace {
 
 bool IsServiceNumeric(std::string const &serv)
 {
-  static std::regex const reNumeric(R"(^\d+$)");
+  static std::regex const reNumeric(R"(^\-?\d+$)");
   return std::regex_match(serv, reNumeric);
 }
 
 void CheckServiceNumericOutOfRange(std::string const &serv)
 {
-  if(std::stoll(serv) > std::numeric_limits<uint16_t>::max()) {
+  auto port = std::stoll(serv);
+  if(port < std::numeric_limits<uint16_t>::min() ||
+     port > std::numeric_limits<uint16_t>::max()) {
     throw std::runtime_error("numeric service " + serv + " out of range");
   }
 }
