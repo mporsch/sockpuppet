@@ -5,6 +5,8 @@
 #include <initializer_list> // for std::initializer_list
 #include <iomanip> // for std::setw
 #include <iostream> // for std::cerr
+#include <optional> // for std::optional
+#include <sstream> // for std::ostringstream
 
 using namespace sockpuppet;
 
@@ -22,10 +24,48 @@ struct Expected
   }
 };
 
-void Verify(std::initializer_list<Expected> expected, Address addr)
+void Verify(std::initializer_list<Expected> expected, const Address &addr)
 {
   if(std::find(std::begin(expected), std::end(expected), addr) == std::end(expected)) {
     throw std::runtime_error("constructed address '" + to_string(addr) + "' does not match any reference");
+  }
+}
+
+template<typename... Strings>
+std::string AddressCallString(const std::string &str, Strings&&... strings)
+{
+  std::ostringstream oss;
+  ((oss << "\", \"" << strings), ...);
+  return "Address(\"" + str + oss.str() + "\")";
+}
+
+template<typename... Strings>
+void DoTest(std::initializer_list<Expected> expected, Strings&&... strings)
+{
+  std::optional<Address> addr;
+  try {
+    addr.emplace(strings...);
+  } catch(const std::exception &) {
+  }
+
+  auto addressCallString = AddressCallString(strings...);
+  if(expected.size() && addr) {
+    Verify(std::move(expected), *addr);
+    std::cout << std::setw(20)
+              << to_string(*addr)
+              << " <-- "
+              << addressCallString
+              << std::endl;
+  } else if(expected.size()) {
+    throw std::runtime_error("failed to create an address from " + addressCallString);
+  } else if(addr) {
+    throw std::runtime_error("unexpected address " + to_string(*addr) + " from " + addressCallString);
+  } else {
+    std::cout << std::setw(20)
+              << "<invalid>"
+              << " <-- "
+              << addressCallString
+              << std::endl;
   }
 }
 
@@ -57,52 +97,12 @@ void Test(std::initializer_list<Expected> expected, uint16_t port)
 
 void Test(std::initializer_list<Expected> expected, std::string uri)
 {
-  try {
-    Address addr(uri);
-
-    std::cout << std::setw(20)
-              << to_string(addr)
-              << " <-- "
-              << "Address(\"" << uri << "\")"
-              << std::endl;
-
-    Verify(std::move(expected), std::move(addr));
-  } catch(const std::exception &) {
-    if(expected.size()) {
-      throw;
-    } else {
-      std::cout << std::setw(20)
-                << "<invalid>"
-                << " <-- "
-                << "Address(\"" << uri << "\")"
-                << std::endl;
-    }
-  }
+  DoTest(std::move(expected), std::move(uri));
 }
 
 void Test(std::initializer_list<Expected> expected, std::string host, std::string serv)
 {
-  try {
-    Address addr(host, serv);
-
-    std::cout << std::setw(20)
-              << to_string(addr)
-              << " <-- "
-              << "Address(\"" << host << "\", \"" << serv << "\")"
-              << std::endl;
-
-    Verify(std::move(expected), std::move(addr));
-  } catch(const std::exception &) {
-    if(expected.size()) {
-      throw;
-    } else {
-      std::cout << std::setw(20)
-                << "<invalid>"
-                << " <-- "
-                << "Address(\"" << host << "\", \"" << serv << "\")"
-                << std::endl;
-    }
-  }
+  DoTest(std::move(expected), std::move(host), std::move(serv));
 }
 
 int main(int, char **)
