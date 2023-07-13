@@ -6,7 +6,7 @@
 
 using namespace sockpuppet;
 
-void Server(Address bindAddress)
+[[noreturn]] void Server(Address bindAddress)
 {
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
@@ -41,18 +41,19 @@ void Server(Address bindAddress)
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {
-    std::cout << "Usage: " << argv[0]
+    std::cerr << "Usage: " << argv[0]
       << " SOURCE\n\n"
          "\tSOURCE is an address string to bind to, "
          "e.g. \"localhost:8554\""
       << std::endl;
-  } else {
-    // parse given address string
-    Address bindAddress(argv[1]);
-
-    // create and run a UDP socket
-    Server(bindAddress);
+    return EXIT_FAILURE;
   }
+
+  // parse given address string
+  Address bindAddress(argv[1]);
+
+  // create and run a UDP socket
+  Server(bindAddress);
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {

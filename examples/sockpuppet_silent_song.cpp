@@ -134,7 +134,7 @@ try {
     }
   }
 
-  std::cout << "Example application for sockpuppet ToDos with\n"
+  std::cerr << "Example application for sockpuppet ToDos with\n"
        "the totally network-unrelated use case of displaying\n"
        "lyrics with their timings as given in an LRC file\n\n"
        "Usage: "
@@ -144,7 +144,7 @@ try {
        "\thttps://www.megalobiz.com/lrc/maker/Bohemian+Rhapsody.54490345"
     << std::endl;
 
-  return EXIT_SUCCESS;
+  return EXIT_FAILURE;
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   return EXIT_FAILURE;

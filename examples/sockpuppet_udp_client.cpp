@@ -55,23 +55,24 @@ void Client(Address bindAddress, Address remoteAddress)
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {
-    std::cout << "Usage: " << argv[0]
+    std::cerr << "Usage: " << argv[0]
       << " DESTINATION [SOURCE]\n\n"
          "\tDESTINATION is an address string to send to\n"
          "\tSOURCE is an address string to bind to, "
          "e.g. \"localhost:8554\""
       << std::endl;
-  } else {
-    // parse given address string(s)
-    Address remoteAddress(argv[1]);
-    Address bindAddress;
-    if(argc >= 3) {
-      bindAddress = Address(argv[2]);
-    }
-
-    // create and run a UDP socket
-    Client(bindAddress, remoteAddress);
+    return EXIT_FAILURE;
   }
+
+  // parse given address string(s)
+  Address remoteAddress(argv[1]);
+  Address bindAddress;
+  if(argc >= 3) {
+    bindAddress = Address(argv[2]);
+  }
+
+  // create and run a UDP socket
+  Client(bindAddress, remoteAddress);
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
