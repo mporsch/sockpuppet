@@ -11,7 +11,7 @@ try {
   auto &&clientSock = p.first;
   auto &&clientAddr = p.second;
 
-  std::cout << "connection "
+  std::cerr << "connection "
             << to_string(clientAddr)
             << " <- "
             << to_string(clientSock.LocalAddress())
@@ -30,7 +30,7 @@ try {
                                           noTimeout);
 
     // print whatever has just been received
-    std::cout << std::string(buffer, received) << std::endl;
+    std::cout << std::string(buffer, received) << std::flush;
   }
 } catch (std::exception const &e) {
   // (most probably) client disconnected
@@ -51,7 +51,7 @@ try {
     // print the bound TCP socket address
     // (might have OS-assigned interface and port number if
     // it has not been explicitly set in the bind address)
-    std::cout << "listening at "
+    std::cerr << "listening at "
               << to_string(server.LocalAddress())
               << std::endl;
 

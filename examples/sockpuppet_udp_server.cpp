@@ -14,7 +14,7 @@ using namespace sockpuppet;
   // print the bound UDP socket address
   // (might have OS-assigned port number if
   // it has not been explicitly set in the bind address)
-  std::cout << "receiving at "
+  std::cerr << "receiving at "
             << to_string(sock.LocalAddress())
             << std::endl;
 
@@ -30,11 +30,13 @@ using namespace sockpuppet;
         noTimeout);
 
     // print whatever has just been received
-    std::cout << (receiveSize > 0U ?
-                    std::string_view(buffer, receiveSize) :
-                    "<empty>")
-              << " from " << to_string(fromAddr)
-              << std::endl;
+    if(receiveSize > 0U) {
+      std::cout << std::string_view(buffer, receiveSize);
+    } else {
+      std::cerr << "<empty>";
+    }
+    std::cerr << " <- from " << to_string(fromAddr);
+    std::cout << std::endl;
   }
 }
 

@@ -1,7 +1,5 @@
 #include "sockpuppet/socket.h" // for SocketUdp
 
-#include <atomic> // for std::atomic
-#include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
 #include <string> // for std::string
@@ -10,15 +8,6 @@ using namespace sockpuppet;
 
 void Client(Address bindAddress, Address remoteAddress)
 {
-  // set up the handler for Ctrl-C
-  static std::atomic<bool> shouldStop = false;
-  auto signalHandler = [](int) {
-    shouldStop = true;
-  };
-  if(std::signal(SIGINT, signalHandler) == SIG_ERR) {
-    throw std::logic_error("failed to set signal handler");
-  }
-
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
 
@@ -33,12 +22,11 @@ void Client(Address bindAddress, Address remoteAddress)
             << std::endl;
 
   // query and send until cancelled
-  while(!shouldStop) {
-    // query a string to send from the command line
-    std::string line;
-    std::cout << "message to send? (Ctrl-C for exit) - ";
-    std::getline(std::cin, line);
+  std::cerr << "message(s) to send? (Ctrl-C for exit)" << std::endl;
 
+  // query strings to send from the command line or piped text (file) input
+  std::string line;
+  while(std::getline(std::cin, line)) {
     // send the given string data to the remote address
     // negative timeout -> blocking until sent (although
     // UDP sockets will rarely ever block on send)
