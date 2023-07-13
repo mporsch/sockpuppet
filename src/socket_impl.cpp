@@ -14,20 +14,20 @@ namespace sockpuppet {
 
 namespace {
 
-static auto const fdInvalid =
+constexpr auto fdInvalid =
 #ifdef _WIN32
     INVALID_SOCKET;
 #else
     SOCKET(-1);
 #endif // _WIN32
 
-static int const sendAllFlags =
+constexpr int sendAllFlags =
 #ifdef MSG_NOSIGNAL
     MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
 #endif // MSG_NOSIGNAL
     0;
 
-static int const sendSomeFlags =
+constexpr int sendSomeFlags =
 #ifdef MSG_PARTIAL
     MSG_PARTIAL | // dont block if all cannot be sent at once
 #endif // MSG_PARTIAL
@@ -144,7 +144,7 @@ std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration time
 
 size_t SocketImpl::Receive(char *data, size_t size)
 {
-  static int const flags = 0;
+  constexpr int flags = 0;
   auto const received = ::recv(fd,
                                data, size,
                                flags);
@@ -169,7 +169,7 @@ SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 std::pair<size_t, Address>
 SocketImpl::ReceiveFrom(char *data, size_t size)
 {
-  static int const flags = 0;
+  constexpr int flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
   auto const received = ::recvfrom(fd,
                                    data, size,
@@ -237,7 +237,7 @@ size_t SocketImpl::SendTo(char const *data, size_t size,
 
 size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
 {
-  static int const flags = 0;
+  constexpr int flags = 0;
   auto const sent = ::sendto(fd,
                              data, size,
                              flags,
@@ -269,7 +269,7 @@ void SocketImpl::Bind(SockAddrView const &bindAddr)
 
 void SocketImpl::Listen()
 {
-  static int const backlog = 128;
+  constexpr int backlog = 128;
   if(::listen(fd, backlog)) {
     throw std::system_error(SocketError(), "failed to listen");
   }

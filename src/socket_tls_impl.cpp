@@ -14,7 +14,7 @@ namespace {
 
 // loop over OpenSSL calls that might perform a handshake at any time
 // the number is arbitrary and used only to avoid/detect infinite loops
-static int const handshakeStepsMax = 10;
+constexpr int handshakeStepsMax = 10;
 
 void IgnoreSigPipe()
 {
@@ -42,7 +42,7 @@ void IgnoreSigPipe()
 void ConfigureCtx(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
-  static int const flags =
+  constexpr int flags =
       SSL_MODE_ENABLE_PARTIAL_WRITE | // dont block when sending long payloads
       SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER; // cannot guarantee user reuses buffer after timeout
 
@@ -256,7 +256,7 @@ bool SocketTlsClientImpl::WaitWritable(Duration timeout)
 
 bool SocketTlsClientImpl::Wait(int code, Duration timeout)
 {
-  static char const errorMessage[] =
+  constexpr char errorMessage[] =
       "failed to wait for TLS socket readable/writable";
 
   switch(SSL_get_error(ssl.get(), code)) {

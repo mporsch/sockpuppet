@@ -20,11 +20,10 @@ try {
 
   // receive and print until Ctrl-C or client disconnect
   for(;;) {
-    char buffer[256];
-    static Duration const noTimeout(-1);
-
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
+    char buffer[256];
+    constexpr Duration noTimeout(-1);
     size_t received = *clientSock.Receive(buffer,
                                           sizeof(buffer),
                                           noTimeout);
@@ -46,8 +45,6 @@ try {
 
   // listen for and accept incoming connections until Ctrl-C
   for(;;) {
-    static Duration const noTimeout(-1);
-
     // print the bound TCP socket address
     // (might have OS-assigned interface and port number if
     // it has not been explicitly set in the bind address)
@@ -57,6 +54,7 @@ try {
 
     // wait for and accept incoming connections
     // negative timeout -> blocking until connection
+    constexpr Duration noTimeout(-1);
     HandleConnect(*server.Listen(noTimeout));
   }
 }

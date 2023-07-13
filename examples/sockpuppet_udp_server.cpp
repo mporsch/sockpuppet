@@ -20,11 +20,10 @@ using namespace sockpuppet;
 
   // receive and print until Ctrl-C
   for(;;) {
-    char buffer[256];
-    static Duration const noTimeout(-1);
-
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
+    char buffer[256];
+    constexpr Duration noTimeout(-1);
     auto [receiveSize, fromAddr] = *sock.ReceiveFrom(
         buffer, sizeof(buffer),
         noTimeout);

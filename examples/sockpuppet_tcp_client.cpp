@@ -36,7 +36,7 @@ void Client(Address remoteAddress)
     // negative timeout -> blocking until sent
     // ignore the return value as - with unlimited timeout -
     // it will always match the sent size
-    static Duration const noTimeout(-1);
+    constexpr Duration noTimeout(-1);
     (void)client.Send(line.c_str(),
                       line.size(),
                       noTimeout);

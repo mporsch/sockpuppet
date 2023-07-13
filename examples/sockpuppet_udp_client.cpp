@@ -32,7 +32,7 @@ void Client(Address bindAddress, Address remoteAddress)
     // UDP sockets will rarely ever block on send)
     // ignore the return value as - with unlimited timeout -
     // it will always match the sent size
-    static Duration const noTimeout(-1);
+    constexpr Duration noTimeout(-1);
     (void)sock.SendTo(line.c_str(),
                       line.size(),
                       remoteAddress,
