@@ -1,0 +1,50 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - name: "Windows MSVC17 shared library"
+            os: windows-2022
+            generator: -G "Visual Studio 17 2022" -A x64
+
+          - name: "Unix GCC shared library"
+            os: ubuntu-latest
+            generator: -G "Unix Makefiles"
+
+          - name: "OSX clang shared library"
+            os: macos-latest
+            generator: -G "Unix Makefiles"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: configure externals
+        run: >
+          mkdir -p build/external/ &&
+          cd build/external &&
+          cmake ../../external ${{ matrix.generator }}
+      - name: build externals
+        run: >
+          cd build/external &&
+          cmake --build .
+      - name: configure library
+        run: >
+          cd build &&
+          cmake .. ${{ matrix.generator }} -DBUILD_SHARED_LIBS:BOOL=ON -DWITH_TLS:BOOL=ON -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
+      - name: build library
+        run: >
+          cd build &&
+          cmake --build .
+      - name: build & run tests
+        env:
+          CTEST_OUTPUT_ON_FAILURE: 1
+        run: >
+          cd build &&
+          cmake --build . --target run_tests
