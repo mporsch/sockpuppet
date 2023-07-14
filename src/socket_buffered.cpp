@@ -8,6 +8,20 @@
 
 namespace sockpuppet {
 
+namespace {
+
+struct BufferEqual
+{
+  BufferPool::Buffer *buf;
+
+  bool operator()(std::unique_ptr<BufferPool::Buffer> const &storage) const
+  {
+    return (storage.get() == buf);
+  }
+};
+
+} // unnamed namespace
+
 void BufferPool::Recycler::operator()(Buffer *buf)
 {
   assert(pool);
@@ -66,10 +80,7 @@ void BufferPool::Recycle(Buffer *buf)
 {
   std::lock_guard<std::mutex> lock(m_mtx);
 
-  auto const it = std::find_if(std::begin(m_busy), std::end(m_busy),
-    [&](BufferStorage const &b) -> bool {
-      return (b.get() == buf);
-    });
+  auto it = std::find_if(begin(m_busy), end(m_busy), BufferEqual{buf});
   if(it == std::end(m_busy)) {
     throw std::logic_error("returned invalid buffer");
   }

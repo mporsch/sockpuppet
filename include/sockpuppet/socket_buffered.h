@@ -54,12 +54,10 @@ private:
   void Recycle(Buffer *buf);
 
 private:
-  using BufferStorage = std::unique_ptr<Buffer>;
-
   size_t m_maxCount;
   std::mutex m_mtx;
-  std::stack<BufferStorage> m_idle;
-  std::deque<BufferStorage> m_busy;
+  std::stack<std::unique_ptr<Buffer>> m_idle;
+  std::deque<std::unique_ptr<Buffer>> m_busy;
 };
 
 struct SocketBufferedImpl;
