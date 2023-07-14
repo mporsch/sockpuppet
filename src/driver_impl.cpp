@@ -206,18 +206,12 @@ void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto itSocket = std::find_if(
-        std::begin(sockets),
-        std::end(sockets),
-        FdEqual{fd});
-  assert(itSocket != std::end(sockets));
+  auto itSocket = std::find_if(begin(sockets), end(sockets), FdEqual{fd});
+  assert(itSocket != end(sockets));
   sockets.erase(itSocket);
 
-  auto itPfd = std::find_if(
-        std::begin(pfds),
-        std::end(pfds),
-        FdEqual{fd});
-  assert(itPfd != std::end(pfds));
+  auto itPfd = std::find_if(begin(pfds), end(pfds), FdEqual{fd});
+  assert(itPfd != end(pfds));
   pfds.erase(itPfd);
 }
 
@@ -225,11 +219,8 @@ void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto itPfd = std::find_if(
-        std::begin(pfds),
-        std::end(pfds),
-        FdEqual{fd});
-  assert(itPfd != std::end(pfds));
+  auto itPfd = std::find_if(begin(pfds), end(pfds), FdEqual{fd});
+  assert(itPfd != end(pfds));
   itPfd->events |= POLLOUT;
 }
 
