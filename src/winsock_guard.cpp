@@ -17,13 +17,13 @@ namespace {
 
     std::lock_guard<std::mutex> lock(mtx);
 
-    auto const prev = curr;
+    auto prev = curr;
     curr += modifier;
 
     if(prev == 0 && curr == 1) {
       // we are the first instance -> initialize
       WSADATA wsaData;
-      if(auto const result = ::WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+      if(auto result = ::WSAStartup(MAKEWORD(2, 2), &wsaData)) {
         throw std::system_error(SocketError(result), "failed to intitialize socket subsystem");
       }
     } else if(prev == 1 && curr == 0) {

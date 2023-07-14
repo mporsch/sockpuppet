@@ -74,7 +74,7 @@ SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
   addrinfo *info;
   {
     auto dissect = UriDissect(uri);
-    if(auto const result = ::getaddrinfo(
+    if(auto result = ::getaddrinfo(
          dissect.host.c_str(), dissect.serv.c_str(),
          &dissect.hints, &info)) {
       throw std::system_error(AddressError(result),
@@ -100,7 +100,7 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
-    if(auto const result = ::getaddrinfo(
+    if(auto result = ::getaddrinfo(
          host.c_str(), serv.c_str(),
          &hints, &info)) {
       throw std::system_error(AddressError(result),
@@ -118,7 +118,7 @@ SockAddrInfo::AddrInfoPtr ParsePort(uint16_t port)
   hints.ai_family = AF_INET; // force IPv4 here
   hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
   addrinfo *info;
-  if(auto const result = ::getaddrinfo(
+  if(auto result = ::getaddrinfo(
        "localhost", serv.c_str(),
        &hints, &info)) {
     throw std::system_error(AddressError(result),
@@ -160,7 +160,7 @@ std::string Address::AddressImpl::Host() const
   auto const sockAddr = ForAny();
 
   std::string host(NI_MAXHOST, '\0');
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       const_cast<char *>(host.data()), NI_MAXHOST,
       nullptr, 0,
@@ -177,7 +177,7 @@ std::string Address::AddressImpl::Service() const
   auto const sockAddr = ForAny();
 
   std::string service(NI_MAXSERV, '\0');
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       nullptr, 0,
       const_cast<char *>(service.data()), NI_MAXSERV,
@@ -191,8 +191,8 @@ std::string Address::AddressImpl::Service() const
 
 uint16_t Address::AddressImpl::Port() const
 {
-  auto const sockAddr = ForAny();
-  auto const num = IsV6() ?
+  auto sockAddr = ForAny();
+  auto num = IsV6() ?
         reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
         reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port;
   return ntohs(num); // careful; ntohs is a fragile macro in OSX
@@ -262,7 +262,7 @@ addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 
 SockAddrView SockAddrInfo::ForTcp() const
 {
-  if(auto const it = Find(SOCK_STREAM, IPPROTO_TCP)) {
+  if(auto it = Find(SOCK_STREAM, IPPROTO_TCP)) {
     return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
@@ -273,7 +273,7 @@ SockAddrView SockAddrInfo::ForTcp() const
 
 SockAddrView SockAddrInfo::ForUdp() const
 {
-  if(auto const it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
+  if(auto it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
     return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
@@ -361,13 +361,13 @@ std::string to_string(SockAddrView const &sockAddr)
   std::string str(NI_MAXHOST + NI_MAXSERV + 3, '\0');
   size_t host = 0;
   size_t serv = NI_MAXHOST + 1;
-  bool const isV6 = (sockAddr.addr->sa_family != AF_INET);
+  bool isV6 = (sockAddr.addr->sa_family != AF_INET);
   if(isV6) {
     str[host++] = '[';
     serv += 2;
   }
 
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       &str[host], NI_MAXHOST,
       &str[serv], NI_MAXSERV,

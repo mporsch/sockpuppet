@@ -10,7 +10,7 @@ namespace sockpuppet {
 
 namespace {
 
-auto const noTimeout = Duration(-1);
+constexpr auto noTimeout = Duration(-1);
 
 struct FdEqual
 {
@@ -206,14 +206,14 @@ void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto const itSocket = std::find_if(
+  auto itSocket = std::find_if(
         std::begin(sockets),
         std::end(sockets),
         FdEqual{fd});
   assert(itSocket != std::end(sockets));
   sockets.erase(itSocket);
 
-  auto const itPfd = std::find_if(
+  auto itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
         FdEqual{fd});
@@ -225,7 +225,7 @@ void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto const itPfd = std::find_if(
+  auto itPfd = std::find_if(
         std::begin(pfds),
         std::end(pfds),
         FdEqual{fd});

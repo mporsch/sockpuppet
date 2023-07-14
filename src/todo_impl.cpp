@@ -75,14 +75,14 @@ ToDo::ToDoImpl::~ToDoImpl() = default;
 
 void ToDo::ToDoImpl::Cancel()
 {
-  if(auto const ptr = driver.lock()) {
+  if(auto ptr = driver.lock()) {
     ptr->ToDoRemove(this);
   }
 }
 
 void ToDo::ToDoImpl::Shift(TimePoint when)
 {
-  if(auto const ptr = driver.lock()) {
+  if(auto ptr = driver.lock()) {
     ptr->ToDoMove(shared_from_this(), when);
   }
 }

@@ -69,9 +69,9 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
 
 size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
 {
-  auto const sent = ::send(fd,
-                           data, size,
-                           flags);
+  auto sent = ::send(fd,
+                     data, size,
+                     flags);
   if(sent < 0) {
     throw std::system_error(SocketError(), "failed to send");
   } else if((sent == 0) && (size > 0U)) {
@@ -145,9 +145,9 @@ std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration time
 size_t SocketImpl::Receive(char *data, size_t size)
 {
   constexpr int flags = 0;
-  auto const received = ::recv(fd,
-                               data, size,
-                               flags);
+  auto received = ::recv(fd,
+                         data, size,
+                         flags);
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
   } else if(received == 0) {
@@ -171,10 +171,10 @@ SocketImpl::ReceiveFrom(char *data, size_t size)
 {
   constexpr int flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
-  auto const received = ::recvfrom(fd,
-                                   data, size,
-                                   flags,
-                                   sas->Addr(), sas->AddrLen());
+  auto received = ::recvfrom(fd,
+                             data, size,
+                             flags,
+                             sas->Addr(), sas->AddrLen());
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
   }
@@ -197,7 +197,7 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 size_t SocketImpl::SendAll(char const *data, size_t size)
 {
   // set flags to block until everything is sent
-  auto const sent = DoSend(fd, data, size, sendAllFlags);
+  auto sent = DoSend(fd, data, size, sendAllFlags);
   assert(sent == size);
   return sent;
 }
@@ -238,12 +238,12 @@ size_t SocketImpl::SendTo(char const *data, size_t size,
 size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
 {
   constexpr int flags = 0;
-  auto const sent = ::sendto(fd,
-                             data, size,
-                             flags,
-                             dstAddr.addr, dstAddr.addrLen);
+  auto sent = ::sendto(fd,
+                       data, size,
+                       flags,
+                       dstAddr.addr, dstAddr.addrLen);
   if(sent < 0) {
-    auto const error = SocketError(); // cache before risking another
+    auto error = SocketError(); // cache before risking another
     throw std::system_error(error, "failed to send to " + to_string(dstAddr));
   } else if(static_cast<size_t>(sent) != size) {
     throw std::logic_error("unexpected UDP send result");
@@ -254,7 +254,7 @@ size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dst
 void SocketImpl::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
-    auto const error = SocketError(); // cache before risking another
+    auto error = SocketError(); // cache before risking another
     throw std::system_error(error, "failed to connect to " + to_string(connectAddr));
   }
 }
@@ -262,7 +262,7 @@ void SocketImpl::Connect(SockAddrView const &connectAddr)
 void SocketImpl::Bind(SockAddrView const &bindAddr)
 {
   if(::bind(fd, bindAddr.addr, bindAddr.addrLen)) {
-    auto const error = SocketError(); // cache before risking another
+    auto error = SocketError(); // cache before risking another
     throw std::system_error(error, "failed to bind socket to address " + to_string(bindAddr));
   }
 }

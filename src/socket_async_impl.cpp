@@ -68,7 +68,7 @@ SocketAsyncImpl::SocketAsyncImpl(
 
 SocketAsyncImpl::~SocketAsyncImpl()
 {
-  if(auto const ptr = driver.lock()) {
+  if(auto ptr = driver.lock()) {
     ptr->AsyncUnregister(buff->sock->fd);
   }
 }
@@ -91,7 +91,7 @@ std::future<void> SocketAsyncImpl::DoSend(Args&&... args)
 
   bool wasEmpty = DoSendEnqueue<Queue>(std::move(promise), std::forward<Args>(args)...);
   if(wasEmpty) {
-    if(auto const ptr = driver.lock()) {
+    if(auto ptr = driver.lock()) {
       ptr->AsyncWantSend(buff->sock->fd);
     }
   }
@@ -105,7 +105,7 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
   std::lock_guard<std::mutex> lock(sendQMtx);
 
   auto &q = std::get<Queue>(sendQ);
-  bool const wasEmpty = q.empty();
+  bool wasEmpty = q.empty();
   q.emplace(std::move(promise), std::forward<Args>(args)...);
   return wasEmpty;
 }
@@ -138,7 +138,7 @@ void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
     // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
     bool isSendQueueEmpty = DriverOnWritable();
     if(!isSendQueueEmpty) {
-      if(auto const ptr = driver.lock()) {
+      if(auto ptr = driver.lock()) {
         ptr->AsyncWantSend(buff->sock->fd);
       }
     }

@@ -35,7 +35,7 @@ BufferPtr SocketBufferedImpl::Receive()
 {
   auto buffer = GetBuffer();
 
-  auto const size = sock->Receive(
+  auto size = sock->Receive(
       const_cast<char *>(buffer->data()),
       buffer->size());
   buffer->resize(size);
