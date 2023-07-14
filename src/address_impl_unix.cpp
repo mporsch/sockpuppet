@@ -12,12 +12,12 @@ namespace {
 
 struct IfAddrsDeleter
 {
-  void operator()(ifaddrs *ptr) const noexcept
+  void operator()(ifaddrs const *ptr) const noexcept
   {
-    ::freeifaddrs(ptr);
+    ::freeifaddrs(const_cast<ifaddrs *>(ptr));
   }
 };
-using IfAddrsPtr = std::unique_ptr<ifaddrs, IfAddrsDeleter>;
+using IfAddrsPtr = std::unique_ptr<ifaddrs const, IfAddrsDeleter>;
 
 IfAddrsPtr GetIfAddrs()
 {

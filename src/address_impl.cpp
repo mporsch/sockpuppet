@@ -222,9 +222,9 @@ bool Address::AddressImpl::operator!=(
 }
 
 
-void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo *ptr) const noexcept
+void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo const *ptr) const noexcept
 {
-  ::freeaddrinfo(ptr);
+  ::freeaddrinfo(const_cast<addrinfo *>(ptr));
 }
 
 SockAddrInfo::SockAddrInfo(std::string const &uri)
