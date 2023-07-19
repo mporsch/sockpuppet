@@ -26,25 +26,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: configure externals
-        run: >
-          mkdir -p build/external/ &&
-          cd build/external &&
-          cmake ../../external ${{ matrix.generator }}
+        run: cmake -B build/external -S external ${{ matrix.generator }}
       - name: build externals
-        run: >
-          cd build/external &&
-          cmake --build .
+        run: cmake --build build/external
       - name: configure library
         run: >
-          cd build &&
-          cmake .. ${{ matrix.generator }} -DBUILD_SHARED_LIBS:BOOL=ON -DWITH_TLS:BOOL=ON -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
+          cmake -B build -S . ${{ matrix.generator }}
+            -DBUILD_SHARED_LIBS:BOOL=ON
+            -DWITH_TLS:BOOL=ON
+            -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
       - name: build library
-        run: >
-          cd build &&
-          cmake --build .
+        run: cmake --build build
       - name: build & run tests
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
-        run: >
-          cd build &&
-          cmake --build . --target run_tests
+        run: cmake --build build --target run_tests
