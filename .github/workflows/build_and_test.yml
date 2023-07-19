@@ -32,9 +32,9 @@ jobs:
       - name: configure library
         run: >
           cmake -B build -S . ${{ matrix.generator }}
-            -DBUILD_SHARED_LIBS:BOOL=ON
-            -DWITH_TLS:BOOL=ON
-            -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
+          -DBUILD_SHARED_LIBS:BOOL=ON
+          -DWITH_TLS:BOOL=ON
+          -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
       - name: build library
         run: cmake --build build
       - name: build & run tests
