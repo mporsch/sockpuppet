@@ -145,7 +145,7 @@ std::optional<size_t> SocketTlsImpl::Receive(
 
 size_t SocketTlsImpl::Receive(char *data, size_t size)
 {
-  // the Driver says we are readable
+  // we have been deemed readable
   if(lastError == SSL_ERROR_WANT_READ) {
     lastError = SSL_ERROR_NONE;
   }
@@ -159,14 +159,13 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
 {
   IgnoreSigPipe();
 
-  if(HandleLastError(deadline.Remaining())) {
+  if(HandleLastError(deadline)) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
       if(res < 0) {
-        if(!HandleError(res, deadline.Remaining())) {
+        if(!HandleError(res, deadline)) {
           break;
-        } // assume that in non-blocking mode everything except Wait is instantaneous
-        deadline.Tick();
+        }
       } else if(res == 0) {
         throw std::runtime_error("TLS connection closed");
       } else {
@@ -207,15 +206,14 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
   }
 
   size_t sent = 0U;
-  if(HandleLastError(deadline.Remaining())) {
+  if(HandleLastError(deadline)) {
     for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
       auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
       if(res < 0) {
-        if(!HandleError(res, deadline.Remaining())) {
+        if(!HandleError(res, deadline)) {
           pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
-        } // assume that in non-blocking mode everything except Wait is instantaneous
-        deadline.Tick();
+        }
       } else if((res == 0) && (size > 0U)) {
         throw std::logic_error("unexpected TLS send result");
       } else {
@@ -229,7 +227,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
 
 size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 {
-  // the Driver says we are writable/readale
+  // we have been deemed writable/readable
   if(lastError == SSL_ERROR_WANT_WRITE ||
      (pendingSend && lastError == SSL_ERROR_WANT_READ)) {
     lastError = SSL_ERROR_NONE;
@@ -256,10 +254,9 @@ void SocketTlsImpl::Shutdown()
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!HandleError(res, deadline.Remaining())) {
+        if(!HandleError(res, deadline)) {
           break;
-        } // assume that in non-blocking mode everything except Wait is instantaneous
-        deadline.Tick();
+        }
       } else if(res == 0) {
         break;
       }
@@ -280,33 +277,44 @@ bool SocketTlsImpl::WaitWritable(Duration timeout)
   return WaitWritableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsImpl::HandleError(int ret, Duration timeout)
+template<typename Deadline>
+bool SocketTlsImpl::HandleError(int ret, Deadline &deadline)
 {
   lastError = SSL_get_error(ssl.get(), ret);
-  return HandleLastError(timeout);
+  return HandleLastError(deadline);
 }
 
-bool SocketTlsImpl::HandleLastError(Duration timeout)
+template<typename Deadline>
+bool SocketTlsImpl::HandleLastError(Deadline &deadline)
 {
-  if(Wait(lastError, timeout)) {
+  if(DoHandleLastError(deadline)) {
     lastError = SSL_ERROR_NONE;
     return true;
   }
   return false;
 }
 
-bool SocketTlsImpl::Wait(int error, Duration timeout)
+template<typename Deadline>
+bool SocketTlsImpl::DoHandleLastError(Deadline &deadline)
 {
   constexpr char errorMessage[] =
       "failed to wait for TLS socket readable/writable";
 
-  switch(error) {
+  switch(lastError) {
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    return WaitReadableNonBlocking(this->fd, timeout);
+    if(WaitReadableNonBlocking(this->fd, deadline.Remaining())) {
+      deadline.Tick(); // assume that in non-blocking mode everything except Wait is instantaneous
+      return true;
+    }
+    return false;
   case SSL_ERROR_WANT_WRITE:
-    return WaitWritableNonBlocking(this->fd, timeout);
+    if(WaitWritableNonBlocking(this->fd, deadline.Remaining())) {
+      deadline.Tick(); // assume that in non-blocking mode everything except Wait is instantaneous
+      return true;
+    }
+    return false;
   case SSL_ERROR_SYSCALL:
     throw std::system_error(SocketError(), errorMessage);
   case SSL_ERROR_ZERO_RETURN:
@@ -314,7 +322,7 @@ bool SocketTlsImpl::Wait(int error, Duration timeout)
   case SSL_ERROR_SSL:
     [[fallthrough]];
   default:
-    throw std::system_error(SslError(error), errorMessage);
+    throw std::system_error(SslError(lastError), errorMessage);
   }
 }
 
