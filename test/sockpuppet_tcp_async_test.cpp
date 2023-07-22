@@ -73,11 +73,10 @@ struct Server
                            std::bind(&Server::HandleReceive, this, std::placeholders::_1),
                            std::bind(&Server::HandleDisconnect, this, std::placeholders::_1))));
 
-    if(serverHandlers.size() == clientCount) {
-      promisedClientsConnect.set_value();
-    } else if((bytesReceived > 0U) &&
-              (serverHandlers.size() == 1U)) {
+    if((bytesReceived > 0U) && (serverHandlers.size() == 1U)) {
       promisedLoneClientConnect.set_value();
+    } else if(serverHandlers.size() == clientCount) {
+      promisedClientsConnect.set_value();
     }
   }
 
