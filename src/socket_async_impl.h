@@ -30,7 +30,7 @@ struct SocketAsyncImpl
   std::function<void(char const *)> onError; // contains use-case-dependent data as bound arguments
   mutable std::mutex sendQMtx;
   std::variant<SendQ, SendToQ> sendQ; // use-case dependent queue type
-  bool pendingTlsSend = false; // flag to satisfy OpenSSL_write retry requirements
+  char const *pendingTlsSend = nullptr; // flag to satisfy OpenSSL_write retry requirements
 
   SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
                   DriverShared &driver,

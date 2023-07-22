@@ -106,6 +106,7 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
 
   auto &q = std::get<Queue>(sendQ);
   bool wasEmpty = q.empty();
+  assert(!pendingTlsSend || !wasEmpty); // queue cannot be empty while TLS send is pending
   q.emplace(std::move(promise), std::forward<Args>(args)...);
   return wasEmpty;
 }
@@ -130,8 +131,6 @@ void SocketAsyncImpl::DriverConnect(ConnectHandler const &onConnect)
 void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
 {
   if(pendingTlsSend) {
-    pendingTlsSend = false;
-
     // a previous TLS send failed because handshake receipt was pending
     // which probably arrived now: repeat the same send call to handle
     // the handshake and continue where it left off sending
@@ -194,6 +193,11 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
   }
 
   auto &&[promise, buffer] = q.front();
+  if(pendingTlsSend) {
+    assert(pendingTlsSend == buffer->data());
+    pendingTlsSend = nullptr;
+  }
+
   try {
     if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
       if(sent == buffer->size()) {
@@ -205,9 +209,9 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
       }
     } else { // zero-size sent data
       // TLS can't send while handshake receipt pending:
-      // give up for now but keep the data in the send
-      // queue and retry the exact same call on readable
-      pendingTlsSend = true;
+      // give up for now by proclaiming the send queue was empty,
+      // but actually keep the data queued and retry the exact same call on readable
+      pendingTlsSend = buffer->data();
       return true;
     }
   } catch(std::runtime_error const &e) {
