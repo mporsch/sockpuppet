@@ -27,7 +27,8 @@ struct SocketTlsClientImpl : public SocketImpl
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
-  bool properShutdown;  ///< Flag whether proper OpenSSL shutdown shall be performed
+  int lastError;  ///< OpenSSL error cache
+  char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
 
   SocketTlsClientImpl(int family,
                       int type,
@@ -74,7 +75,9 @@ struct SocketTlsClientImpl : public SocketImpl
 
   bool WaitReadable(Duration timeout) override;
   bool WaitWritable(Duration timeout) override;
-  bool Wait(int code, Duration timeout);
+  bool HandleError(int ret, Duration timeout);
+  bool HandleLastError(Duration timeout);
+  bool Wait(int error, Duration timeout);
 };
 
 struct SocketTlsServerImpl : public SocketImpl

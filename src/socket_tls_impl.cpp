@@ -95,7 +95,8 @@ SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
   , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
           CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
           this->fd))
-  , properShutdown(true)
+  , lastError(SSL_ERROR_NONE)
+  , pendingSend(nullptr)
 {
 }
 
@@ -103,17 +104,23 @@ SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
-  , properShutdown(true)
+  , lastError(SSL_ERROR_NONE)
+  , pendingSend(nullptr)
 {
 }
 
 SocketTlsClientImpl::~SocketTlsClientImpl()
 {
-  if(properShutdown) {
+  switch(lastError) {
+  case SSL_ERROR_SYSCALL:
+  case SSL_ERROR_SSL:
+    break;
+  default:
     try {
       Shutdown();
     } catch(...) {
     }
+    break;
   }
 }
 
@@ -138,6 +145,11 @@ std::optional<size_t> SocketTlsClientImpl::Receive(
 
 size_t SocketTlsClientImpl::Receive(char *data, size_t size)
 {
+  // the Driver says we are readable
+  if(lastError == SSL_ERROR_WANT_READ) {
+    lastError = SSL_ERROR_NONE;
+  }
+
   return Receive(data, size, DeadlineZero());
 }
 
@@ -147,19 +159,21 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
 {
   IgnoreSigPipe();
 
-  for(int i = 1; i <= handshakeStepsMax; ++i) {
-    auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
-    if(res < 0) {
-      if(!Wait(res, deadline.Remaining())) {
-        break;
-      } // assume that in non-blocking mode everything except Wait is instantaneous
-      deadline.Tick();
-    } else if(res == 0) {
-      throw std::runtime_error("TLS connection closed");
-    } else {
-      return static_cast<size_t>(res);
+  if(HandleLastError(deadline.Remaining())) {
+    for(int i = 1; i <= handshakeStepsMax; ++i) {
+      auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
+      if(res < 0) {
+        if(!HandleError(res, deadline.Remaining())) {
+          break;
+        } // assume that in non-blocking mode everything except Wait is instantaneous
+        deadline.Tick();
+      } else if(res == 0) {
+        throw std::runtime_error("TLS connection closed");
+      } else {
+        return static_cast<size_t>(res);
+      }
+      assert(i < handshakeStepsMax);
     }
-    assert(i < handshakeStepsMax);
   }
   return 0U; // timeout / socket was readable for TLS handshake only
 }
@@ -187,26 +201,40 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
 {
   IgnoreSigPipe();
 
+  if(pendingSend) {
+    assert(pendingSend == data);
+    pendingSend = nullptr;
+  }
+
   size_t sent = 0U;
-  for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
-    auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
-    if(res < 0) {
-      if(!Wait(res, deadline.Remaining())) {
-        break; // timeout / socket was writable for TLS handshake only
-      } // assume that in non-blocking mode everything except Wait is instantaneous
-      deadline.Tick();
-    } else if((res == 0) && (size > 0U)) {
-      throw std::logic_error("unexpected TLS send result");
-    } else {
-      sent += static_cast<size_t>(res);
+  if(HandleLastError(deadline.Remaining())) {
+    for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
+      auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
+      if(res < 0) {
+        if(!HandleError(res, deadline.Remaining())) {
+          pendingSend = data;
+          break; // timeout / socket was writable for TLS handshake only
+        } // assume that in non-blocking mode everything except Wait is instantaneous
+        deadline.Tick();
+      } else if((res == 0) && (size > 0U)) {
+        throw std::logic_error("unexpected TLS send result");
+      } else {
+        sent += static_cast<size_t>(res);
+      }
+      assert(i < handshakeStepsMax);
     }
-    assert(i < handshakeStepsMax);
   }
   return sent;
 }
 
 size_t SocketTlsClientImpl::SendSome(char const *data, size_t size)
 {
+  // the Driver says we are writable/readale
+  if(lastError == SSL_ERROR_WANT_WRITE ||
+     (pendingSend && lastError == SSL_ERROR_WANT_READ)) {
+    lastError = SSL_ERROR_NONE;
+  }
+
   return SendSome(data, size, DeadlineZero());
 }
 
@@ -228,7 +256,7 @@ void SocketTlsClientImpl::Shutdown()
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!Wait(res, deadline.Remaining())) {
+        if(!HandleError(res, deadline.Remaining())) {
           break;
         } // assume that in non-blocking mode everything except Wait is instantaneous
         deadline.Tick();
@@ -252,29 +280,41 @@ bool SocketTlsClientImpl::WaitWritable(Duration timeout)
   return WaitWritableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsClientImpl::Wait(int code, Duration timeout)
+bool SocketTlsClientImpl::HandleError(int ret, Duration timeout)
+{
+  lastError = SSL_get_error(ssl.get(), ret);
+  return HandleLastError(timeout);
+}
+
+bool SocketTlsClientImpl::HandleLastError(Duration timeout)
+{
+  if(Wait(lastError, timeout)) {
+    lastError = SSL_ERROR_NONE;
+    return true;
+  }
+  return false;
+}
+
+bool SocketTlsClientImpl::Wait(int error, Duration timeout)
 {
   constexpr char errorMessage[] =
       "failed to wait for TLS socket readable/writable";
 
-  switch(SSL_get_error(ssl.get(), code)) {
+  switch(error) {
+  case SSL_ERROR_NONE:
+    return true;
   case SSL_ERROR_WANT_READ:
     return WaitReadableNonBlocking(this->fd, timeout);
   case SSL_ERROR_WANT_WRITE:
     return WaitWritableNonBlocking(this->fd, timeout);
   case SSL_ERROR_SYSCALL:
-    // SSL_shutdown must not be called after SSL_ERROR_SYSCALL
-    properShutdown = false;
     throw std::system_error(SocketError(), errorMessage);
   case SSL_ERROR_ZERO_RETURN:
     throw std::runtime_error(errorMessage);
   case SSL_ERROR_SSL:
-    // SSL_shutdown must not be called after SSL_ERROR_SSL
-    properShutdown = false;
     [[fallthrough]];
   default:
-    assert(code != SSL_ERROR_NONE);
-    throw std::system_error(SslError(code), errorMessage);
+    throw std::system_error(SslError(error), errorMessage);
   }
 }
 
