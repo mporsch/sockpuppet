@@ -216,8 +216,6 @@ void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)
   SocketImpl::SetSockOptNonBlocking();
 
   SSL_set_connect_state(ssl.get());
-  IgnoreSigPipe();
-  (void)SSL_do_handshake(ssl.get()); // initiate the handshake
 }
 
 void SocketTlsClientImpl::Shutdown()
@@ -307,8 +305,6 @@ SocketTlsServerImpl::Accept()
       ctx.get());
 
   SSL_set_accept_state(clientTls->ssl.get());
-  IgnoreSigPipe();
-  (void)SSL_do_handshake(clientTls->ssl.get()); // initiate the handshake
 
   return {SocketTcp(std::move(clientTls)), std::move(addr)};
 }
