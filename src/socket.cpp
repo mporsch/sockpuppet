@@ -59,7 +59,7 @@ SocketTcp::SocketTcp(Address const &connectAddress)
 #ifdef SOCKPUPPET_WITH_TLS
 SocketTcp::SocketTcp(Address const &connectAddress,
     char const *certFilePath, char const *keyFilePath)
-  : impl(std::make_unique<SocketTlsClientImpl>(
+  : impl(std::make_unique<SocketTlsImpl>(
       connectAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
       certFilePath, keyFilePath))
 {
@@ -117,7 +117,7 @@ Acceptor::Acceptor(Address const &bindAddress)
 #ifdef SOCKPUPPET_WITH_TLS
 Acceptor::Acceptor(Address const &bindAddress,
     char const *certFilePath, char const *keyFilePath)
-  : impl(std::make_unique<SocketTlsServerImpl>(
+  : impl(std::make_unique<AcceptorTlsImpl>(
       bindAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
       certFilePath, keyFilePath))
 {

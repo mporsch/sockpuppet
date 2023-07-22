@@ -62,19 +62,19 @@ void ConfigureCtx(SSL_CTX *ctx,
   }
 }
 
-SocketTlsServerImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
+AcceptorTlsImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
     char const *certFilePath, char const *keyFilePath)
 {
-  if(auto ctx = SocketTlsServerImpl::CtxPtr(SSL_CTX_new(method))) {
+  if(auto ctx = AcceptorTlsImpl::CtxPtr(SSL_CTX_new(method))) {
     ConfigureCtx(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
   throw std::runtime_error("failed to create SSL context");
 }
 
-SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
+SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 {
-  if(auto ssl = SocketTlsClientImpl::SslPtr(SSL_new(ctx))) {
+  if(auto ssl = SocketTlsImpl::SslPtr(SSL_new(ctx))) {
     SSL_set_fd(ssl.get(), static_cast<int>(fd));
     return ssl;
   }
@@ -83,12 +83,12 @@ SocketTlsClientImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
 
 } // unnamed namespace
 
-void SocketTlsClientImpl::SslDeleter::operator()(SSL *ptr) const noexcept
+void SocketTlsImpl::SslDeleter::operator()(SSL *ptr) const noexcept
 {
   SSL_free(ptr);
 }
 
-SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
+SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard()
@@ -100,7 +100,7 @@ SocketTlsClientImpl::SocketTlsClientImpl(int family, int type, int protocol,
 {
 }
 
-SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
+SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
   , ssl(CreateSsl(ctx, this->fd))
@@ -109,7 +109,7 @@ SocketTlsClientImpl::SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx)
 {
 }
 
-SocketTlsClientImpl::~SocketTlsClientImpl()
+SocketTlsImpl::~SocketTlsImpl()
 {
   switch(lastError) {
   case SSL_ERROR_SYSCALL:
@@ -124,7 +124,7 @@ SocketTlsClientImpl::~SocketTlsClientImpl()
   }
 }
 
-std::optional<size_t> SocketTlsClientImpl::Receive(
+std::optional<size_t> SocketTlsImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
   // unlimited timeout performs full handshake and subsequent receive
@@ -143,7 +143,7 @@ std::optional<size_t> SocketTlsClientImpl::Receive(
   return {std::nullopt};
 }
 
-size_t SocketTlsClientImpl::Receive(char *data, size_t size)
+size_t SocketTlsImpl::Receive(char *data, size_t size)
 {
   // the Driver says we are readable
   if(lastError == SSL_ERROR_WANT_READ) {
@@ -154,7 +154,7 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size)
 }
 
 template<typename Deadline>
-size_t SocketTlsClientImpl::Receive(char *data, size_t size,
+size_t SocketTlsImpl::Receive(char *data, size_t size,
     Deadline deadline)
 {
   IgnoreSigPipe();
@@ -178,7 +178,7 @@ size_t SocketTlsClientImpl::Receive(char *data, size_t size,
   return 0U; // timeout / socket was readable for TLS handshake only
 }
 
-size_t SocketTlsClientImpl::Send(char const *data, size_t size,
+size_t SocketTlsImpl::Send(char const *data, size_t size,
     Duration timeout)
 {
   return (timeout.count() < 0 ?
@@ -188,7 +188,7 @@ size_t SocketTlsClientImpl::Send(char const *data, size_t size,
                SendSome(data, size, DeadlineLimited(timeout))));
 }
 
-size_t SocketTlsClientImpl::SendAll(char const *data, size_t size)
+size_t SocketTlsImpl::SendAll(char const *data, size_t size)
 {
   auto sent = SendSome(data, size, DeadlineUnlimited());
   assert(sent == size);
@@ -196,7 +196,7 @@ size_t SocketTlsClientImpl::SendAll(char const *data, size_t size)
 }
 
 template<typename Deadline>
-size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
+size_t SocketTlsImpl::SendSome(char const *data, size_t size,
     Deadline deadline)
 {
   IgnoreSigPipe();
@@ -227,7 +227,7 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size,
   return sent;
 }
 
-size_t SocketTlsClientImpl::SendSome(char const *data, size_t size)
+size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 {
   // the Driver says we are writable/readale
   if(lastError == SSL_ERROR_WANT_WRITE ||
@@ -238,7 +238,7 @@ size_t SocketTlsClientImpl::SendSome(char const *data, size_t size)
   return SendSome(data, size, DeadlineZero());
 }
 
-void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)
+void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
 {
   SocketImpl::Connect(connectAddr);
   SocketImpl::SetSockOptNonBlocking();
@@ -246,7 +246,7 @@ void SocketTlsClientImpl::Connect(SockAddrView const &connectAddr)
   SSL_set_connect_state(ssl.get());
 }
 
-void SocketTlsClientImpl::Shutdown()
+void SocketTlsImpl::Shutdown()
 {
   IgnoreSigPipe();
 
@@ -270,23 +270,23 @@ void SocketTlsClientImpl::Shutdown()
   }
 }
 
-bool sockpuppet::SocketTlsClientImpl::WaitReadable(Duration timeout)
+bool sockpuppet::SocketTlsImpl::WaitReadable(Duration timeout)
 {
   return WaitReadableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsClientImpl::WaitWritable(Duration timeout)
+bool SocketTlsImpl::WaitWritable(Duration timeout)
 {
   return WaitWritableNonBlocking(this->fd, timeout);
 }
 
-bool SocketTlsClientImpl::HandleError(int ret, Duration timeout)
+bool SocketTlsImpl::HandleError(int ret, Duration timeout)
 {
   lastError = SSL_get_error(ssl.get(), ret);
   return HandleLastError(timeout);
 }
 
-bool SocketTlsClientImpl::HandleLastError(Duration timeout)
+bool SocketTlsImpl::HandleLastError(Duration timeout)
 {
   if(Wait(lastError, timeout)) {
     lastError = SSL_ERROR_NONE;
@@ -295,7 +295,7 @@ bool SocketTlsClientImpl::HandleLastError(Duration timeout)
   return false;
 }
 
-bool SocketTlsClientImpl::Wait(int error, Duration timeout)
+bool SocketTlsImpl::Wait(int error, Duration timeout)
 {
   constexpr char errorMessage[] =
       "failed to wait for TLS socket readable/writable";
@@ -319,12 +319,12 @@ bool SocketTlsClientImpl::Wait(int error, Duration timeout)
 }
 
 
-void SocketTlsServerImpl::CtxDeleter::operator()(SSL_CTX *ptr) const noexcept
+void AcceptorTlsImpl::CtxDeleter::operator()(SSL_CTX *ptr) const noexcept
 {
   SSL_CTX_free(ptr);
 }
 
-SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
+AcceptorTlsImpl::AcceptorTlsImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard()
@@ -332,15 +332,15 @@ SocketTlsServerImpl::SocketTlsServerImpl(int family, int type, int protocol,
 {
 }
 
-SocketTlsServerImpl::~SocketTlsServerImpl() = default;
+AcceptorTlsImpl::~AcceptorTlsImpl() = default;
 
 std::pair<SocketTcp, Address>
-SocketTlsServerImpl::Accept()
+AcceptorTlsImpl::Accept()
 {
   auto [client, addr] = SocketImpl::Accept();
   client.impl->SetSockOptNonBlocking();
 
-  auto clientTls = std::make_unique<SocketTlsClientImpl>(
+  auto clientTls = std::make_unique<SocketTlsImpl>(
       std::move(*client.impl),
       ctx.get());
 
