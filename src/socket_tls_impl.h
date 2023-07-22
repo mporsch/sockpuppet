@@ -17,7 +17,7 @@ namespace sockpuppet {
 
 // unlike the regular TCP client socket, the TLS one is set to non-blocking mode
 // to maintain control of the timing behaviour during the TLS handshake
-struct SocketTlsClientImpl : public SocketImpl
+struct SocketTlsImpl : public SocketImpl
 {
   struct SslDeleter
   {
@@ -30,13 +30,13 @@ struct SocketTlsClientImpl : public SocketImpl
   int lastError;  ///< OpenSSL error cache
   char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
 
-  SocketTlsClientImpl(int family,
-                      int type,
-                      int protocol,
-                      char const *certFilePath,
-                      char const *keyFilePath);
-  SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx);
-  ~SocketTlsClientImpl() override;
+  SocketTlsImpl(int family,
+                int type,
+                int protocol,
+                char const *certFilePath,
+                char const *keyFilePath);
+  SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx);
+  ~SocketTlsImpl() override;
 
   // waits for readable
   std::optional<size_t> Receive(char *data,
@@ -80,7 +80,7 @@ struct SocketTlsClientImpl : public SocketImpl
   bool Wait(int error, Duration timeout);
 };
 
-struct SocketTlsServerImpl : public SocketImpl
+struct AcceptorTlsImpl : public SocketImpl
 {
   struct CtxDeleter
   {
@@ -91,12 +91,12 @@ struct SocketTlsServerImpl : public SocketImpl
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   CtxPtr ctx;  ///< OpenSSL context to be shared with all accepted clients
 
-  SocketTlsServerImpl(int family,
-                      int type,
-                      int protocol,
-                      char const *certFilePath,
-                      char const *keyFilePath);
-  ~SocketTlsServerImpl() override;
+  AcceptorTlsImpl(int family,
+                  int type,
+                  int protocol,
+                  char const *certFilePath,
+                  char const *keyFilePath);
+  ~AcceptorTlsImpl() override;
 
   std::pair<SocketTcp, Address>
   Accept() override;
