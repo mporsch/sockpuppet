@@ -116,6 +116,12 @@ void HandleDisconnect(Address serverAddress)
   promisedServerDisconnect.set_value();
 }
 
+bool check(char const *message, bool success)
+{
+  std::cout << message << " - " << (success ? "ok" : "fail") << std::endl;
+  return success;
+}
+
 } // unnamed namespace
 
 int main(int, char **)
@@ -164,27 +170,27 @@ int main(int, char **)
       }
     }
 
-    // wait for all clients to be connected
-    success &= (futureClientsConnect.wait_for(seconds(1)) == std::future_status::ready);
+    success &= check("wait for all clients to be connected",
+        futureClientsConnect.wait_for(seconds(1)) == std::future_status::ready);
 
-    // wait for everything to be transmitted
     auto deadline = steady_clock::now() + seconds(1);
     for(auto &&future : futures) {
-      success &= (future.wait_until(deadline) == std::future_status::ready);
+      success &= check("wait for everything to be transmitted",
+          future.wait_until(deadline) == std::future_status::ready);
     }
 
-    // all clients should still be connected before leaving the scope
-    success &= (server->ClientCount() == clientCount);
+    success &= check("all clients should still be connected before leaving the scope",
+        server->ClientCount() == clientCount);
   }
 
-  // wait for all clients to disconnect
-  success &= (futureClientsDisconnect.wait_for(seconds(1)) == std::future_status::ready);
+  success &= check("wait for all clients to disconnect",
+      futureClientsDisconnect.wait_for(seconds(1)) == std::future_status::ready);
 
-  // all data should be received
-  success &= (server->BytesReceived() ==
-              clientCount
-              * clientSendCount
-              * clientSendSize);
+  success &= check("all data should be received",
+      server->BytesReceived() ==
+          clientCount
+          * clientSendCount
+          * clientSendSize);
 
   // try the disconnect the other way around
   loneClient.reset(new SocketTcpAsync(
@@ -193,13 +199,13 @@ int main(int, char **)
       ReceiveDummy,
       HandleDisconnect));
 
-  // wait for client to connect
-  success &= (futureLoneClientConnect.wait_for(seconds(1)) == std::future_status::ready);
+  success &= check("wait for client to connect",
+      futureLoneClientConnect.wait_for(seconds(1)) == std::future_status::ready);
 
   server.reset();
 
-  // wait for server handler to disconnect
-  success &= (futureServerDisconnect.wait_for(seconds(1)) == std::future_status::ready);
+  success &= check("wait for server handler to disconnect",
+      futureServerDisconnect.wait_for(seconds(1)) == std::future_status::ready);
 
   if(thread.joinable()) {
     driver.Stop();
