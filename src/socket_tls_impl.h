@@ -71,9 +71,13 @@ struct SocketTlsImpl : public SocketImpl
 
   bool WaitReadable(Duration timeout) override;
   bool WaitWritable(Duration timeout) override;
-  bool HandleError(int ret, Duration timeout);
-  bool HandleLastError(Duration timeout);
-  bool Wait(int error, Duration timeout);
+
+  template<typename Deadline>
+  bool HandleError(int ret, Deadline &deadline);
+  template<typename Deadline>
+  bool HandleLastError(Deadline &deadline);
+  template<typename Deadline>
+  bool DoHandleLastError(Deadline &deadline);
 };
 
 struct AcceptorTlsImpl : public SocketImpl
