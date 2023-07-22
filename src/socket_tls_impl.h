@@ -64,10 +64,6 @@ struct SocketTlsImpl : public SocketImpl
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
-  template<typename Deadline>
-  size_t Send(char const *data,
-              size_t size,
-              Deadline &&deadline);
 
   void Connect(SockAddrView const &connectAddr) override;
 
