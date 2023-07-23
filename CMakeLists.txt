@@ -77,7 +77,10 @@ target_include_directories(sockpuppet PUBLIC
 if(${WITH_TLS})
   # LibreSSL works fine as well, just had to remove version suffix from installed lib filenames
   message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
-  find_package(OpenSSL REQUIRED)
+  find_package(OpenSSL 2.0.0) # prefer the self-built LibreSSL one if available
+  if(NOT OpenSSL_FOUND)
+    find_package(OpenSSL REQUIRED) # try again without restrictions
+  endif()
 
   # add define for preprocessor switches in source files, public includes and export file
   target_compile_definitions(sockpuppet PUBLIC SOCKPUPPET_WITH_TLS)
