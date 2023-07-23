@@ -25,9 +25,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
+      - name: cache externals
+        id: cache-externals
+        uses: actions/cache@v3
+        with:
+          path: external/libressl/install
+          key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
       - name: configure externals
+        if: steps.cache-externals.outputs.cache-hit != 'true'
         run: cmake -B build/external -S external ${{ matrix.generator }}
       - name: build externals
+        if: steps.cache-externals.outputs.cache-hit != 'true'
         run: cmake --build build/external
       - name: configure library
         run: >
