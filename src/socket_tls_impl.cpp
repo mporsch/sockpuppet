@@ -287,13 +287,7 @@ template<typename Deadline>
 bool SocketTlsImpl::HandleResult(int ret, Deadline &deadline)
 {
   auto error = SSL_get_error(ssl.get(), ret);
-
-  if(SSL_is_init_finished(ssl.get())) {
-    std::cout << error << " (init finished)" << std::endl;
-    return HandleError(error, deadline);
-  }
   std::cout << error << std::endl;
-
   if(HandleError(error, deadline)) {
     lastError = SSL_ERROR_NONE;
     return true;
