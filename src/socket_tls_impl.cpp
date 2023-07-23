@@ -163,7 +163,7 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
       if(res < 0) {
-        if(!HandleError(res, deadline)) {
+        if(!HandleResult(res, deadline)) {
           break;
         }
       } else if(res == 0) {
@@ -210,7 +210,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
     for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
       auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
       if(res < 0) {
-        if(!HandleError(res, deadline)) {
+        if(!HandleResult(res, deadline)) {
           pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
         }
@@ -254,7 +254,7 @@ void SocketTlsImpl::Shutdown()
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!HandleError(res, deadline)) {
+        if(!HandleResult(res, deadline)) {
           break;
         }
       } else if(res == 0) {
@@ -278,16 +278,26 @@ bool SocketTlsImpl::WaitWritable(Duration timeout)
 }
 
 template<typename Deadline>
-bool SocketTlsImpl::HandleError(int ret, Deadline &deadline)
+bool SocketTlsImpl::HandleResult(int ret, Deadline &deadline)
 {
-  lastError = SSL_get_error(ssl.get(), ret);
-  return HandleLastError(deadline);
+  auto error = SSL_get_error(ssl.get(), ret);
+
+  if(SSL_is_init_finished(ssl.get())) {
+    return HandleError(error, deadline);
+  }
+
+  if(HandleError(error, deadline)) {
+    lastError = SSL_ERROR_NONE;
+    return true;
+  }
+  lastError = error;
+  return false;
 }
 
 template<typename Deadline>
 bool SocketTlsImpl::HandleLastError(Deadline &deadline)
 {
-  if(DoHandleLastError(deadline)) {
+  if(HandleError(lastError, deadline)) {
     lastError = SSL_ERROR_NONE;
     return true;
   }
@@ -295,12 +305,12 @@ bool SocketTlsImpl::HandleLastError(Deadline &deadline)
 }
 
 template<typename Deadline>
-bool SocketTlsImpl::DoHandleLastError(Deadline &deadline)
+bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
 {
   constexpr char errorMessage[] =
       "failed to wait for TLS socket readable/writable";
 
-  switch(lastError) {
+  switch(error) {
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
@@ -322,7 +332,7 @@ bool SocketTlsImpl::DoHandleLastError(Deadline &deadline)
   case SSL_ERROR_SSL:
     [[fallthrough]];
   default:
-    throw std::system_error(SslError(lastError), errorMessage);
+    throw std::system_error(SslError(error), errorMessage);
   }
 }
 
