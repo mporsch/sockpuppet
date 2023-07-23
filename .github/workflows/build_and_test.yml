@@ -30,7 +30,7 @@ jobs:
         id: cache-externals-restore
         uses: actions/cache/restore@v3
         with:
-          path: external/libressl/install
+          path: build/external/libressl/install
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
       - name: configure externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
@@ -42,14 +42,14 @@ jobs:
         id: cache-externals-save
         uses: actions/cache/save@v3
         with:
-          path: external/libressl/install
+          path: build/external/libressl/install
           key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
       - name: configure library
         run: >
           cmake -B build -S . ${{ matrix.generator }}
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DWITH_TLS:BOOL=ON
-          -DOPENSSL_ROOT_DIR:PATH=`pwd`/external/libressl/install
+          -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
       - name: build library
         run: cmake --build build
       - name: build & run tests
