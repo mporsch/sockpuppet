@@ -79,7 +79,7 @@ if(${WITH_TLS})
   message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
   SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
   SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
-  find_package(OpenSSL 2.0.0) # prefer the self-built LibreSSL one if available
+  find_package(OpenSSL 2.0.0 EXACT) # prefer the self-built LibreSSL one if available
   if(NOT OpenSSL_FOUND)
     find_package(OpenSSL REQUIRED) # try again without restrictions
   endif()
