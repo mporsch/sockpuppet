@@ -37,7 +37,7 @@ jobs:
         run: cmake -B build/external -S external ${{ matrix.generator }}
       - name: build externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
-        run: cmake --build build/external
+        run: cmake --build build/external --config Debug
       - name: cache externals save
         id: cache-externals-save
         uses: actions/cache/save@v3
@@ -51,8 +51,8 @@ jobs:
           -DWITH_TLS:BOOL=ON
           -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
       - name: build library
-        run: cmake --build build
+        run: cmake --build build --config Debug
       - name: build & run tests
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
-        run: cmake --build build --target run_tests
+        run: cmake --build build --target run_tests --config Debug
