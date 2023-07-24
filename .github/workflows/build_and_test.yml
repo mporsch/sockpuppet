@@ -15,14 +15,17 @@ jobs:
           - name: "Windows MSVC17 shared library"
             os: windows-2022
             generator: -G "Visual Studio 17 2022" -A x64
+            type: Release
 
           - name: "Unix GCC shared library"
             os: ubuntu-latest
             generator: -G "Unix Makefiles"
+            type: Debug
 
           - name: "OSX clang shared library"
             os: macos-latest
             generator: -G "Unix Makefiles"
+            type: Debug
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -34,10 +37,10 @@ jobs:
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
       - name: configure externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
-        run: cmake -B build/external -S external ${{ matrix.generator }} -DCMAKE_BUILD_TYPE:STRING=Debug
+        run: cmake -B build/external -S external ${{ matrix.generator }} -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
       - name: build externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
-        run: cmake --build build/external --config Debug
+        run: cmake --build build/external --config ${{ matrix.type }}
       - name: cache externals save
         id: cache-externals-save
         uses: actions/cache/save@v3
@@ -50,10 +53,10 @@ jobs:
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DWITH_TLS:BOOL=ON
           -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
-          -DCMAKE_BUILD_TYPE:STRING=Debug
+          -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
       - name: build library
-        run: cmake --build build --config Debug
+        run: cmake --build build --config ${{ matrix.type }}
       - name: build & run tests
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
-        run: cmake --build build --target run_tests --config Debug
+        run: cmake --build build --target run_tests --config ${{ matrix.type }}
