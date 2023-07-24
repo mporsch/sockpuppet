@@ -34,7 +34,7 @@ jobs:
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
       - name: configure externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
-        run: cmake -B build/external -S external ${{ matrix.generator }}
+        run: cmake -B build/external -S external ${{ matrix.generator }} -DCMAKE_BUILD_TYPE:STRING=Debug
       - name: build externals
         if: steps.cache-externals-restore.outputs.cache-hit != 'true'
         run: cmake --build build/external --config Debug
@@ -50,6 +50,7 @@ jobs:
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DWITH_TLS:BOOL=ON
           -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
+          -DCMAKE_BUILD_TYPE:STRING=Debug
       - name: build library
         run: cmake --build build --config Debug
       - name: build & run tests
