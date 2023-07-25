@@ -210,18 +210,17 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
   size_t sent = 0U;
   if(HandleLastError(deadline)) {
     for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
-      auto res = SSL_write(ssl.get(), data + sent, static_cast<int>(size - sent));
+      size_t written = 0U;
+      auto res = SSL_write_ex(ssl.get(), data + sent, size - sent, &written);
       std::cout << this << " SSL_write(" << (void*)data << ") -> ";
-      if(res < 0) {
+      if(res <= 0) {
         if(!HandleResult(res, deadline)) {
           pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
         }
-      } else if((res == 0) && (size > 0U)) {
-        throw std::logic_error("unexpected TLS send result");
       } else {
         std::cout << "OK" << std::endl;
-        sent += static_cast<size_t>(res);
+        sent += written;
       }
       assert(i < handshakeStepsMax);
     }
