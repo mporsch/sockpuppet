@@ -209,7 +209,7 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
       }
     } else { // zero-size sent data
       // TLS can't send while handshake receipt pending:
-      // give up for now by proclaiming the send queue was empty,
+      // give up for now by proclaiming the send queue is empty,
       // but actually keep the data queued and retry the exact same call on readable
       pendingTlsSend = buffer->data();
       return true;
