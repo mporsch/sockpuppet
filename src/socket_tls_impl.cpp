@@ -346,8 +346,7 @@ AcceptorTlsImpl::AcceptorTlsImpl(int family, int type, int protocol,
 
 AcceptorTlsImpl::~AcceptorTlsImpl() = default;
 
-std::pair<SocketTcp, Address>
-AcceptorTlsImpl::Accept()
+std::pair<SocketTcp, Address> AcceptorTlsImpl::Accept()
 {
   auto [client, addr] = SocketImpl::Accept();
   client.impl->SetSockOptNonBlocking();

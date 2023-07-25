@@ -284,8 +284,7 @@ SocketImpl::Accept(Duration timeout)
   return Accept();
 }
 
-std::pair<SocketTcp, Address>
-SocketImpl::Accept()
+std::pair<SocketTcp, Address> SocketImpl::Accept()
 {
   auto sas = std::make_shared<SockAddrStorage>();
   auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
