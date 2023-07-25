@@ -3,7 +3,7 @@
 #include "socket_tls_impl.h"
 #include "error_code.h" // for SocketError
 #include "wait.h" // for WaitReadableNonBlocking
-#include <iostream>
+
 #include <cassert> // for assert
 #include <csignal> // for std::signal
 #include <stdexcept> // for std::logic_error
@@ -162,7 +162,6 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
   if(HandleLastError(deadline)) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
-      std::cout << this << " SSL_read -> ";
       if(res < 0) {
         if(!HandleResult(res, deadline)) {
           break;
@@ -170,7 +169,6 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
       } else if(res == 0) {
         throw std::runtime_error("TLS connection closed");
       } else {
-        std::cout << "OK" << std::endl;
         return static_cast<size_t>(res);
       }
       assert(i < handshakeStepsMax);
@@ -212,14 +210,12 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
     for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
       size_t written = 0U;
       auto res = SSL_write_ex(ssl.get(), data + sent, size - sent, &written);
-      std::cout << this << " SSL_write(" << (void*)data << ") -> ";
       if(res <= 0) {
         if(!HandleResult(res, deadline)) {
           pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
         }
       } else {
-        std::cout << "OK" << std::endl;
         sent += written;
       }
       assert(i < handshakeStepsMax);
@@ -256,13 +252,11 @@ void SocketTlsImpl::Shutdown()
     DeadlineLimited deadline(std::chrono::seconds(1));
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
-      std::cout << this << " SSL_shutdown -> ";
       if(res < 0) {
         if(!HandleResult(res, deadline)) {
           break;
         }
       } else if(res == 0) {
-        std::cout << "OK" << std::endl;
         break;
       }
       assert(i < handshakeStepsMax);
@@ -286,7 +280,6 @@ template<typename Deadline>
 bool SocketTlsImpl::HandleResult(int ret, Deadline &deadline)
 {
   auto error = SSL_get_error(ssl.get(), ret);
-  std::cout << error << std::endl;
   if(HandleError(error, deadline)) {
     lastError = SSL_ERROR_NONE;
     return true;
