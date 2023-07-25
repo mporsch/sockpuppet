@@ -13,7 +13,7 @@ namespace {
 
 size_t const clientCount = 3U;
 
-size_t const testDataSize = 10000U;
+size_t const testDataSize = 10000000U;
 TestData const testData(testDataSize);
 
 std::promise<void> promiseClientsDone;
