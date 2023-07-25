@@ -21,11 +21,6 @@ try {
   auto &&clientSock = p.first;
   auto &&clientAddr = p.second;
 
-  char buffer[256];
-  if(clientSock.Receive(buffer, sizeof(buffer), seconds(0))) {
-    throw std::runtime_error("unexpected receive");
-  }
-
   std::cout << "server sending to client " << to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
