@@ -15,6 +15,9 @@ jobs:
           - name: "Windows MSVC17 shared library"
             os: windows-2022
             generator: -G "Visual Studio 17 2022" -A x64
+            # don't use Debug to work around issue of FindOpenSSL.cmake which leaves us with
+            # -- Found OpenSSL: optimized;D:/a/sockpuppet/sockpuppet/build/external/libressl/install/lib/crypto.lib;debug;C:/Program Files/OpenSSL/lib/VC/libcrypto64MDd.lib (found version "2.0.0")
+            # which fails at link time
             type: Release
 
           - name: "Unix GCC shared library"

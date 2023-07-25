@@ -69,6 +69,7 @@ struct SocketTlsImpl : public SocketImpl
 
   void Shutdown();
 
+  // can yield false positives caused by TLS handshake data
   bool WaitReadable(Duration timeout) override;
   bool WaitWritable(Duration timeout) override;
 
@@ -98,8 +99,7 @@ struct AcceptorTlsImpl : public SocketImpl
                   char const *keyFilePath);
   ~AcceptorTlsImpl() override;
 
-  std::pair<SocketTcp, Address>
-  Accept() override;
+  std::pair<SocketTcp, Address> Accept() override;
 };
 
 } // namespace sockpuppet
