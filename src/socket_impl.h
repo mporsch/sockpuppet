@@ -76,8 +76,7 @@ struct SocketImpl
 
   std::optional<std::pair<SocketTcp, Address>>
   Accept(Duration timeout);
-  virtual std::pair<SocketTcp, Address>
-  Accept();
+  virtual std::pair<SocketTcp, Address> Accept();
 
   virtual bool WaitReadable(Duration timeout);
   virtual bool WaitWritable(Duration timeout);
