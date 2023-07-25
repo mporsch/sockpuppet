@@ -301,8 +301,7 @@ bool SocketTlsImpl::HandleLastError(Deadline &deadline)
 template<typename Deadline>
 bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
 {
-  constexpr char errorMessage[] =
-      "failed to wait for TLS socket readable/writable";
+  constexpr char errorMessage[] = "failed to TLS receive/send/handshake";
 
   switch(error) {
   case SSL_ERROR_NONE:
@@ -319,14 +318,15 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
       return true;
     }
     return false;
+  case SSL_ERROR_SSL:
+    throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:
     throw std::system_error(SocketError(), errorMessage);
   case SSL_ERROR_ZERO_RETURN:
     throw std::runtime_error(errorMessage);
-  case SSL_ERROR_SSL:
-    [[fallthrough]];
   default:
-    throw std::system_error(SslError(error), errorMessage);
+    assert(false);
+    return true;
   }
 }
 
