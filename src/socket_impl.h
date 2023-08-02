@@ -78,8 +78,8 @@ struct SocketImpl
   Accept(Duration timeout);
   virtual std::pair<SocketTcp, Address> Accept();
 
-  virtual bool WaitReadable(Duration timeout);
-  virtual bool WaitWritable(Duration timeout);
+  bool WaitReadable(Duration timeout);
+  bool WaitWritable(Duration timeout);
 
   void SetSockOptNonBlocking();
   void SetSockOptReuseAddr();

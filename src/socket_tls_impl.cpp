@@ -2,10 +2,9 @@
 
 #include "socket_tls_impl.h"
 #include "error_code.h" // for SocketError
-#include "wait.h" // for WaitReadableNonBlocking
+#include "wait.h" // for Deadline*
 
 #include <cassert> // for assert
-#include <csignal> // for std::signal
 #include <stdexcept> // for std::logic_error
 
 namespace sockpuppet {
@@ -16,28 +15,16 @@ namespace {
 // the number is arbitrary and used only to avoid/detect infinite loops
 constexpr int handshakeStepsMax = 10;
 
-void IgnoreSigPipe()
-{
-#ifndef SO_NOSIGPIPE
-# ifdef SIGPIPE
-  struct PerThread
-  {
-    PerThread()
-    {
-      // avoid SIGPIPE on connection closed
-      // which might occur during SSL_write() or SSL_do_handshake()
-      if(std::signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
-        throw std::logic_error("failed to ignore SIGPIPE");
-      }
-    }
-  };
+constexpr size_t DEFAULT_BUFFER_SIZE = 4096U;
 
-  // in Linux (where no other SIGPIPE workaround with OpenSSL
-  // is available) ignore signal once for each thread we run in
-  thread_local PerThread const instance;
-# endif // SIGPIPE
-#endif // SO_NOSIGPIPE
-}
+struct BioDeleter
+{
+  void operator()(BIO *ptr) const noexcept
+  {
+    (void)BIO_free(ptr);
+  }
+};
+using BioPtr = std::unique_ptr<BIO, BioDeleter>;
 
 void ConfigureCtx(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
@@ -72,10 +59,10 @@ AcceptorTlsImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
   throw std::runtime_error("failed to create SSL context");
 }
 
-SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, SOCKET fd)
+SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, BioPtr rbio, BioPtr wbio)
 {
   if(auto ssl = SocketTlsImpl::SslPtr(SSL_new(ctx))) {
-    SSL_set_fd(ssl.get(), static_cast<int>(fd));
+    SSL_set_bio(ssl.get(), rbio.release(), wbio.release());
     return ssl;
   }
   throw std::runtime_error("failed to create SSL structure");
@@ -91,21 +78,27 @@ void SocketTlsImpl::SslDeleter::operator()(SSL *ptr) const noexcept
 SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
-  , sslGuard()
+  , sslGuard() // must be created before call to SSL_CTX_new
+  , rbio(BIO_new(BIO_s_mem()))
+  , wbio(BIO_new(BIO_s_mem()))
   , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
           CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
-          this->fd))
+          BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
+  , buffer(DEFAULT_BUFFER_SIZE,  '\0')
 {
 }
 
 SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
-  , ssl(CreateSsl(ctx, this->fd))
+  , rbio(BIO_new(BIO_s_mem()))
+  , wbio(BIO_new(BIO_s_mem()))
+  , ssl(CreateSsl(ctx, BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
+  , buffer(DEFAULT_BUFFER_SIZE,  '\0')
 {
 }
 
@@ -157,8 +150,6 @@ template<typename Deadline>
 size_t SocketTlsImpl::Receive(char *data, size_t size,
     Deadline deadline)
 {
-  IgnoreSigPipe();
-
   if(HandleLastError(deadline)) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
@@ -198,8 +189,6 @@ template<typename Deadline>
 size_t SocketTlsImpl::SendSome(char const *data, size_t size,
     Deadline deadline)
 {
-  IgnoreSigPipe();
-
   if(pendingSend) {
     assert(pendingSend == data);
     pendingSend = nullptr;
@@ -216,6 +205,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
           break; // timeout / socket was writable for TLS handshake only
         }
       } else {
+        (void)SendPending(deadline);
         sent += written;
       }
       assert(i < handshakeStepsMax);
@@ -238,15 +228,12 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
 {
   SocketImpl::Connect(connectAddr);
-  SocketImpl::SetSockOptNonBlocking();
 
   SSL_set_connect_state(ssl.get());
 }
 
 void SocketTlsImpl::Shutdown()
 {
-  IgnoreSigPipe();
-
   if(SSL_shutdown(ssl.get()) <= 0) {
     char buf[32];
     DeadlineLimited deadline(std::chrono::seconds(1));
@@ -264,16 +251,6 @@ void SocketTlsImpl::Shutdown()
 
     (void)SSL_shutdown(ssl.get());
   }
-}
-
-bool sockpuppet::SocketTlsImpl::WaitReadable(Duration timeout)
-{
-  return WaitReadableNonBlocking(this->fd, timeout);
-}
-
-bool SocketTlsImpl::WaitWritable(Duration timeout)
-{
-  return WaitWritableNonBlocking(this->fd, timeout);
 }
 
 template<typename Deadline>
@@ -307,17 +284,10 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    if(WaitReadableNonBlocking(this->fd, deadline.Remaining())) {
-      deadline.Tick(); // assume that in non-blocking mode everything except Wait is instantaneous
-      return true;
-    }
-    return false;
+    (void)SendPending(deadline);
+    return ReceiveIncoming(deadline);
   case SSL_ERROR_WANT_WRITE:
-    if(WaitWritableNonBlocking(this->fd, deadline.Remaining())) {
-      deadline.Tick(); // assume that in non-blocking mode everything except Wait is instantaneous
-      return true;
-    }
-    return false;
+    return (SendPending(deadline) > 0U);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:
@@ -328,6 +298,41 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
     assert(false);
     return true;
   }
+}
+
+template<typename Deadline>
+size_t SocketTlsImpl::SendPending(Deadline &deadline)
+{
+  size_t sent = 0U;
+  size_t pending;
+  while((pending = BIO_ctrl_pending(wbio)) || BIO_should_retry(wbio)) {
+    //assert((pending > 0) && (buffer.size() >= static_cast<size_t>(pending)));
+    buffer.resize(std::max(buffer.size(), static_cast<size_t>(pending)));
+    auto received = BIO_read(wbio, buffer.data(), static_cast<int>(buffer.size()));
+    if(received >= 0) {
+      do {
+        if(!WaitWritable(deadline.Remaining())) {
+          break; // timeout exceeded
+        }
+        sent += SocketImpl::SendSome(buffer.data() + sent, static_cast<size_t>(received) - sent);
+        deadline.Tick();
+      } while((sent < static_cast<size_t>(received)) && deadline.TimeLeft());
+    }
+  }
+  return sent;
+}
+
+template<typename Deadline>
+bool SocketTlsImpl::ReceiveIncoming(Deadline &deadline)
+{
+  if(!WaitReadable(deadline.Remaining())) {
+    return false; // timeout exceeded
+  }
+  if(auto received = SocketImpl::Receive(buffer.data(), buffer.size())) {
+    auto res = BIO_write(rbio, buffer.data(), static_cast<int>(received));
+    assert(res == static_cast<int>(received));
+  }
+  return true;
 }
 
 
@@ -349,7 +354,6 @@ AcceptorTlsImpl::~AcceptorTlsImpl() = default;
 std::pair<SocketTcp, Address> AcceptorTlsImpl::Accept()
 {
   auto [client, addr] = SocketImpl::Accept();
-  client.impl->SetSockOptNonBlocking();
 
   auto clientTls = std::make_unique<SocketTlsImpl>(
       std::move(*client.impl),

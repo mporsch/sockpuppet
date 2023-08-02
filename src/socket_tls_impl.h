@@ -7,16 +7,16 @@
 #include "socket_impl.h" // for SocketImpl
 #include "ssl_guard.h" // for SslGuard
 
+#include <openssl/bio.h> // for BIO
 #include <openssl/ssl.h> // for SSL_CTX
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
+#include <string>
 #include <utility> // for std::pair
 
 namespace sockpuppet {
 
-// unlike the regular TCP client socket, the TLS one is set to non-blocking mode
-// to maintain control of the timing behaviour during the TLS handshake
 struct SocketTlsImpl : public SocketImpl
 {
   struct SslDeleter
@@ -26,9 +26,12 @@ struct SocketTlsImpl : public SocketImpl
   using SslPtr = std::unique_ptr<SSL, SslDeleter>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
+  BIO *rbio; ///< SSL reads from, we write to
+  BIO *wbio; ///< SSL writes to, we read from
   SslPtr ssl;  ///< OpenSSL session
   int lastError;  ///< OpenSSL error cache
   char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
+  std::string buffer;
 
   SocketTlsImpl(int family,
                 int type,
@@ -69,16 +72,17 @@ struct SocketTlsImpl : public SocketImpl
 
   void Shutdown();
 
-  // can yield false positives caused by TLS handshake data
-  bool WaitReadable(Duration timeout) override;
-  bool WaitWritable(Duration timeout) override;
-
   template<typename Deadline>
   bool HandleResult(int ret, Deadline &deadline);
   template<typename Deadline>
   bool HandleLastError(Deadline &deadline);
   template<typename Deadline>
   bool HandleError(int error, Deadline &deadline);
+
+  template<typename Deadline>
+  size_t SendPending(Deadline &deadline);
+  template<typename Deadline>
+  bool ReceiveIncoming(Deadline &deadline);
 };
 
 struct AcceptorTlsImpl : public SocketImpl
