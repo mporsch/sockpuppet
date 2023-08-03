@@ -1,6 +1,5 @@
 #include "socket_impl.h"
 #include "error_code.h" // for SocketError
-#include "wait.h" // for WaitReadableBlocking
 
 #ifndef _WIN32
 # include <fcntl.h> // for ::fcntl
@@ -136,24 +135,12 @@ SocketImpl::~SocketImpl()
 // used for TCP only
 std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
-    return {std::nullopt}; // timeout exceeded
-  }
-  return {Receive(data, size)};
+  return sockpuppet::Receive(fd, data, size, timeout);
 }
 
 size_t SocketImpl::Receive(char *data, size_t size)
 {
-  constexpr int flags = 0;
-  auto received = ::recv(fd,
-                         data, size,
-                         flags);
-  if(received < 0) {
-    throw std::system_error(SocketError(), "failed to receive");
-  } else if(received == 0) {
-    throw std::runtime_error("connection closed");
-  }
-  return static_cast<size_t>(received);
+  return sockpuppet::Receive(fd, data, size);
 }
 
 // used for UDP only
@@ -206,21 +193,12 @@ template<typename Deadline>
 size_t SocketImpl::SendSome(char const *data, size_t size,
     Deadline deadline)
 {
-  size_t sent = 0U;
-  do {
-    if(!WaitWritable(deadline.Remaining())) {
-      break; // timeout exceeded
-    }
-    sent += SendSome(data + sent, size - sent);
-    deadline.Tick();
-  } while((sent < size) && deadline.TimeLeft());
-  return sent;
+  return sockpuppet::SendSome(fd, data, size, deadline);
 }
 
 size_t SocketImpl::SendSome(char const *data, size_t size)
 {
-  // set flags to send only what can be sent without blocking
-  return DoSend(fd, data, size, sendSomeFlags);
+  return sockpuppet::SendSome(fd, data, size);
 }
 
 // UDP send will block only rarely,
@@ -352,6 +330,35 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
     throw std::system_error(SocketError(), "failed to get peer address");
   }
   return sas;
+}
+
+
+std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout)
+{
+  if(!WaitReadableBlocking(fd, timeout)) {
+    return {std::nullopt}; // timeout exceeded
+  }
+  return {Receive(fd, data, size)};
+}
+
+size_t Receive(SOCKET fd, char *data, size_t size)
+{
+  constexpr int flags = 0;
+  auto received = ::recv(fd,
+                         data, size,
+                         flags);
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
+    throw std::runtime_error("connection closed");
+  }
+  return static_cast<size_t>(received);
+}
+
+size_t SendSome(SOCKET fd, char const *data, size_t size)
+{
+  // set flags to send only what can be sent without blocking
+  return DoSend(fd, data, size, sendSomeFlags);
 }
 
 } // namespace sockpuppet
