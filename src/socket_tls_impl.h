@@ -32,6 +32,7 @@ struct SocketTlsImpl : public SocketImpl
   int lastError;  ///< OpenSSL error cache
   char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
   std::string buffer;
+  Duration pendingTimeout;
 
   SocketTlsImpl(int family,
                 int type,

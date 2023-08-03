@@ -4,6 +4,7 @@
 #include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket.h" // for SocketTcp
+#include "wait.h" // for WaitReadableBlocking
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
@@ -89,6 +90,27 @@ struct SocketImpl
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 };
+
+
+std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout);
+
+size_t Receive(SOCKET fd, char *data, size_t size);
+
+size_t SendSome(SOCKET fd, char const *data, size_t size);
+
+template<typename Deadline>
+size_t SendSome(SOCKET fd, char const *data, size_t size, Deadline deadline)
+{
+  size_t sent = 0U;
+  do {
+    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+      break; // timeout exceeded
+    }
+    sent += SendSome(fd, data + sent, size - sent);
+    deadline.Tick();
+  } while((sent < size) && deadline.TimeLeft());
+  return sent;
+}
 
 } // namespace sockpuppet
 

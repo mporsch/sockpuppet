@@ -17,6 +17,118 @@ constexpr int handshakeStepsMax = 10;
 
 constexpr size_t DEFAULT_BUFFER_SIZE = 4096U;
 
+namespace bio {
+
+int write(BIO *b, char const *data, int s)
+{
+  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+  auto &&fd = sock->fd;
+  auto size = static_cast<size_t>(s);
+  auto &&timeout = sock->pendingTimeout;
+
+  auto sent =
+      (timeout.count() < 0 ?
+         SendSome(fd, data, size, DeadlineUnlimited()) :
+         (timeout.count() == 0 ?
+            SendSome(fd, data, size, DeadlineZero()) :
+            SendSome(fd, data, size, DeadlineLimited(timeout))));
+
+  if(sent > 0U) {
+    BIO_clear_retry_flags(b);
+  } else {
+    BIO_set_retry_write(b);
+  }
+
+  return static_cast<int>(sent);
+}
+
+int read(BIO *b, char *data, int size)
+{
+  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+
+  if(auto received = Receive(sock->fd, data, static_cast<size_t>(size), sock->pendingTimeout)) {
+    BIO_clear_retry_flags(b);
+    return static_cast<int>(*received);
+  }
+  BIO_set_retry_read(b);
+  return 0;
+}
+
+//int puts(BIO *b, char const *data)
+//{
+//  return write(b, data, static_cast<int>(strlen(data)));
+//}
+//
+//int gets(BIO *b, char *data, int size)
+//{
+//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+//  return static_cast<int>(sock->Receive(data, static_cast<size_t>(size)));
+//}
+
+long ctrl(BIO *b, int cmd, long larg, void *parg)
+{
+  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+
+  switch(cmd) {
+  case BIO_CTRL_PENDING:
+    return 0;
+  case BIO_CTRL_FLUSH:
+    break;
+  }
+  return 1;
+}
+
+int create(BIO *b)
+{
+  BIO_set_init(b, 1);
+  return 1;
+}
+
+//int destroy(BIO *b)
+//{
+//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+//  return 1;
+//}
+//
+//long callback_ctrl(BIO *b, int, BIO_info_cb *)
+//{
+//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+//}
+
+} // namespace bio
+
+struct BioMethodDeleter
+{
+  void operator()(BIO_METHOD *ptr) const noexcept
+  {
+    BIO_meth_free(ptr);
+  }
+};
+using BioMethodPtr = std::unique_ptr<BIO_METHOD, BioMethodDeleter>;
+
+BIO_METHOD *BIO_s_sockpuppet()
+{
+  static auto instance = []() -> BioMethodPtr {
+    auto method = BioMethodPtr(BIO_meth_new(
+        BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
+        "sockpuppet"));
+    if(true &&
+       BIO_meth_set_write(method.get(), bio::write) &&
+       BIO_meth_set_read(method.get(), bio::read) &&
+       //BIO_meth_set_puts(method.get(), bio::puts) &&
+       //BIO_meth_set_gets(method.get(), bio::gets) &&
+       BIO_meth_set_ctrl(method.get(), bio::ctrl) &&
+       BIO_meth_set_create(method.get(), bio::create) &&
+       //BIO_meth_set_destroy(method.get(), bio::destroy) &&
+       //BIO_meth_set_callback_ctrl(method.get(), bio::callback_ctrl) &&
+       true) {
+      return method;
+    }
+    throw std::logic_error("failed to create BIO method");
+  }();
+  return instance.get();
+}
+
 struct BioDeleter
 {
   void operator()(BIO *ptr) const noexcept
@@ -79,27 +191,33 @@ SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard() // must be created before call to SSL_CTX_new
-  , rbio(BIO_new(BIO_s_mem()))
-  , wbio(BIO_new(BIO_s_mem()))
+  , rbio(BIO_new(BIO_s_sockpuppet()))
+  , wbio(BIO_new(BIO_s_sockpuppet()))
   , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
           CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
           BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
   , buffer(DEFAULT_BUFFER_SIZE,  '\0')
+  , pendingTimeout(-1)
 {
+  BIO_set_data(rbio, this);
+  BIO_set_data(wbio, this);
 }
 
 SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
-  , rbio(BIO_new(BIO_s_mem()))
-  , wbio(BIO_new(BIO_s_mem()))
+  , rbio(BIO_new(BIO_s_sockpuppet()))
+  , wbio(BIO_new(BIO_s_sockpuppet()))
   , ssl(CreateSsl(ctx, BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
   , buffer(DEFAULT_BUFFER_SIZE,  '\0')
+  , pendingTimeout(-1)
 {
+  BIO_set_data(rbio, this);
+  BIO_set_data(wbio, this);
 }
 
 SocketTlsImpl::~SocketTlsImpl()
@@ -120,6 +238,8 @@ SocketTlsImpl::~SocketTlsImpl()
 std::optional<size_t> SocketTlsImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
+  pendingTimeout = timeout;
+
   // unlimited timeout performs full handshake and subsequent receive
   auto received =
       (timeout.count() < 0 ?
@@ -171,6 +291,8 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
 size_t SocketTlsImpl::Send(char const *data, size_t size,
     Duration timeout)
 {
+  pendingTimeout = timeout;
+
   return (timeout.count() < 0 ?
             SendAll(data, size) :
             (timeout.count() == 0 ?
@@ -205,7 +327,6 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size,
           break; // timeout / socket was writable for TLS handshake only
         }
       } else {
-        (void)SendPending(deadline);
         sent += written;
       }
       assert(i < handshakeStepsMax);
@@ -303,23 +424,16 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
 template<typename Deadline>
 size_t SocketTlsImpl::SendPending(Deadline &deadline)
 {
-  size_t sent = 0U;
   size_t pending;
   while((pending = BIO_ctrl_pending(wbio)) || BIO_should_retry(wbio)) {
     //assert((pending > 0) && (buffer.size() >= static_cast<size_t>(pending)));
     buffer.resize(std::max(buffer.size(), static_cast<size_t>(pending)));
     auto received = BIO_read(wbio, buffer.data(), static_cast<int>(buffer.size()));
     if(received >= 0) {
-      do {
-        if(!WaitWritable(deadline.Remaining())) {
-          break; // timeout exceeded
-        }
-        sent += SocketImpl::SendSome(buffer.data() + sent, static_cast<size_t>(received) - sent);
-        deadline.Tick();
-      } while((sent < static_cast<size_t>(received)) && deadline.TimeLeft());
+      return sockpuppet::SendSome(this->fd, buffer.data(), static_cast<size_t>(received), deadline);
     }
   }
-  return sent;
+  return 0U;
 }
 
 template<typename Deadline>
@@ -328,7 +442,7 @@ bool SocketTlsImpl::ReceiveIncoming(Deadline &deadline)
   if(!WaitReadable(deadline.Remaining())) {
     return false; // timeout exceeded
   }
-  if(auto received = SocketImpl::Receive(buffer.data(), buffer.size())) {
+  if(auto received = sockpuppet::Receive(this->fd, buffer.data(), buffer.size())) {
     auto res = BIO_write(rbio, buffer.data(), static_cast<int>(received));
     assert(res == static_cast<int>(received));
   }
