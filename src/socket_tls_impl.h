@@ -12,8 +12,8 @@
 
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
-#include <string>
 #include <utility> // for std::pair
+#include <variant> // for std::variant
 
 namespace sockpuppet {
 
@@ -31,8 +31,7 @@ struct SocketTlsImpl : public SocketImpl
   SslPtr ssl;  ///< OpenSSL session
   int lastError;  ///< OpenSSL error cache
   char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
-  std::string buffer;
-  Duration pendingTimeout;
+  std::variant<DeadlineUnlimited, DeadlineZero, DeadlineLimited> deadline; ///< use-case dependent deadline type
 
   SocketTlsImpl(int family,
                 int type,
@@ -49,10 +48,9 @@ struct SocketTlsImpl : public SocketImpl
   // assumes a readable socket
   size_t Receive(char *data,
                  size_t size) override;
-  template<typename Deadline>
-  size_t Receive(char *data,
+  size_t DoReceive(char *data,
                  size_t size,
-                 Deadline deadline);
+                 Duration timeout);
 
   size_t Send(char const *data,
               size_t size,
@@ -61,10 +59,9 @@ struct SocketTlsImpl : public SocketImpl
                  size_t size);
   // waits for writable repeatedly and
   // sends the max amount of data within the user-provided timeout
-  template<typename Deadline>
-  size_t SendSome(char const *data,
-                  size_t size,
-                  Deadline deadline);
+  size_t DoSend(char const *data,
+                size_t size,
+                Duration timeout);
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
@@ -73,17 +70,9 @@ struct SocketTlsImpl : public SocketImpl
 
   void Shutdown();
 
-  template<typename Deadline>
-  bool HandleResult(int ret, Deadline &deadline);
-  template<typename Deadline>
-  bool HandleLastError(Deadline &deadline);
-  template<typename Deadline>
-  bool HandleError(int error, Deadline &deadline);
-
-  template<typename Deadline>
-  size_t SendPending(Deadline &deadline);
-  template<typename Deadline>
-  bool ReceiveIncoming(Deadline &deadline);
+  bool HandleResult(int ret);
+  bool HandleLastError();
+  bool HandleError(int error);
 };
 
 struct AcceptorTlsImpl : public SocketImpl
