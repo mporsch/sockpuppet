@@ -1,36 +1,34 @@
 #ifdef SOCKPUPPET_WITH_TLS
 
 #include "socket_tls_impl.h"
-#include "error_code.h" // for SocketError
-#include "wait.h" // for Deadline*
+#include "error_code.h" // for SslError
 
 #include <cassert> // for assert
 #include <stdexcept> // for std::logic_error
+#include <type_traits> // for std::is_same_v
 
 namespace sockpuppet {
 
 namespace {
 
+// loop over OpenSSL calls that might perform a handshake at any time
+// the number is arbitrary and used only to avoid/detect infinite loops
+constexpr int handshakeStepsMax = 10;
+
 namespace bio {
 
-template<typename Deadline>
-size_t DoWrite(SOCKET fd, char const *data, size_t size, Deadline &&deadline)
-{
-  return SendSome(fd, data, size, deadline);
-}
-
-template<>
-inline size_t DoWrite(SOCKET fd, char const *data, size_t size, DeadlineUnlimited &)
-{
-  return SendAll(fd, data, size);
-}
-
-int Write(BIO *b, char const *data, int size)
+int Write(BIO *b, char const *data, int s)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+  auto size = static_cast<size_t>(s);
 
   auto sent = std::visit([=](auto &&deadline) -> size_t {
-    return DoWrite(sock->fd, data, static_cast<size_t>(size), deadline);
+    using Deadline = std::decay_t<decltype(deadline)>;
+    if constexpr(std::is_same_v<Deadline, DeadlineUnlimited>) {
+      return SendAll(sock->fd, data, size);
+    } else {
+      return SendSome(sock->fd, data, size, deadline);
+    }
   }, sock->deadline);
 
   if(sent > 0U) {
@@ -42,15 +40,18 @@ int Write(BIO *b, char const *data, int size)
   return static_cast<int>(sent);
 }
 
-int Read(BIO *b, char *data, int size)
+int Read(BIO *b, char *data, int s)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+  auto size = static_cast<size_t>(s);
 
-  auto timeout = std::visit([](auto &&deadline) -> Duration {
-    return deadline.Remaining();
+  auto received = std::visit([=](auto &&deadline) -> std::optional<size_t> {
+    auto received = Receive(sock->fd, data, size, deadline.Remaining());
+    deadline.Tick();
+    return received;
   }, sock->deadline);
 
-  if(auto received = Receive(sock->fd, data, static_cast<size_t>(size), timeout)) {
+  if(received) {
     BIO_clear_retry_flags(b);
     return static_cast<int>(*received);
   }
@@ -101,6 +102,15 @@ int Create(BIO *b)
 
 } // namespace bio
 
+struct BioDeleter
+{
+  void operator()(BIO *ptr) const noexcept
+  {
+    (void)BIO_free(ptr);
+  }
+};
+using BioPtr = std::unique_ptr<BIO, BioDeleter>;
+
 struct BioMethodDeleter
 {
   void operator()(BIO_METHOD *ptr) const noexcept
@@ -132,19 +142,6 @@ BIO_METHOD *BIO_s_sockpuppet()
   }();
   return instance.get();
 }
-
-struct BioDeleter
-{
-  void operator()(BIO *ptr) const noexcept
-  {
-    (void)BIO_free(ptr);
-  }
-};
-using BioPtr = std::unique_ptr<BIO, BioDeleter>;
-
-// loop over OpenSSL calls that might perform a handshake at any time
-// the number is arbitrary and used only to avoid/detect infinite loops
-constexpr int handshakeStepsMax = 10;
 
 void SetDeadline(decltype(SocketTlsImpl::deadline) &deadline, Duration timeout)
 {
