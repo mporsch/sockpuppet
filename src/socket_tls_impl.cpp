@@ -11,18 +11,26 @@ namespace sockpuppet {
 
 namespace {
 
-// loop over OpenSSL calls that might perform a handshake at any time
-// the number is arbitrary and used only to avoid/detect infinite loops
-constexpr int handshakeStepsMax = 10;
-
 namespace bio {
 
-int write(BIO *b, char const *data, int size)
+template<typename Deadline>
+size_t DoWrite(SOCKET fd, char const *data, size_t size, Deadline &&deadline)
+{
+  return SendSome(fd, data, size, deadline);
+}
+
+template<>
+inline size_t DoWrite(SOCKET fd, char const *data, size_t size, DeadlineUnlimited &)
+{
+  return SendAll(fd, data, size);
+}
+
+int Write(BIO *b, char const *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
   auto sent = std::visit([=](auto &&deadline) -> size_t {
-    return SendSome(sock->fd, data, static_cast<size_t>(size), deadline);
+    return DoWrite(sock->fd, data, static_cast<size_t>(size), deadline);
   }, sock->deadline);
 
   if(sent > 0U) {
@@ -34,7 +42,7 @@ int write(BIO *b, char const *data, int size)
   return static_cast<int>(sent);
 }
 
-int read(BIO *b, char *data, int size)
+int Read(BIO *b, char *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
@@ -61,7 +69,7 @@ int read(BIO *b, char *data, int size)
 //  return static_cast<int>(sock->Receive(data, static_cast<size_t>(size)));
 //}
 
-long ctrl(BIO *, int cmd, long, void *)
+long Ctrl(BIO *, int cmd, long, void *)
 {
   //auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
@@ -74,7 +82,7 @@ long ctrl(BIO *, int cmd, long, void *)
   }
 }
 
-int create(BIO *b)
+int Create(BIO *b)
 {
   BIO_set_init(b, 1);
   return 1;
@@ -109,12 +117,12 @@ BIO_METHOD *BIO_s_sockpuppet()
         BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
         "sockpuppet"));
     if(true &&
-       BIO_meth_set_write(method.get(), bio::write) &&
-       BIO_meth_set_read(method.get(), bio::read) &&
+       BIO_meth_set_write(method.get(), bio::Write) &&
+       BIO_meth_set_read(method.get(), bio::Read) &&
        //BIO_meth_set_puts(method.get(), bio::puts) &&
        //BIO_meth_set_gets(method.get(), bio::gets) &&
-       BIO_meth_set_ctrl(method.get(), bio::ctrl) &&
-       BIO_meth_set_create(method.get(), bio::create) &&
+       BIO_meth_set_ctrl(method.get(), bio::Ctrl) &&
+       BIO_meth_set_create(method.get(), bio::Create) &&
        //BIO_meth_set_destroy(method.get(), bio::destroy) &&
        //BIO_meth_set_callback_ctrl(method.get(), bio::callback_ctrl) &&
        true) {
@@ -133,6 +141,10 @@ struct BioDeleter
   }
 };
 using BioPtr = std::unique_ptr<BIO, BioDeleter>;
+
+// loop over OpenSSL calls that might perform a handshake at any time
+// the number is arbitrary and used only to avoid/detect infinite loops
+constexpr int handshakeStepsMax = 10;
 
 void ConfigureCtx(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
@@ -230,7 +242,7 @@ SocketTlsImpl::~SocketTlsImpl()
 std::optional<size_t> SocketTlsImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
-  if(auto received = DoReceive(data, size, timeout)) {
+  if(auto received = Read(data, size, timeout)) {
     return {received};
   }
 
@@ -246,11 +258,34 @@ size_t SocketTlsImpl::Receive(char *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return DoReceive(data, size, Duration(0));
+  return Read(data, size, Duration(0));
 }
 
-size_t SocketTlsImpl::DoReceive(char *data, size_t size,
+size_t SocketTlsImpl::Send(char const *data, size_t size,
     Duration timeout)
+{
+  return Write(data, size, timeout);
+}
+
+size_t SocketTlsImpl::SendSome(char const *data, size_t size)
+{
+  // we have been deemed writable/readable
+  if(lastError == SSL_ERROR_WANT_WRITE ||
+     (pendingSend && lastError == SSL_ERROR_WANT_READ)) {
+    lastError = SSL_ERROR_NONE;
+  }
+
+  return Write(data, size, Duration(0));
+}
+
+void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
+{
+  SocketImpl::Connect(connectAddr);
+
+  SSL_set_connect_state(ssl.get());
+}
+
+size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 {
   if(timeout.count() < 0) {
     deadline.emplace<DeadlineUnlimited>();
@@ -278,21 +313,7 @@ size_t SocketTlsImpl::DoReceive(char *data, size_t size,
   return 0U; // timeout / socket was readable for TLS handshake only
 }
 
-size_t SocketTlsImpl::Send(char const *data, size_t size,
-    Duration timeout)
-{
-  return DoSend(data, size, timeout);
-}
-
-size_t SocketTlsImpl::SendAll(char const *data, size_t size)
-{
-  auto sent = DoSend(data, size, Duration(-1));
-  assert(sent == size);
-  return sent;
-}
-
-size_t SocketTlsImpl::DoSend(char const *data, size_t size,
-    Duration timeout)
+size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 {
   if(timeout.count() < 0) {
     deadline.emplace<DeadlineUnlimited>();
@@ -324,24 +345,6 @@ size_t SocketTlsImpl::DoSend(char const *data, size_t size,
     }
   }
   return sent;
-}
-
-size_t SocketTlsImpl::SendSome(char const *data, size_t size)
-{
-  // we have been deemed writable/readable
-  if(lastError == SSL_ERROR_WANT_WRITE ||
-     (pendingSend && lastError == SSL_ERROR_WANT_READ)) {
-    lastError = SSL_ERROR_NONE;
-  }
-
-  return DoSend(data, size, Duration(0));
-}
-
-void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
-{
-  SocketImpl::Connect(connectAddr);
-
-  SSL_set_connect_state(ssl.get());
 }
 
 void SocketTlsImpl::Shutdown()

@@ -66,6 +66,20 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
   }
 }
 
+size_t DoReceive(SOCKET fd, char *data, size_t size)
+{
+  constexpr int flags = 0;
+  auto received = ::recv(fd,
+                         data, size,
+                         flags);
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
+    throw std::runtime_error("connection closed");
+  }
+  return static_cast<size_t>(received);
+}
+
 size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
 {
   auto sent = ::send(fd,
@@ -140,7 +154,7 @@ std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration time
 
 size_t SocketImpl::Receive(char *data, size_t size)
 {
-  return sockpuppet::Receive(fd, data, size);
+  return DoReceive(fd, data, size);
 }
 
 // used for UDP only
@@ -175,18 +189,10 @@ SocketImpl::ReceiveFrom(char *data, size_t size)
 size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 {
   return (timeout.count() < 0 ?
-            SendAll(data, size) :
+            SendAll(fd, data, size) :
             (timeout.count() == 0 ?
                sockpuppet::SendSome(fd, data, size, DeadlineZero()) :
                sockpuppet::SendSome(fd, data, size, DeadlineLimited(timeout))));
-}
-
-size_t SocketImpl::SendAll(char const *data, size_t size)
-{
-  // set flags to block until everything is sent
-  auto sent = DoSend(fd, data, size, sendAllFlags);
-  assert(sent == size);
-  return sent;
 }
 
 size_t SocketImpl::SendSome(char const *data, size_t size)
@@ -331,21 +337,15 @@ std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeo
   if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
-  return {Receive(fd, data, size)};
+  return {DoReceive(fd, data, size)};
 }
 
-size_t Receive(SOCKET fd, char *data, size_t size)
+size_t SendAll(SOCKET fd, char const *data, size_t size)
 {
-  constexpr int flags = 0;
-  auto received = ::recv(fd,
-                         data, size,
-                         flags);
-  if(received < 0) {
-    throw std::system_error(SocketError(), "failed to receive");
-  } else if(received == 0) {
-    throw std::runtime_error("connection closed");
-  }
-  return static_cast<size_t>(received);
+  // set flags to block until everything is sent
+  auto sent = DoSend(fd, data, size, sendAllFlags);
+  assert(sent == size);
+  return sent;
 }
 
 size_t SendSome(SOCKET fd, char const *data, size_t size)

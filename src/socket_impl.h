@@ -4,7 +4,7 @@
 #include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket.h" // for SocketTcp
-#include "wait.h" // for WaitReadableBlocking
+#include "wait.h" // for WaitWritableBlocking
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
@@ -49,8 +49,6 @@ struct SocketImpl
   virtual size_t Send(char const *data,
                       size_t size,
                       Duration timeout);
-  size_t SendAll(char const *data,
-                 size_t size);
   // assumes a writable socket
   virtual size_t SendSome(char const *data,
                           size_t size);
@@ -85,11 +83,13 @@ struct SocketImpl
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 };
 
-
+// wait for readable and read what is available
 std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout);
 
-size_t Receive(SOCKET fd, char *data, size_t size);
+// send everything no matter how long it takes
+size_t SendAll(SOCKET fd, char const *data, size_t size);
 
+// send what can be sent now without blocking
 size_t SendSome(SOCKET fd, char const *data, size_t size);
 
 // waits for writable repeatedly and
