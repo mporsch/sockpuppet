@@ -15,23 +15,15 @@ namespace {
 // the number is arbitrary and used only to avoid/detect infinite loops
 constexpr int handshakeStepsMax = 10;
 
-constexpr size_t DEFAULT_BUFFER_SIZE = 4096U;
-
 namespace bio {
 
-int write(BIO *b, char const *data, int s)
+int write(BIO *b, char const *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-  auto &&fd = sock->fd;
-  auto size = static_cast<size_t>(s);
-  auto &&timeout = sock->pendingTimeout;
 
-  auto sent =
-      (timeout.count() < 0 ?
-         SendSome(fd, data, size, DeadlineUnlimited()) :
-         (timeout.count() == 0 ?
-            SendSome(fd, data, size, DeadlineZero()) :
-            SendSome(fd, data, size, DeadlineLimited(timeout))));
+  auto sent = std::visit([=](auto &&deadline) -> size_t {
+    return SendSome(sock->fd, data, static_cast<size_t>(size), deadline);
+  }, sock->deadline);
 
   if(sent > 0U) {
     BIO_clear_retry_flags(b);
@@ -46,7 +38,11 @@ int read(BIO *b, char *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
-  if(auto received = Receive(sock->fd, data, static_cast<size_t>(size), sock->pendingTimeout)) {
+  auto timeout = std::visit([](auto &&deadline) -> Duration {
+    return deadline.Remaining();
+  }, sock->deadline);
+
+  if(auto received = Receive(sock->fd, data, static_cast<size_t>(size), timeout)) {
     BIO_clear_retry_flags(b);
     return static_cast<int>(*received);
   }
@@ -65,17 +61,17 @@ int read(BIO *b, char *data, int size)
 //  return static_cast<int>(sock->Receive(data, static_cast<size_t>(size)));
 //}
 
-long ctrl(BIO *b, int cmd, long larg, void *parg)
+long ctrl(BIO *, int cmd, long, void *)
 {
-  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+  //auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
   switch(cmd) {
   case BIO_CTRL_PENDING:
     return 0;
   case BIO_CTRL_FLUSH:
-    break;
+  default:
+    return 1;
   }
-  return 1;
 }
 
 int create(BIO *b)
@@ -198,8 +194,6 @@ SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
           BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
-  , buffer(DEFAULT_BUFFER_SIZE,  '\0')
-  , pendingTimeout(-1)
 {
   BIO_set_data(rbio, this);
   BIO_set_data(wbio, this);
@@ -213,8 +207,6 @@ SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
   , ssl(CreateSsl(ctx, BioPtr(rbio), BioPtr(wbio)))
   , lastError(SSL_ERROR_NONE)
   , pendingSend(nullptr)
-  , buffer(DEFAULT_BUFFER_SIZE,  '\0')
-  , pendingTimeout(-1)
 {
   BIO_set_data(rbio, this);
   BIO_set_data(wbio, this);
@@ -238,20 +230,11 @@ SocketTlsImpl::~SocketTlsImpl()
 std::optional<size_t> SocketTlsImpl::Receive(
     char *data, size_t size, Duration timeout)
 {
-  pendingTimeout = timeout;
-
-  // unlimited timeout performs full handshake and subsequent receive
-  auto received =
-      (timeout.count() < 0 ?
-         Receive(data, size, DeadlineUnlimited()) :
-         (timeout.count() == 0 ?
-            Receive(data, size, DeadlineZero()) :
-            Receive(data, size, DeadlineLimited(timeout))));
-
-  if(received) {
+  if(auto received = DoReceive(data, size, timeout)) {
     return {received};
   }
 
+  // unlimited timeout performs full handshake and subsequent receive
   assert(timeout.count() >= 0);
   return {std::nullopt};
 }
@@ -263,18 +246,25 @@ size_t SocketTlsImpl::Receive(char *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return Receive(data, size, DeadlineZero());
+  return DoReceive(data, size, Duration(0));
 }
 
-template<typename Deadline>
-size_t SocketTlsImpl::Receive(char *data, size_t size,
-    Deadline deadline)
+size_t SocketTlsImpl::DoReceive(char *data, size_t size,
+    Duration timeout)
 {
-  if(HandleLastError(deadline)) {
+  if(timeout.count() < 0) {
+    deadline.emplace<DeadlineUnlimited>();
+  } else if(timeout.count() == 0) {
+    deadline.emplace<DeadlineZero>();
+  } else {
+    deadline.emplace<DeadlineLimited>(timeout);
+  }
+
+  if(HandleLastError()) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
       if(res < 0) {
-        if(!HandleResult(res, deadline)) {
+        if(!HandleResult(res)) {
           break;
         }
       } else if(res == 0) {
@@ -291,38 +281,39 @@ size_t SocketTlsImpl::Receive(char *data, size_t size,
 size_t SocketTlsImpl::Send(char const *data, size_t size,
     Duration timeout)
 {
-  pendingTimeout = timeout;
-
-  return (timeout.count() < 0 ?
-            SendAll(data, size) :
-            (timeout.count() == 0 ?
-               SendSome(data, size, DeadlineZero()) :
-               SendSome(data, size, DeadlineLimited(timeout))));
+  return DoSend(data, size, timeout);
 }
 
 size_t SocketTlsImpl::SendAll(char const *data, size_t size)
 {
-  auto sent = SendSome(data, size, DeadlineUnlimited());
+  auto sent = DoSend(data, size, Duration(-1));
   assert(sent == size);
   return sent;
 }
 
-template<typename Deadline>
-size_t SocketTlsImpl::SendSome(char const *data, size_t size,
-    Deadline deadline)
+size_t SocketTlsImpl::DoSend(char const *data, size_t size,
+    Duration timeout)
 {
+  if(timeout.count() < 0) {
+    deadline.emplace<DeadlineUnlimited>();
+  } else if(timeout.count() == 0) {
+    deadline.emplace<DeadlineZero>();
+  } else {
+    deadline.emplace<DeadlineLimited>(timeout);
+  }
+
   if(pendingSend) {
     assert(pendingSend == data);
     pendingSend = nullptr;
   }
 
   size_t sent = 0U;
-  if(HandleLastError(deadline)) {
+  if(HandleLastError()) {
     for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
       size_t written = 0U;
       auto res = SSL_write_ex(ssl.get(), data + sent, size - sent, &written);
       if(res <= 0) {
-        if(!HandleResult(res, deadline)) {
+        if(!HandleResult(res)) {
           pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
         }
@@ -343,7 +334,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return SendSome(data, size, DeadlineZero());
+  return DoSend(data, size, Duration(0));
 }
 
 void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
@@ -357,11 +348,11 @@ void SocketTlsImpl::Shutdown()
 {
   if(SSL_shutdown(ssl.get()) <= 0) {
     char buf[32];
-    DeadlineLimited deadline(std::chrono::seconds(1));
+    deadline.emplace<DeadlineLimited>(std::chrono::seconds(1));
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
-        if(!HandleResult(res, deadline)) {
+        if(!HandleResult(res)) {
           break;
         }
       } else if(res == 0) {
@@ -374,11 +365,10 @@ void SocketTlsImpl::Shutdown()
   }
 }
 
-template<typename Deadline>
-bool SocketTlsImpl::HandleResult(int ret, Deadline &deadline)
+bool SocketTlsImpl::HandleResult(int ret)
 {
   auto error = SSL_get_error(ssl.get(), ret);
-  if(HandleError(error, deadline)) {
+  if(HandleError(error)) {
     lastError = SSL_ERROR_NONE;
     return true;
   }
@@ -386,18 +376,16 @@ bool SocketTlsImpl::HandleResult(int ret, Deadline &deadline)
   return false;
 }
 
-template<typename Deadline>
-bool SocketTlsImpl::HandleLastError(Deadline &deadline)
+bool SocketTlsImpl::HandleLastError()
 {
-  if(HandleError(lastError, deadline)) {
+  if(HandleError(lastError)) {
     lastError = SSL_ERROR_NONE;
     return true;
   }
   return false;
 }
 
-template<typename Deadline>
-bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
+bool SocketTlsImpl::HandleError(int error)
 {
   constexpr char errorMessage[] = "failed to TLS receive/send/handshake";
 
@@ -405,10 +393,17 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    (void)SendPending(deadline);
-    return ReceiveIncoming(deadline);
+    return std::visit([this](auto &&d) -> bool {
+      auto readable = WaitReadable(d.Remaining());
+      d.Tick();
+      return readable;
+    }, deadline);
   case SSL_ERROR_WANT_WRITE:
-    return (SendPending(deadline) > 0U);
+    return std::visit([this](auto &&d) -> bool {
+      auto readable = WaitWritable(d.Remaining());
+      d.Tick();
+      return readable;
+    }, deadline);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:
@@ -419,34 +414,6 @@ bool SocketTlsImpl::HandleError(int error, Deadline &deadline)
     assert(false);
     return true;
   }
-}
-
-template<typename Deadline>
-size_t SocketTlsImpl::SendPending(Deadline &deadline)
-{
-  size_t pending;
-  while((pending = BIO_ctrl_pending(wbio)) || BIO_should_retry(wbio)) {
-    //assert((pending > 0) && (buffer.size() >= static_cast<size_t>(pending)));
-    buffer.resize(std::max(buffer.size(), static_cast<size_t>(pending)));
-    auto received = BIO_read(wbio, buffer.data(), static_cast<int>(buffer.size()));
-    if(received >= 0) {
-      return sockpuppet::SendSome(this->fd, buffer.data(), static_cast<size_t>(received), deadline);
-    }
-  }
-  return 0U;
-}
-
-template<typename Deadline>
-bool SocketTlsImpl::ReceiveIncoming(Deadline &deadline)
-{
-  if(!WaitReadable(deadline.Remaining())) {
-    return false; // timeout exceeded
-  }
-  if(auto received = sockpuppet::Receive(this->fd, buffer.data(), buffer.size())) {
-    auto res = BIO_write(rbio, buffer.data(), static_cast<int>(received));
-    assert(res == static_cast<int>(received));
-  }
-  return true;
 }
 
 
