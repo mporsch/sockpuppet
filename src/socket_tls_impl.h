@@ -48,26 +48,24 @@ struct SocketTlsImpl : public SocketImpl
   // assumes a readable socket
   size_t Receive(char *data,
                  size_t size) override;
-  size_t DoReceive(char *data,
-                 size_t size,
-                 Duration timeout);
 
   size_t Send(char const *data,
               size_t size,
               Duration timeout) override;
-  size_t SendAll(char const *data,
-                 size_t size);
-  // waits for writable repeatedly and
-  // sends the max amount of data within the user-provided timeout
-  size_t DoSend(char const *data,
-                size_t size,
-                Duration timeout);
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
 
   void Connect(SockAddrView const &connectAddr) override;
 
+  size_t Read(char *data,
+              size_t size,
+              Duration timeout);
+  // waits for writable repeatedly and
+  // sends the max amount of data within the user-provided timeout
+  size_t Write(char const *data,
+               size_t size,
+               Duration timeout);
   void Shutdown();
 
   bool HandleResult(int ret);
