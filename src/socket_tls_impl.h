@@ -3,16 +3,14 @@
 
 #ifdef SOCKPUPPET_WITH_TLS
 
-#include "address_impl.h" // for SockAddrView
 #include "socket_impl.h" // for SocketImpl
 #include "ssl_guard.h" // for SslGuard
+#include "wait.h" // for Deadline*
 
 #include <openssl/bio.h> // for BIO
 #include <openssl/ssl.h> // for SSL_CTX
 
-#include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
-#include <utility> // for std::pair
 #include <variant> // for std::variant
 
 namespace sockpuppet {
@@ -31,7 +29,7 @@ struct SocketTlsImpl : public SocketImpl
   SslPtr ssl;  ///< OpenSSL session
   int lastError;  ///< OpenSSL error cache
   char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
-  std::variant<DeadlineUnlimited, DeadlineZero, DeadlineLimited> deadline; ///< use-case dependent deadline type
+  std::variant<DeadlineUnlimited, DeadlineZero, DeadlineLimited> deadline;  ///< use-case dependent deadline type
 
   SocketTlsImpl(int family,
                 int type,
