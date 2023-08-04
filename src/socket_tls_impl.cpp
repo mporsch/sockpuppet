@@ -146,6 +146,17 @@ using BioPtr = std::unique_ptr<BIO, BioDeleter>;
 // the number is arbitrary and used only to avoid/detect infinite loops
 constexpr int handshakeStepsMax = 10;
 
+void SetDeadline(decltype(SocketTlsImpl::deadline) &deadline, Duration timeout)
+{
+  if(timeout.count() < 0) {
+    deadline.emplace<DeadlineUnlimited>();
+  } else if(timeout.count() == 0) {
+    deadline.emplace<DeadlineZero>();
+  } else {
+    deadline.emplace<DeadlineLimited>(timeout);
+  }
+}
+
 void ConfigureCtx(SSL_CTX *ctx,
     char const *certFilePath, char const *keyFilePath)
 {
@@ -287,13 +298,7 @@ void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
 
 size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 {
-  if(timeout.count() < 0) {
-    deadline.emplace<DeadlineUnlimited>();
-  } else if(timeout.count() == 0) {
-    deadline.emplace<DeadlineZero>();
-  } else {
-    deadline.emplace<DeadlineLimited>(timeout);
-  }
+  SetDeadline(deadline, timeout);
 
   if(HandleLastError()) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
@@ -315,13 +320,7 @@ size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 
 size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 {
-  if(timeout.count() < 0) {
-    deadline.emplace<DeadlineUnlimited>();
-  } else if(timeout.count() == 0) {
-    deadline.emplace<DeadlineZero>();
-  } else {
-    deadline.emplace<DeadlineLimited>(timeout);
-  }
+  SetDeadline(deadline, timeout);
 
   if(pendingSend) {
     assert(pendingSend == data);
@@ -351,7 +350,7 @@ void SocketTlsImpl::Shutdown()
 {
   if(SSL_shutdown(ssl.get()) <= 0) {
     char buf[32];
-    deadline.emplace<DeadlineLimited>(std::chrono::seconds(1));
+    SetDeadline(deadline, std::chrono::seconds(1));
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
