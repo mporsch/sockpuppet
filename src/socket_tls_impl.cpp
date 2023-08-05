@@ -59,21 +59,8 @@ int Read(BIO *b, char *data, int s)
   return 0;
 }
 
-//int puts(BIO *b, char const *data)
-//{
-//  return write(b, data, static_cast<int>(strlen(data)));
-//}
-//
-//int gets(BIO *b, char *data, int size)
-//{
-//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-//  return static_cast<int>(sock->Receive(data, static_cast<size_t>(size)));
-//}
-
 long Ctrl(BIO *, int cmd, long, void *)
 {
-  //auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-
   switch(cmd) {
   case BIO_CTRL_FLUSH:
     return 1;
@@ -87,17 +74,6 @@ int Create(BIO *b)
   BIO_set_init(b, 1);
   return 1;
 }
-
-//int destroy(BIO *b)
-//{
-//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-//  return 1;
-//}
-//
-//long callback_ctrl(BIO *b, int, BIO_info_cb *)
-//{
-//  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-//}
 
 } // namespace bio
 
@@ -125,16 +101,10 @@ BIO_METHOD *BIO_s_sockpuppet()
     auto method = BioMethodPtr(BIO_meth_new(
         BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
         "sockpuppet"));
-    if(true &&
-       BIO_meth_set_write(method.get(), bio::Write) &&
+    if(BIO_meth_set_write(method.get(), bio::Write) &&
        BIO_meth_set_read(method.get(), bio::Read) &&
-       //BIO_meth_set_puts(method.get(), bio::puts) &&
-       //BIO_meth_set_gets(method.get(), bio::gets) &&
        BIO_meth_set_ctrl(method.get(), bio::Ctrl) &&
-       BIO_meth_set_create(method.get(), bio::Create) &&
-       //BIO_meth_set_destroy(method.get(), bio::destroy) &&
-       //BIO_meth_set_callback_ctrl(method.get(), bio::callback_ctrl) &&
-       true) {
+       BIO_meth_set_create(method.get(), bio::Create)) {
       return method;
     }
     throw std::logic_error("failed to create BIO method");
