@@ -15,6 +15,8 @@ namespace {
 // the number is arbitrary and used only to avoid/detect infinite loops
 constexpr int handshakeStepsMax = 10;
 
+constexpr auto zeroTimeout = Duration(0);
+
 namespace bio {
 
 int Write(BIO *b, char const *data, int s)
@@ -235,7 +237,7 @@ size_t SocketTlsImpl::Receive(char *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return Read(data, size, Duration(0));
+  return Read(data, size, zeroTimeout);
 }
 
 size_t SocketTlsImpl::Send(char const *data, size_t size,
@@ -252,7 +254,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return Write(data, size, Duration(0));
+  return Write(data, size, zeroTimeout);
 }
 
 void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
