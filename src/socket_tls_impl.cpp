@@ -317,9 +317,11 @@ size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 void SocketTlsImpl::Shutdown()
 {
   if(SSL_shutdown(ssl.get()) <= 0) {
-    char buf[32];
+    // sent the shutdown, but have not received one from the peer yet
+    // spend some time trying to receive it, but go on eventually
+    char buf[1024];
     SetDeadline(deadline, std::chrono::seconds(1));
-    for(int i = 1; i <= handshakeStepsMax; ++i) {
+    for(int i = 0; i < handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
         if(!HandleResult(res)) {
@@ -328,16 +330,15 @@ void SocketTlsImpl::Shutdown()
       } else if(res == 0) {
         break;
       }
-      assert(i < handshakeStepsMax);
     }
 
     (void)SSL_shutdown(ssl.get());
   }
 }
 
-bool SocketTlsImpl::HandleResult(int ret)
+bool SocketTlsImpl::HandleResult(int res)
 {
-  auto error = SSL_get_error(ssl.get(), ret);
+  auto error = SSL_get_error(ssl.get(), res);
   if(HandleError(error)) {
     lastError = SSL_ERROR_NONE;
     return true;

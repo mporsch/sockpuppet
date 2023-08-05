@@ -66,7 +66,7 @@ struct SocketTlsImpl : public SocketImpl
                Duration timeout);
   void Shutdown();
 
-  bool HandleResult(int ret);
+  bool HandleResult(int res);
   bool HandleLastError();
   bool HandleError(int error);
 };
