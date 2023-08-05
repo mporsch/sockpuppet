@@ -161,7 +161,7 @@ size_t SocketImpl::Receive(char *data, size_t size)
 std::optional<std::pair<size_t, Address>>
 SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -206,7 +206,7 @@ size_t SocketImpl::SendSome(char const *data, size_t size)
 size_t SocketImpl::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritable(timeout)) {
+  if(!WaitWritableBlocking(fd, timeout)) {
     return 0U; // timeout exceeded
   }
   return SendTo(data, size, dstAddr);
@@ -255,7 +255,7 @@ void SocketImpl::Listen()
 std::optional<std::pair<SocketTcp, Address>>
 SocketImpl::Accept(Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadableBlocking(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
@@ -269,16 +269,6 @@ std::pair<SocketTcp, Address> SocketImpl::Accept()
     SocketTcp(std::make_unique<SocketImpl>(client)),
     Address(std::move(sas))
   };
-}
-
-bool SocketImpl::WaitReadable(Duration timeout)
-{
-  return WaitReadableBlocking(fd, timeout);
-}
-
-bool SocketImpl::WaitWritable(Duration timeout)
-{
-  return WaitWritableBlocking(fd, timeout);
 }
 
 void SocketImpl::SetSockOptNonBlocking()
