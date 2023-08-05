@@ -63,6 +63,18 @@ struct SocketTlsImpl : public SocketImpl
                Duration timeout);
   void Shutdown();
 
+  void SetDeadline(Duration timeout);
+
+  template<typename Fn>
+  auto UnderDeadline(Fn &&fn) -> auto
+  {
+    return std::visit([&fn](auto &&deadline) -> auto {
+      auto res = fn(deadline.Remaining());
+      deadline.Tick();
+      return res;
+    }, deadline);
+  }
+
   bool HandleResult(int res);
   bool HandleLastError();
   bool HandleError(int error);

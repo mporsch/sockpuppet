@@ -49,11 +49,9 @@ int Read(BIO *b, char *data, int s)
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
   auto size = static_cast<size_t>(s);
 
-  auto received = std::visit([=](auto &&deadline) -> std::optional<size_t> {
-    auto received = Receive(sock->fd, data, size, deadline.Remaining());
-    deadline.Tick();
-    return received;
-  }, sock->deadline);
+  auto received = sock->UnderDeadline([=](Duration timeout) -> std::optional<size_t> {
+    return Receive(sock->fd, data, size, timeout);
+  });
 
   if(received) {
     BIO_clear_retry_flags(b);
@@ -114,17 +112,6 @@ BIO_METHOD *BIO_s_sockpuppet()
     throw std::logic_error("failed to create BIO method");
   }();
   return instance.get();
-}
-
-void SetDeadline(decltype(SocketTlsImpl::deadline) &deadline, Duration timeout)
-{
-  if(timeout.count() < 0) {
-    deadline.emplace<DeadlineUnlimited>();
-  } else if(timeout.count() == 0) {
-    deadline.emplace<DeadlineZero>();
-  } else {
-    deadline.emplace<DeadlineLimited>(timeout);
-  }
 }
 
 void ConfigureCtx(SSL_CTX *ctx,
@@ -269,7 +256,7 @@ void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
 
 size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 {
-  SetDeadline(deadline, timeout);
+  SetDeadline(timeout);
 
   if(HandleLastError()) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
@@ -291,7 +278,7 @@ size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 
 size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 {
-  SetDeadline(deadline, timeout);
+  SetDeadline(timeout);
 
   if(pendingSend) {
     assert(pendingSend == data);
@@ -323,7 +310,7 @@ void SocketTlsImpl::Shutdown()
     // sent the shutdown, but have not received one from the peer yet
     // spend some time trying to receive it, but go on eventually
     char buf[1024];
-    SetDeadline(deadline, std::chrono::seconds(1));
+    SetDeadline(std::chrono::seconds(1));
     for(int i = 0; i < handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
@@ -336,6 +323,17 @@ void SocketTlsImpl::Shutdown()
     }
 
     (void)SSL_shutdown(ssl.get());
+  }
+}
+
+void SocketTlsImpl::SetDeadline(Duration timeout)
+{
+  if(timeout.count() < 0) {
+    deadline.emplace<DeadlineUnlimited>();
+  } else if(timeout.count() == 0) {
+    deadline.emplace<DeadlineZero>();
+  } else {
+    deadline.emplace<DeadlineLimited>(timeout);
   }
 }
 
@@ -367,17 +365,13 @@ bool SocketTlsImpl::HandleError(int error)
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    return std::visit([this](auto &&d) -> bool {
-      auto readable = WaitReadableBlocking(fd, d.Remaining());
-      d.Tick();
-      return readable;
-    }, deadline);
+    return UnderDeadline([this](Duration timeout) -> bool {
+      return WaitReadableBlocking(this->fd, timeout);
+    });
   case SSL_ERROR_WANT_WRITE:
-    return std::visit([this](auto &&d) -> bool {
-      auto writable = WaitWritableBlocking(fd, d.Remaining());
-      d.Tick();
-      return writable;
-    }, deadline);
+    return UnderDeadline([this](Duration timeout) -> bool {
+      return WaitWritableBlocking(this->fd, timeout);
+    });
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:
