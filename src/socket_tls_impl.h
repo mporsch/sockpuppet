@@ -7,7 +7,6 @@
 #include "ssl_guard.h" // for SslGuard
 #include "wait.h" // for Deadline*
 
-#include <openssl/bio.h> // for BIO
 #include <openssl/ssl.h> // for SSL_CTX
 
 #include <memory> // for std::unique_ptr
@@ -24,11 +23,9 @@ struct SocketTlsImpl : public SocketImpl
   using SslPtr = std::unique_ptr<SSL, SslDeleter>;
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
-  BIO *rbio; ///< SSL reads from, we write to
-  BIO *wbio; ///< SSL writes to, we read from
   SslPtr ssl;  ///< OpenSSL session
-  int lastError;  ///< OpenSSL error cache
-  char const *pendingSend;  ///< flag to satisfy OpenSSL_write retry requirements
+  int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
+  char const *pendingSend = nullptr;  ///< flag to satisfy OpenSSL_write retry requirements
   std::variant<DeadlineUnlimited, DeadlineZero, DeadlineLimited> deadline;  ///< use-case dependent deadline type
 
   SocketTlsImpl(int family,

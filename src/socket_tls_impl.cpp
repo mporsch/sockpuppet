@@ -3,6 +3,8 @@
 #include "socket_tls_impl.h"
 #include "error_code.h" // for SslError
 
+#include <openssl/bio.h> // for BIO
+
 #include <cassert> // for assert
 #include <stdexcept> // for std::logic_error
 #include <type_traits> // for std::is_same_v
@@ -158,9 +160,13 @@ AcceptorTlsImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
   throw std::runtime_error("failed to create SSL context");
 }
 
-SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, BioPtr rbio, BioPtr wbio)
+SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, SocketTlsImpl *sock)
 {
   if(auto ssl = SocketTlsImpl::SslPtr(SSL_new(ctx))) {
+    auto rbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
+    auto wbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
+    BIO_set_data(rbio.get(), sock);
+    BIO_set_data(wbio.get(), sock);
     SSL_set_bio(ssl.get(), rbio.release(), wbio.release());
     return ssl;
   }
@@ -178,29 +184,17 @@ SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
     char const *certFilePath, char const *keyFilePath)
   : SocketImpl(family, type, protocol)
   , sslGuard() // must be created before call to SSL_CTX_new
-  , rbio(BIO_new(BIO_s_sockpuppet()))
-  , wbio(BIO_new(BIO_s_sockpuppet()))
   , ssl(CreateSsl( // context is reference-counted by itself -> free temporary handle
           CreateCtx(TLS_client_method(), certFilePath, keyFilePath).get(),
-          BioPtr(rbio), BioPtr(wbio)))
-  , lastError(SSL_ERROR_NONE)
-  , pendingSend(nullptr)
+          this))
 {
-  BIO_set_data(rbio, this);
-  BIO_set_data(wbio, this);
 }
 
 SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
   : SocketImpl(std::move(sock))
   , sslGuard()
-  , rbio(BIO_new(BIO_s_sockpuppet()))
-  , wbio(BIO_new(BIO_s_sockpuppet()))
-  , ssl(CreateSsl(ctx, BioPtr(rbio), BioPtr(wbio)))
-  , lastError(SSL_ERROR_NONE)
-  , pendingSend(nullptr)
+  , ssl(CreateSsl(ctx, this))
 {
-  BIO_set_data(rbio, this);
-  BIO_set_data(wbio, this);
 }
 
 SocketTlsImpl::~SocketTlsImpl()
