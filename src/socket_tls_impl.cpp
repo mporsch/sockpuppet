@@ -75,11 +75,10 @@ long Ctrl(BIO *, int cmd, long, void *)
   //auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
   switch(cmd) {
-  case BIO_CTRL_PENDING:
-    return 0;
   case BIO_CTRL_FLUSH:
-  default:
     return 1;
+  default:
+    return 0;
   }
 }
 
