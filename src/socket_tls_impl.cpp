@@ -362,15 +362,15 @@ bool SocketTlsImpl::HandleError(int error)
     return true;
   case SSL_ERROR_WANT_READ:
     return std::visit([this](auto &&d) -> bool {
-      auto readable = WaitReadable(d.Remaining());
+      auto readable = WaitReadableBlocking(fd, d.Remaining());
       d.Tick();
       return readable;
     }, deadline);
   case SSL_ERROR_WANT_WRITE:
     return std::visit([this](auto &&d) -> bool {
-      auto readable = WaitWritable(d.Remaining());
+      auto writable = WaitWritableBlocking(fd, d.Remaining());
       d.Tick();
-      return readable;
+      return writable;
     }, deadline);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
