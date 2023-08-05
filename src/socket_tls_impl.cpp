@@ -157,20 +157,29 @@ AcceptorTlsImpl::CtxPtr CreateCtx(SSL_METHOD const *method,
     ConfigureCtx(ctx.get(), certFilePath, keyFilePath);
     return ctx;
   }
-  throw std::runtime_error("failed to create SSL context");
+  throw std::logic_error("failed to create SSL context");
+}
+
+void ConfigureSsl(SSL *ssl, SocketTlsImpl *sock)
+{
+  auto rbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
+  auto wbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
+  if(rbio && wbio) {
+    BIO_set_data(rbio.get(), sock);
+    BIO_set_data(wbio.get(), sock);
+    SSL_set_bio(ssl, rbio.release(), wbio.release());
+  } else {
+    throw std::logic_error("failed to create read/write BIO");
+  }
 }
 
 SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, SocketTlsImpl *sock)
 {
   if(auto ssl = SocketTlsImpl::SslPtr(SSL_new(ctx))) {
-    auto rbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
-    auto wbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
-    BIO_set_data(rbio.get(), sock);
-    BIO_set_data(wbio.get(), sock);
-    SSL_set_bio(ssl.get(), rbio.release(), wbio.release());
+    ConfigureSsl(ssl.get(), sock);
     return ssl;
   }
-  throw std::runtime_error("failed to create SSL structure");
+  throw std::logic_error("failed to create SSL structure");
 }
 
 } // unnamed namespace
