@@ -306,11 +306,12 @@ size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 
 void SocketTlsImpl::Shutdown()
 {
+  SetDeadline(std::chrono::seconds(1));
+
   if(SSL_shutdown(ssl.get()) <= 0) {
     // sent the shutdown, but have not received one from the peer yet
     // spend some time trying to receive it, but go on eventually
     char buf[1024];
-    SetDeadline(std::chrono::seconds(1));
     for(int i = 0; i < handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), buf, sizeof(buf));
       if(res < 0) {
