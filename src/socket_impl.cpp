@@ -191,7 +191,7 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
   return (timeout.count() < 0 ?
             SendAll(fd, data, size) :
             (timeout.count() == 0 ?
-               sockpuppet::SendSome(fd, data, size, DeadlineZero()) :
+               sockpuppet::SendSome(fd, data, size) :
                sockpuppet::SendSome(fd, data, size, DeadlineLimited(timeout))));
 }
 
