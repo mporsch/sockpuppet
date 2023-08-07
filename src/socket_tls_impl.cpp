@@ -2,38 +2,62 @@
 
 #include "socket_tls_impl.h"
 #include "error_code.h" // for SslError
+#include "wait.h" // for DeadlineLimited
 
 #include <openssl/bio.h> // for BIO
 
 #include <cassert> // for assert
 #include <stdexcept> // for std::logic_error
-#include <type_traits> // for std::is_same_v
 
 namespace sockpuppet {
 
 namespace {
 
+constexpr auto zeroTimeout = Duration(0);
+
 // loop over OpenSSL calls that might perform a handshake at any time
 // the number is arbitrary and used only to avoid/detect infinite loops
 constexpr int handshakeStepsMax = 10;
 
-constexpr auto zeroTimeout = Duration(0);
+template<typename Fn>
+auto UnderDeadline(Fn &&fn, Duration &timeout) -> auto
+{
+  if(timeout.count() <= 0) {
+    return fn(); // timeout remains unchanged
+  }
+
+  // update timeout (may be exceeded)
+  DeadlineLimited deadline(timeout);
+  auto res = fn();
+  deadline.Tick();
+  timeout = deadline.Remaining();
+  return res;
+}
 
 namespace bio {
 
-int Write(BIO *b, char const *data, int s)
+int DoWrite(SOCKET fd, char const *data, size_t size, Duration &timeout)
+{
+  if(timeout.count() < 0) { // timeout remains unchanged
+    return static_cast<int>(sockpuppet::SendAll(fd, data, size));
+  }
+  if(timeout.count() == 0) { // timeout remains unchanged
+    return static_cast<int>(sockpuppet::SendSome(fd, data, size));
+  }
+  DeadlineLimited deadline(timeout);
+  auto sent = sockpuppet::SendSome(fd, data, size, deadline);
+  timeout = (sent == size ? deadline.Remaining() : zeroTimeout); // update timeout (may be exceeded)
+  return static_cast<int>(sent);
+}
+
+// waits for writable repeatedly and
+// sends the max amount of data within the user-provided timeout
+int Write(BIO *b, char const *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-  auto size = static_cast<size_t>(s);
 
-  auto sent = std::visit([=](auto &&deadline) -> size_t {
-    using Deadline = std::decay_t<decltype(deadline)>;
-    if constexpr(std::is_same_v<Deadline, DeadlineUnlimited>) {
-      return SendAll(sock->fd, data, size);
-    } else {
-      return SendSome(sock->fd, data, size, deadline);
-    }
-  }, sock->deadline);
+  // (try to) send handshake / user data and update socket's timeout member
+  auto sent = DoWrite(sock->fd, data, static_cast<size_t>(size), sock->timeout);
 
   if(sent == size) {
     BIO_clear_retry_flags(b);
@@ -41,7 +65,7 @@ int Write(BIO *b, char const *data, int s)
     BIO_set_retry_write(b);
   }
 
-  return static_cast<int>(sent);
+  return sent;
 }
 
 int Read(BIO *b, char *data, int s)
@@ -49,9 +73,10 @@ int Read(BIO *b, char *data, int s)
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
   auto size = static_cast<size_t>(s);
 
-  auto received = sock->UnderDeadline([=](Duration timeout) -> std::optional<size_t> {
-    return Receive(sock->fd, data, size, timeout);
-  });
+  // (try to) receive handshake / user data and update socket's timeout member
+  auto received = UnderDeadline([=]() -> std::optional<size_t> {
+    return Receive(sock->fd, data, size, sock->timeout);
+  }, sock->timeout);
 
   if(received) {
     BIO_clear_retry_flags(b);
@@ -256,7 +281,8 @@ void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
 
 size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 {
-  SetDeadline(timeout);
+  // timeout will be honored during waiting and BIO read/write
+  this->timeout = timeout;
 
   if(HandleLastError()) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
@@ -278,7 +304,8 @@ size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
 
 size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 {
-  SetDeadline(timeout);
+  // timeout will be honored during waiting and BIO read/write
+  this->timeout = timeout;
 
   if(pendingSend) {
     assert(pendingSend == data);
@@ -306,7 +333,8 @@ size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 
 void SocketTlsImpl::Shutdown()
 {
-  SetDeadline(std::chrono::seconds(1));
+  // timeout will be honored during waiting and BIO read/write
+  timeout = std::chrono::seconds(1);
 
   if(SSL_shutdown(ssl.get()) <= 0) {
     // sent the shutdown, but have not received one from the peer yet
@@ -324,17 +352,6 @@ void SocketTlsImpl::Shutdown()
     }
 
     (void)SSL_shutdown(ssl.get());
-  }
-}
-
-void SocketTlsImpl::SetDeadline(Duration timeout)
-{
-  if(timeout.count() < 0) {
-    deadline.emplace<DeadlineUnlimited>();
-  } else if(timeout.count() == 0) {
-    deadline.emplace<DeadlineZero>();
-  } else {
-    deadline.emplace<DeadlineLimited>(timeout);
   }
 }
 
@@ -366,13 +383,14 @@ bool SocketTlsImpl::HandleError(int error)
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    return UnderDeadline([this](Duration timeout) -> bool {
+    // wait and update our timeout member
+    return UnderDeadline([this]() -> bool {
       return WaitReadableBlocking(this->fd, timeout);
-    });
+    }, timeout);
   case SSL_ERROR_WANT_WRITE:
-    return UnderDeadline([this](Duration timeout) -> bool {
+    return UnderDeadline([this]() -> bool {
       return WaitWritableBlocking(this->fd, timeout);
-    });
+    }, timeout);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:

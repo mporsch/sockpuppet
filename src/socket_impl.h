@@ -4,7 +4,7 @@
 #include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket.h" // for SocketTcp
-#include "wait.h" // for WaitWritableBlocking
+#include "wait.h" // for DeadlineLimited
 #include "winsock_guard.h" // for WinSockGuard
 
 #ifdef _WIN32
@@ -89,21 +89,8 @@ size_t SendAll(SOCKET fd, char const *data, size_t size);
 // send what can be sent now without blocking
 size_t SendSome(SOCKET fd, char const *data, size_t size);
 
-// waits for writable repeatedly and
-// sends the max amount of data within the user-provided timeout
-template<typename Deadline>
-size_t SendSome(SOCKET fd, char const *data, size_t size, Deadline &&deadline)
-{
-  size_t sent = 0U;
-  do {
-    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
-      break; // timeout exceeded
-    }
-    sent += SendSome(fd, data + sent, size - sent);
-    deadline.Tick();
-  } while((sent < size) && deadline.TimeLeft());
-  return sent;
-}
+// waits for writable (repeatedly) and sends the max amount of data within the deadline
+size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline);
 
 } // namespace sockpuppet
 

@@ -5,12 +5,10 @@
 
 #include "socket_impl.h" // for SocketImpl
 #include "ssl_guard.h" // for SslGuard
-#include "wait.h" // for Deadline*
 
 #include <openssl/ssl.h> // for SSL_CTX
 
 #include <memory> // for std::unique_ptr
-#include <variant> // for std::variant
 
 namespace sockpuppet {
 
@@ -25,8 +23,8 @@ struct SocketTlsImpl : public SocketImpl
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
   int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
-  char const *pendingSend = nullptr;  ///< flag to satisfy OpenSSL_write retry requirements
-  std::variant<DeadlineUnlimited, DeadlineZero, DeadlineLimited> deadline;  ///< use-case dependent deadline type
+  char const *pendingSend = nullptr;  ///< Flag to satisfy OpenSSL_write retry requirements
+  Duration timeout;  ///< Use-case dependent timeout
 
   SocketTlsImpl(int family,
                 int type,
@@ -62,18 +60,6 @@ struct SocketTlsImpl : public SocketImpl
                size_t size,
                Duration timeout);
   void Shutdown();
-
-  void SetDeadline(Duration timeout);
-
-  template<typename Fn>
-  auto UnderDeadline(Fn &&fn) -> auto
-  {
-    return std::visit([&fn](auto &&deadline) -> auto {
-      auto res = fn(deadline.Remaining());
-      deadline.Tick();
-      return res;
-    }, deadline);
-  }
 
   bool HandleResult(int res);
   bool HandleLastError();

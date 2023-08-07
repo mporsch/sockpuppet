@@ -188,11 +188,14 @@ SocketImpl::ReceiveFrom(char *data, size_t size)
 // causing the OS send buffer to fill up
 size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 {
-  return (timeout.count() < 0 ?
-            SendAll(fd, data, size) :
-            (timeout.count() == 0 ?
-               sockpuppet::SendSome(fd, data, size) :
-               sockpuppet::SendSome(fd, data, size, DeadlineLimited(timeout))));
+  if(timeout.count() < 0) {
+    return SendAll(fd, data, size);
+  }
+  if(timeout.count() == 0) {
+    return sockpuppet::SendSome(fd, data, size);
+  }
+  DeadlineLimited deadline(timeout);
+  return sockpuppet::SendSome(fd, data, size, deadline);
 }
 
 size_t SocketImpl::SendSome(char const *data, size_t size)
@@ -342,6 +345,19 @@ size_t SendSome(SOCKET fd, char const *data, size_t size)
 {
   // set flags to send only what can be sent without blocking
   return DoSend(fd, data, size, sendSomeFlags);
+}
+
+size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline)
+{
+  size_t sent = 0U;
+  do {
+    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+      break; // timeout exceeded
+    }
+    sent += SendSome(fd, data + sent, size - sent);
+    deadline.Tick();
+  } while((sent < size) && deadline.TimeLeft());
+  return sent;
 }
 
 } // namespace sockpuppet
