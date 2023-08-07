@@ -34,6 +34,10 @@ auto UnderDeadline(Fn &&fn, Duration &timeout) -> auto
   return res;
 }
 
+// providing our own OpenSSL BIO implementation allows us to
+// tunnel calls through SSL_write/SSL_read/SSL_shutdown back to
+// our own socket implementation that honors the given timeout value
+// BIO_set_data/BIO_get_data connect the socket to the BIO implementation
 namespace bio {
 
 int DoWrite(SOCKET fd, char const *data, size_t size, Duration &timeout)
@@ -96,10 +100,36 @@ long Ctrl(BIO *, int cmd, long, void *)
   }
 }
 
+// since we don't allocate any memory or store any state, the "create" method
+// does very little and we don't even need to provide a "destroy" method
 int Create(BIO *b)
 {
   BIO_set_init(b, 1);
   return 1;
+}
+
+struct MethodDeleter
+{
+  void operator()(BIO_METHOD *ptr) const noexcept
+  {
+    BIO_meth_free(ptr);
+  }
+};
+using MethodPtr = std::unique_ptr<BIO_METHOD, MethodDeleter>;
+
+// the "recipe" that OpenSSL uses to create our custom BIO
+MethodPtr CreateMethod()
+{
+  auto method = MethodPtr(BIO_meth_new(
+      BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
+      "sockpuppet"));
+  if(BIO_meth_set_write(method.get(), Write) &&
+     BIO_meth_set_read(method.get(), Read) &&
+     BIO_meth_set_ctrl(method.get(), Ctrl) &&
+     BIO_meth_set_create(method.get(), Create)) {
+    return method;
+  }
+  throw std::logic_error("failed to create BIO method");
 }
 
 } // namespace bio
@@ -113,29 +143,11 @@ struct BioDeleter
 };
 using BioPtr = std::unique_ptr<BIO, BioDeleter>;
 
-struct BioMethodDeleter
-{
-  void operator()(BIO_METHOD *ptr) const noexcept
-  {
-    BIO_meth_free(ptr);
-  }
-};
-using BioMethodPtr = std::unique_ptr<BIO_METHOD, BioMethodDeleter>;
-
+// follow OpenSSL naming scheme as in BIO_s_mem, BIO_s_socket, ...
 BIO_METHOD *BIO_s_sockpuppet()
 {
-  static auto instance = []() -> BioMethodPtr {
-    auto method = BioMethodPtr(BIO_meth_new(
-        BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
-        "sockpuppet"));
-    if(BIO_meth_set_write(method.get(), bio::Write) &&
-       BIO_meth_set_read(method.get(), bio::Read) &&
-       BIO_meth_set_ctrl(method.get(), bio::Ctrl) &&
-       BIO_meth_set_create(method.get(), bio::Create)) {
-      return method;
-    }
-    throw std::logic_error("failed to create BIO method");
-  }();
+  // singleton instance that is kept until program exit
+  static auto instance = bio::CreateMethod();
   return instance.get();
 }
 
@@ -176,13 +188,13 @@ void ConfigureSsl(SSL *ssl, SocketTlsImpl *sock)
 {
   auto rbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
   auto wbio = BioPtr(BIO_new(BIO_s_sockpuppet()));
-  if(rbio && wbio) {
-    BIO_set_data(rbio.get(), sock);
-    BIO_set_data(wbio.get(), sock);
-    SSL_set_bio(ssl, rbio.release(), wbio.release());
-  } else {
+  if(!rbio || !wbio) {
     throw std::logic_error("failed to create read/write BIO");
   }
+
+  BIO_set_data(rbio.get(), sock);
+  BIO_set_data(wbio.get(), sock);
+  SSL_set_bio(ssl, rbio.release(), wbio.release()); // SSL takes ownership of BIOs
 }
 
 SocketTlsImpl::SslPtr CreateSsl(SSL_CTX *ctx, SocketTlsImpl *sock)
@@ -223,7 +235,7 @@ SocketTlsImpl::~SocketTlsImpl()
   switch(lastError) {
   case SSL_ERROR_SYSCALL:
   case SSL_ERROR_SSL:
-    break;
+    break; // don't attempt clean shutdown after fatal errors
   default:
     try {
       Shutdown();
@@ -240,8 +252,7 @@ std::optional<size_t> SocketTlsImpl::Receive(
     return {received};
   }
 
-  // unlimited timeout performs full handshake and subsequent receive
-  assert(timeout.count() >= 0);
+  assert(timeout.count() >= 0); // unlimited timeout performs full handshake and waits for receive
   return {std::nullopt};
 }
 
@@ -264,8 +275,8 @@ size_t SocketTlsImpl::Send(char const *data, size_t size,
 size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 {
   // we have been deemed writable/readable
-  if(lastError == SSL_ERROR_WANT_WRITE ||
-     (pendingSend && lastError == SSL_ERROR_WANT_READ)) {
+  if((lastError == SSL_ERROR_WANT_WRITE) ||
+     (pendingSend && (lastError == SSL_ERROR_WANT_READ))) {
     lastError = SSL_ERROR_NONE;
   }
 
@@ -277,6 +288,7 @@ void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
   SocketImpl::Connect(connectAddr);
 
   SSL_set_connect_state(ssl.get());
+  // the TLS handshake will be performed during Send/Receive
 }
 
 size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
@@ -428,6 +440,7 @@ std::pair<SocketTcp, Address> AcceptorTlsImpl::Accept()
       ctx.get());
 
   SSL_set_accept_state(clientTls->ssl.get());
+  // the TLS handshake will be performed during Send/Receive
 
   return {SocketTcp(std::move(clientTls)), std::move(addr)};
 }

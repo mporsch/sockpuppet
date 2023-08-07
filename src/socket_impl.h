@@ -46,6 +46,7 @@ struct SocketImpl
   std::pair<size_t, Address>
   ReceiveFrom(char *data, size_t size);
 
+  // waits for writable (repeatedly if needed)
   virtual size_t Send(char const *data,
                       size_t size,
                       Duration timeout);

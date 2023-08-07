@@ -12,6 +12,11 @@
 
 namespace sockpuppet {
 
+// the interface matches SocketImpl but some implicit differences exist:
+//   may be readable but no user data can be read (only handshake data)
+//   handshake data is sent/received on the socket during both send AND read
+//   if a send with limited timeout fails, it must be retried with the same data
+//     (see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html)
 struct SocketTlsImpl : public SocketImpl
 {
   struct SslDeleter
@@ -42,6 +47,7 @@ struct SocketTlsImpl : public SocketImpl
   size_t Receive(char *data,
                  size_t size) override;
 
+  // waits for writable (repeatedly if needed)
   size_t Send(char const *data,
               size_t size,
               Duration timeout) override;
@@ -54,8 +60,6 @@ struct SocketTlsImpl : public SocketImpl
   size_t Read(char *data,
               size_t size,
               Duration timeout);
-  // waits for writable repeatedly and
-  // sends the max amount of data within the user-provided timeout
   size_t Write(char const *data,
                size_t size,
                Duration timeout);
