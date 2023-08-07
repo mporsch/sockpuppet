@@ -35,7 +35,7 @@ int Write(BIO *b, char const *data, int s)
     }
   }, sock->deadline);
 
-  if(sent > 0U) {
+  if(sent == size) {
     BIO_clear_retry_flags(b);
   } else {
     BIO_set_retry_write(b);
