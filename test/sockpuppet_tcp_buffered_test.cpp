@@ -9,7 +9,8 @@
 
 using namespace sockpuppet;
 
-static TestData const testData(1000000U);
+constexpr size_t testDataSize = 100U * 1024 * 1024;
+static TestData const testData(testDataSize);
 static std::atomic<bool> success(true);
 
 void ServerHandler(std::pair<SocketTcp, Address> p)
@@ -17,6 +18,7 @@ void ServerHandler(std::pair<SocketTcp, Address> p)
   SocketTcpBuffered serverHandler(std::move(p.first), 0U, 1500U);
 
   std::vector<BufferPtr> storage;
+  storage.reserve(testDataSize / TestData::tcpPacketSizeMin);
 
   // receive until disconnect
   try {
@@ -24,7 +26,7 @@ void ServerHandler(std::pair<SocketTcp, Address> p)
       storage.emplace_back(serverHandler.Receive().value());
 
       // simulate some processing delay to trigger TCP congestion control
-      std::this_thread::sleep_for(std::chrono::microseconds(1));
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
   } catch(std::exception const &) {
   }

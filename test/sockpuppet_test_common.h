@@ -19,8 +19,9 @@ Socket MakeTestSocket(Args&&... args)
 
 struct TestData
 {
-  static size_t const tcpPacketSizeMin = 100U;
-  static size_t const tcpPacketSizeMax = 10000U;
+  static constexpr size_t udpPacketSize = 1400U;
+  static constexpr size_t tcpPacketSizeMin = 100U;
+  static constexpr size_t tcpPacketSizeMax = 10000U;
 
   std::vector<char> const referenceData;
 
@@ -62,9 +63,8 @@ struct TestData
   {
     // send in fixed packet sizes
     size_t pos = 0;
-    static size_t const packetSize = 1400U;
-    while(pos + packetSize < referenceData.size()) {
-      pos += sendFn(referenceData.data() + pos, packetSize);
+    while(pos + udpPacketSize < referenceData.size()) {
+      pos += sendFn(referenceData.data() + pos, udpPacketSize);
     }
 
     // send the remaining data not filling a whole packet

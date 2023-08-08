@@ -13,7 +13,7 @@ namespace {
 
 size_t const clientCount = 3U;
 
-size_t const testDataSize = 10000000U;
+constexpr size_t testDataSize = 10U * 1024 * 1024;
 TestData const testData(testDataSize);
 
 std::promise<void> promiseClientsDone;
@@ -37,6 +37,9 @@ struct Server
 
     void HandleReceive(BufferPtr buffer)
     {
+      // simulate some processing delay to trigger TCP congestion control
+      std::this_thread::sleep_for(std::chrono::microseconds(100));
+
       // echo received data
       (void)client.Send(std::move(buffer));
     }
@@ -102,6 +105,7 @@ struct Clients
       , driver(driver)
       , receivedSize(0U)
     {
+      receivedData.reserve(testDataSize / TestData::tcpPacketSizeMin);
     }
     Client(Client const &) = delete;
     Client(Client &&) = delete;
