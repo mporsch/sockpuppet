@@ -47,21 +47,20 @@ BufferPool::BufferPtr BufferPool::Get()
   if(m_idle.empty()) {
     if(m_busy.size() <= m_maxCount) {
       // allocate a new buffer already in the busy list
-      m_busy.emplace_front(
+      auto &&buf = m_busy.emplace_back(
         std::make_unique<Buffer>());
 
       // bind to recycler and return
-      return {m_busy.front().get(), Recycler{this}};
+      return {buf.get(), Recycler{this}};
     } else {
       throw std::runtime_error("out of buffers");
     }
   } else {
     // move from idle to busy
-    m_busy.emplace_front(std::move(m_idle.top()));
+    auto &&buf = m_busy.emplace_back(std::move(m_idle.top()));
     m_idle.pop();
 
     // clear previous content
-    auto &&buf = m_busy.front();
     buf->clear();
 
     // bind to recycler and return
@@ -81,7 +80,7 @@ void BufferPool::Recycle(Buffer *buf)
   std::lock_guard<std::mutex> lock(m_mtx);
 
   auto it = std::find_if(begin(m_busy), end(m_busy), BufferEqual{buf});
-  if(it == std::end(m_busy)) {
+  if(it == end(m_busy)) {
     throw std::logic_error("returned invalid buffer");
   }
 
