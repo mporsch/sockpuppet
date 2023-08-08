@@ -8,7 +8,8 @@
 
 using namespace sockpuppet;
 
-static TestData const testData(100000U);
+constexpr size_t testDataSize = 100U * 1024;
+static TestData const testData(testDataSize);
 static std::atomic<bool> success(true);
 
 void Server(Address serverAddress)
@@ -19,6 +20,7 @@ try {
             << std::endl;
 
   std::vector<BufferPtr> storage;
+  storage.reserve(testDataSize / TestData::udpPacketSize);
 
   // wait for first receipt
   {

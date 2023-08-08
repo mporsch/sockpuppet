@@ -3,6 +3,7 @@
 #include <algorithm> // for std::generate
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
+#include <thread> // for std::this_thread
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -65,6 +66,9 @@ struct TestData
     size_t pos = 0;
     while(pos + udpPacketSize < referenceData.size()) {
       pos += sendFn(referenceData.data() + pos, udpPacketSize);
+
+      // give the receiver some time to process
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     // send the remaining data not filling a whole packet
