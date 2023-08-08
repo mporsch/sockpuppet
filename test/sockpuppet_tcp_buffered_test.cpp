@@ -8,6 +8,7 @@
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
+using namespace std::chrono_literals;
 
 constexpr size_t testDataSize = 100U * 1024 * 1024;
 static TestData const testData(testDataSize);
@@ -15,7 +16,7 @@ static std::atomic<bool> success(true);
 
 void ServerHandler(std::pair<SocketTcp, Address> p)
 {
-  SocketTcpBuffered serverHandler(std::move(p.first), 0U, 1500U);
+  SocketTcpBuffered clientSock(std::move(p.first), 0U, 1500U);
 
   std::vector<BufferPtr> storage;
   storage.reserve(testDataSize / TestData::tcpPacketSizeMin);
@@ -23,10 +24,10 @@ void ServerHandler(std::pair<SocketTcp, Address> p)
   // receive until disconnect
   try {
     for(;;) {
-      storage.emplace_back(serverHandler.Receive().value());
+      storage.emplace_back(clientSock.Receive().value());
 
       // simulate some processing delay to trigger TCP congestion control
-      std::this_thread::sleep_for(std::chrono::microseconds(100));
+      std::this_thread::sleep_for(100us);
     }
   } catch(std::exception const &) {
   }
@@ -36,14 +37,13 @@ void ServerHandler(std::pair<SocketTcp, Address> p)
   }
 }
 
-void Server(Address serverAddress)
+void Server(Acceptor serverSock)
 try {
-  auto server = MakeTestSocket<Acceptor>(serverAddress);
-
-  std::cout << "server listening at " << to_string(serverAddress)
+  std::cout << "server listening at "
+            << to_string(serverSock.LocalAddress())
             << std::endl;
 
-  ServerHandler(server.Listen().value());
+  ServerHandler(serverSock.Listen().value());
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;
@@ -67,12 +67,14 @@ try {
 
 void Test(Duration perPacketSendTimeout)
 {
+  auto serverSock = MakeTestSocket<Acceptor>(Address());
+  auto serverAddr = serverSock.LocalAddress();
+
   // start client and server threads
-  Address serverAddr("localhost:8554");
-  std::thread server(Server, serverAddr);
+  std::thread server(Server, std::move(serverSock));
 
   // wait for server to come up
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(1s);
 
   std::thread client(Client, serverAddr, perPacketSendTimeout);
 
@@ -91,7 +93,7 @@ int main(int, char **)
   Test(Duration(-1));
 
   std::cout << "test case #2: limited send timeout" << std::endl;
-  Test(std::chrono::milliseconds(1));
+  Test(Duration(1));
 
   std::cout << "test case #3: non-blocking send" << std::endl;
   Test(Duration(0));

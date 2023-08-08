@@ -24,7 +24,7 @@ std::promise<void> promisedServerDisconnect;
 
 struct Server
 {
-  AcceptorAsync server;
+  AcceptorAsync sock;
   Driver &driver;
   size_t bytesReceived;
   std::map<Address, SocketTcpAsync> serverHandlers;
@@ -32,12 +32,12 @@ struct Server
 
   Server(Address bindAddress,
          Driver &driver)
-    : server(MakeTestSocket<Acceptor>(bindAddress),
-             driver,
-             std::bind(&Server::HandleConnect,
-                       this,
-                       std::placeholders::_1,
-                       std::placeholders::_2))
+    : sock(MakeTestSocket<Acceptor>(bindAddress),
+           driver,
+           std::bind(&Server::HandleConnect,
+                     this,
+                     std::placeholders::_1,
+                     std::placeholders::_2))
     , driver(driver)
     , bytesReceived(0U)
   {
@@ -138,10 +138,11 @@ int main(int, char **)
   Driver driver;
   auto thread = std::thread(&Driver::Run, &driver);
 
-  Address serverAddress("localhost:8554");
-  auto server = std::make_unique<Server>(serverAddress, driver);
+  auto server = std::make_unique<Server>(Address(), driver);
+  auto serverAddr = server->sock.LocalAddress();
 
-  std::cout << "server listening at " << to_string(serverAddress)
+  std::cout << "server listening at "
+            << to_string(serverAddr)
             << std::endl;
 
   {
@@ -153,7 +154,7 @@ int main(int, char **)
     for(auto &&client : clients)
     {
       client.reset(new SocketTcpAsync(
-          {MakeTestSocket<SocketTcp>(serverAddress)},
+          {MakeTestSocket<SocketTcp>(serverAddr)},
           driver,
           ReceiveDummy,
           DisconnectDummy));
@@ -193,7 +194,7 @@ int main(int, char **)
 
   // try the disconnect the other way around
   loneClient.reset(new SocketTcpAsync(
-      {MakeTestSocket<SocketTcp>(serverAddress)},
+      {MakeTestSocket<SocketTcp>(serverAddr)},
       driver,
       ReceiveDummy,
       HandleDisconnect));

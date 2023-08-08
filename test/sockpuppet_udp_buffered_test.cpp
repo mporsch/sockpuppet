@@ -7,16 +7,16 @@
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
+using namespace std::chrono_literals;
 
 constexpr size_t testDataSize = 100U * 1024;
 static TestData const testData(testDataSize);
 static std::atomic<bool> success(true);
 
-void Server(Address serverAddress)
+void Server(SocketUdpBuffered serverSock)
 try {
-  SocketUdpBuffered server(serverAddress, 0U, 1500U);
-
-  std::cout << "waiting for receipt at " << to_string(serverAddress)
+  std::cout << "waiting for receipt at "
+            << to_string(serverSock.LocalAddress())
             << std::endl;
 
   std::vector<BufferPtr> storage;
@@ -24,7 +24,7 @@ try {
 
   // wait for first receipt
   {
-    auto p = server.ReceiveFrom().value();
+    auto p = serverSock.ReceiveFrom().value();
     storage.emplace_back(std::move(p.first));
 
     std::cout << "receiving from "
@@ -33,7 +33,8 @@ try {
   }
 
   // receive until timeout
-  while(auto rx = server.ReceiveFrom(std::chrono::milliseconds(100))) {
+  constexpr Duration receiveTimeout = 100ms;
+  while(auto rx = serverSock.ReceiveFrom(receiveTimeout)) {
     storage.emplace_back(std::move(rx->first));
   }
 
@@ -45,12 +46,11 @@ try {
   success = false;
 }
 
-void Client(Address serverAddress, Duration perPacketSendTimeout)
+void Client(Address serverAddr, Duration perPacketSendTimeout)
 try {
-  Address clientAddress("localhost");
-  SocketUdpBuffered client(clientAddress);
+  auto clientSock = SocketUdpBuffered(Address());
 
-  testData.Send(client, serverAddress, perPacketSendTimeout);
+  testData.Send(clientSock, serverAddr, perPacketSendTimeout);
 } catch (std::exception const &e) {
   std::cerr << e.what() << std::endl;
   success = false;
@@ -59,11 +59,13 @@ try {
 void Test(Duration perPacketSendTimeout)
 {
   // start client and server threads
-  Address serverAddr("localhost:8554");
-  std::thread server(Server, serverAddr);
+  auto serverSock = SocketUdpBuffered(Address(), 0U, 1500U);
+  auto serverAddr = serverSock.LocalAddress();
+
+  std::thread server(Server, std::move(serverSock));
 
   // wait for server to come up
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  std::this_thread::sleep_for(1s);
 
   std::thread client(Client, serverAddr, perPacketSendTimeout);
 
@@ -82,7 +84,7 @@ int main(int, char **)
   Test(Duration(-1));
 
   std::cout << "test case #2: limited send timeout" << std::endl;
-  Test(std::chrono::milliseconds(1));
+  Test(Duration(1));
 
   std::cout << "test case #3: non-blocking send" << std::endl;
   Test(Duration(0));

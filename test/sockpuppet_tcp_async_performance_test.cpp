@@ -23,13 +23,13 @@ struct Server
 {
   struct ClientSession
   {
-    SocketTcpAsync client;
+    SocketTcpAsync clientSock;
 
-    ClientSession(Server *parent, SocketTcp &&client)
-      : client({std::move(client)},
-               parent->driver,
-               std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
-               std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1))
+    ClientSession(Server *parent, SocketTcp &&clientSock)
+      : clientSock({std::move(clientSock)},
+                   parent->driver,
+                   std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
+                   std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1))
     {
     }
     ClientSession(ClientSession const &) = delete;
@@ -41,21 +41,21 @@ struct Server
       std::this_thread::sleep_for(std::chrono::microseconds(100));
 
       // echo received data
-      (void)client.Send(std::move(buffer));
+      (void)clientSock.Send(std::move(buffer));
     }
   };
 
-  AcceptorAsync server;
+  AcceptorAsync serverSock;
   Driver &driver;
   std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
-  Server(Address bindAddress, Driver &driver)
-    : server(MakeTestSocket<Acceptor>(bindAddress),
-             driver,
-             std::bind(&Server::HandleConnect,
-                       this,
-                       std::placeholders::_1,
-                       std::placeholders::_2))
+  Server(Acceptor serverSock, Driver &driver)
+    : serverSock(std::move(serverSock),
+                 driver,
+                 std::bind(&Server::HandleConnect,
+                           this,
+                           std::placeholders::_1,
+                           std::placeholders::_2))
     , driver(driver)
   {
   }
@@ -141,15 +141,15 @@ struct Clients
 
   SocketTcpAsync &Add(Address serverAddr, Driver &driver)
   {
-    auto client = MakeTestSocket<SocketTcp>(serverAddr);
-    auto clientAddr = client.LocalAddress();
+    auto clientSock = MakeTestSocket<SocketTcp>(serverAddr);
+    auto clientAddr = clientSock.LocalAddress();
 
     std::cout << "client " << to_string(clientAddr)
               << " connecting to server" << std::endl;
 
     auto p = clients.emplace(
           std::move(clientAddr),
-          std::make_unique<Client>(this, std::move(client), driver));
+          std::make_unique<Client>(this, std::move(clientSock), driver));
     return p.first->second->client;
   }
 
@@ -172,11 +172,13 @@ void ClientSend(SocketTcpAsync &client)
   }
 }
 
-void RunServer(Address serverAddr, Driver &driver)
+void RunServer(Acceptor serverSock, Driver &driver)
 {
-  Server server(serverAddr, driver);
+  std::cout << "server listening at "
+            << to_string(serverSock.LocalAddress())
+            << std::endl;
 
-  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
+  auto server = Server(std::move(serverSock), driver);
 
   // run server until stopped by main thread
   driver.Run();
@@ -219,10 +221,11 @@ try {
   Driver serverDriver;
   Driver clientDriver;
 
-  Address serverAddr("localhost:8554");
+  auto serverSock = MakeTestSocket<Acceptor>(Address());
+  auto serverAddr = serverSock.LocalAddress();
 
   // set up a server that echoes all input data on multiple sessions
-  auto serverThread = std::thread(RunServer, serverAddr, std::ref(serverDriver));
+  auto serverThread = std::thread(RunServer, std::move(serverSock), std::ref(serverDriver));
 
   // wait for server to come up
   std::this_thread::sleep_for(1s);
