@@ -206,13 +206,17 @@ void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto itSocket = std::find_if(begin(sockets), end(sockets), FdEqual{fd});
-  assert(itSocket != end(sockets));
-  sockets.erase(itSocket);
+  if(auto it = std::find_if(begin(sockets), end(sockets), FdEqual{fd}); it != end(sockets)) {
+    sockets.erase(it);
+  } else {
+    assert(false);
+  }
 
-  auto itPfd = std::find_if(begin(pfds), end(pfds), FdEqual{fd});
-  assert(itPfd != end(pfds));
-  pfds.erase(itPfd);
+  if(auto it = std::find_if(begin(pfds), end(pfds), FdEqual{fd}); it != end(pfds)) {
+    pfds.erase(it);
+  } else {
+    assert(false);
+  }
 }
 
 void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
