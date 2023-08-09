@@ -60,12 +60,12 @@ int Write(BIO *b, char const *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
+  BIO_clear_retry_flags(b);
+
   // (try to) send handshake / user data and update socket's timeout member
   auto sent = DoWrite(sock->fd, data, static_cast<size_t>(size), sock->timeout);
 
-  if(sent == size) {
-    BIO_clear_retry_flags(b);
-  } else {
+  if(sent != size) {
     BIO_set_retry_write(b);
   }
 
@@ -77,13 +77,14 @@ int Read(BIO *b, char *data, int s)
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
   auto size = static_cast<size_t>(s);
 
+  BIO_clear_retry_flags(b);
+
   // (try to) receive handshake / user data and update socket's timeout member
   auto received = UnderDeadline([=]() -> std::optional<size_t> {
     return Receive(sock->fd, data, size, sock->timeout);
   }, sock->timeout);
 
   if(received) {
-    BIO_clear_retry_flags(b);
     return static_cast<int>(*received);
   }
   BIO_set_retry_read(b);
