@@ -208,14 +208,10 @@ void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 
   if(auto it = std::find_if(begin(sockets), end(sockets), FdEqual{fd}); it != end(sockets)) {
     sockets.erase(it);
-  } else {
-    assert(false);
   }
 
   if(auto it = std::find_if(begin(pfds), end(pfds), FdEqual{fd}); it != end(pfds)) {
     pfds.erase(it);
-  } else {
-    assert(false);
   }
 }
 

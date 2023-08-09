@@ -250,6 +250,11 @@ void SocketAsyncImpl::DriverOnError(char const *message)
 void SocketAsyncImpl::DriverDisconnect(DisconnectHandler const &onDisconnect,
     AddressShared peerAddr, char const *reason)
 {
+  // don't try to do any further receives that would just lead to more errors
+  if(auto ptr = driver.lock()) {
+    ptr->AsyncUnregister(buff->sock->fd);
+  }
+
   onDisconnect(Address(std::move(peerAddr)), reason);
 }
 
