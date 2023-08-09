@@ -248,9 +248,9 @@ void SocketAsyncImpl::DriverOnError(char const *message)
 }
 
 void SocketAsyncImpl::DriverDisconnect(DisconnectHandler const &onDisconnect,
-    AddressShared peerAddr, char const *)
+    AddressShared peerAddr, char const *reason)
 {
-  onDisconnect(Address(std::move(peerAddr)));
+  onDisconnect(Address(std::move(peerAddr)), reason);
 }
 
 

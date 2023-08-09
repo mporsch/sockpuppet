@@ -29,7 +29,7 @@ struct Server
       : clientSock({std::move(clientSock)},
                    parent->driver,
                    std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
-                   std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1))
+                   std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1, std::placeholders::_2))
     {
     }
     ClientSession(ClientSession const &) = delete;
@@ -72,10 +72,11 @@ struct Server
           std::make_unique<ClientSession>(this, std::move(clientSock)));
   }
 
-  void HandleDisconnect(Address clientAddress)
+  void HandleDisconnect(Address clientAddress, char const *reason)
   {
     std::cout << "client " << to_string(clientAddress)
-              << " closed connection to server" << std::endl;
+              << " closed connection to server"
+              << " (" << reason << ")" << std::endl;
 
     clientSessions.erase(clientAddress);
 
@@ -101,7 +102,7 @@ struct Clients
       , client({std::move(client)},
                driver,
                std::bind(&Client::HandleReceive, this, std::placeholders::_1),
-               std::bind(&Clients::HandleDisconnect, parent, std::placeholders::_1))
+               std::bind(&Clients::HandleDisconnect, parent, std::placeholders::_1, std::placeholders::_2))
       , driver(driver)
       , receivedSize(0U)
     {
@@ -126,7 +127,7 @@ struct Clients
         ToDo(
           driver,
           [this]() {
-            parent->HandleDisconnect(client.LocalAddress());
+            parent->HandleDisconnect(client.LocalAddress(), "self-initiated shutdown");
           },
           Duration(0));
       }
@@ -153,10 +154,11 @@ struct Clients
     return p.first->second->client;
   }
 
-  void HandleDisconnect(Address clientAddr)
+  void HandleDisconnect(Address clientAddr, char const *reason)
   {
     std::cout << "client " << to_string(clientAddr)
-              << " closing connection to server" << std::endl;
+              << " closing connection to server"
+              << " (" << reason << ")" << std::endl;
 
     clients.erase(clientAddr);
   }
