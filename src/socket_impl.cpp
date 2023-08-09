@@ -343,20 +343,33 @@ size_t SendAll(SOCKET fd, char const *data, size_t size)
 
 size_t SendSome(SOCKET fd, char const *data, size_t size)
 {
-  // set flags to send only what can be sent without blocking
-  return DoSend(fd, data, size, sendSomeFlags);
+  try {
+    // set flags to send only what can be sent without blocking
+    return DoSend(fd, data, size, sendSomeFlags);
+  } catch(std::system_error const &e) {
+    if(e.code().value() == EAGAIN) {
+      return 0U; // maybe next time
+    }
+    throw;
+  }
 }
 
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline)
 {
   size_t sent = 0U;
-  do {
-    if(!WaitWritableBlocking(fd, deadline.Remaining())) {
-      break; // timeout exceeded
+  try {
+    do {
+      if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+        break; // timeout exceeded
+      }
+      deadline.Tick();
+      sent += DoSend(fd, data + sent, size - sent, sendSomeFlags);
+    } while((sent < size) && deadline.TimeLeft());
+  } catch(std::system_error const &e) {
+    if(e.code().value() != EAGAIN) {
+      throw;
     }
-    sent += SendSome(fd, data + sent, size - sent);
-    deadline.Tick();
-  } while((sent < size) && deadline.TimeLeft());
+  }
   return sent;
 }
 
