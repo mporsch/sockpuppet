@@ -21,6 +21,9 @@ using SOCKET = int;
 namespace sockpuppet {
 
 struct SocketImpl
+#ifndef SOCKPUPPET_WITH_TLS
+    final // without SocketTlsImpl the compiler may optimize away the unused vtable
+#endif // SOCKPUPPET_WITH_TLS
 {
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
   SOCKET fd;  ///< Socket file descriptor
