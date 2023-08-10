@@ -264,7 +264,12 @@ size_t SocketTlsImpl::Receive(char *data, size_t size)
     lastError = SSL_ERROR_NONE;
   }
 
-  return Read(data, size, zeroTimeout);
+  auto received = Read(data, size, zeroTimeout);
+  if(!received && SSL_is_init_finished(ssl.get())) {
+    // don't get stuck trying to read something after being readable during handshake
+    lastError = SSL_ERROR_NONE;
+  }
+  return received;
 }
 
 size_t SocketTlsImpl::Send(char const *data, size_t size,
