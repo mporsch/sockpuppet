@@ -17,7 +17,7 @@ namespace sockpuppet {
 //   handshake data is sent/received on the socket during both send AND read
 //   if a send with limited timeout fails, it must be retried with the same data
 //     (see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html)
-struct SocketTlsImpl : public SocketImpl
+struct SocketTlsImpl final : public SocketImpl
 {
   struct SslDeleter
   {
