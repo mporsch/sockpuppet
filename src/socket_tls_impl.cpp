@@ -300,12 +300,10 @@ size_t SocketTlsImpl::Read(char *data, size_t size, Duration timeout)
   if(HandleLastError()) {
     for(int i = 1; i <= handshakeStepsMax; ++i) {
       auto res = SSL_read(ssl.get(), data, static_cast<int>(size));
-      if(res < 0) {
+      if(res <= 0) {
         if(!HandleResult(res)) {
           break;
         }
-      } else if(res == 0) {
-        throw std::runtime_error("TLS connection closed");
       } else {
         return static_cast<size_t>(res);
       }
