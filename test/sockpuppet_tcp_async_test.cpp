@@ -100,17 +100,18 @@ void ReceiveDummy(BufferPtr)
 {
 }
 
-void DisconnectDummy(Address)
+void DisconnectDummy(Address, char const *)
 {
 }
 
-void HandleDisconnect(Address serverAddress)
+void HandleDisconnect(Address serverAddress, char const *reason)
 {
   loneClient.reset();
 
   std::cout << "server "
             << to_string(serverAddress)
-            << " closed connection" << std::endl;
+            << " closed connection"
+            <<  " (" << reason << ")" << std::endl;
 
   promisedServerDisconnect.set_value();
 }
