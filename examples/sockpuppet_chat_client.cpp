@@ -45,13 +45,13 @@ struct ReconnectClient
           to_string(client->LocalAddress()) +
           " -> " +
           to_string(remoteAddress));
-    } catch(std::exception const &) {
+    } catch(std::exception const &e) {
       ioBuf.Print(
           "failed to (re)connect to " +
           to_string(remoteAddress) +
+          " (" + e.what() + ")"
           " will retry in " +
-          std::to_string(delay.count()) +
-          "s");
+          std::to_string(delay.count()) + "s");
 
       // schedule a reconnect attempt with increasing backoff delay
       ToDo(driver,
