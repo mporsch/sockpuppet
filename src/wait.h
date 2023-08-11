@@ -68,10 +68,8 @@ struct ZeroLimited
 } // namespace wait_detail
 
 // return true if readable/writable or false if timeout exceeded
-bool WaitReadableBlocking(SOCKET fd, Duration timeout);
-bool WaitReadableNonBlocking(SOCKET fd, Duration timeout);
-bool WaitWritableBlocking(SOCKET fd, Duration timeout);
-bool WaitWritableNonBlocking(SOCKET fd, Duration timeout);
+bool WaitReadable(SOCKET fd, Duration timeout);
+bool WaitWritable(SOCKET fd, Duration timeout);
 
 // readable/writable socket will be marked accordingly
 bool Wait(std::vector<pollfd> &pfds, Duration timeout);

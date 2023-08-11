@@ -20,21 +20,6 @@ constexpr auto fdInvalid =
     SOCKET(-1);
 #endif // _WIN32
 
-constexpr int sendAllFlags =
-#ifdef MSG_NOSIGNAL
-    MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
-#endif // MSG_NOSIGNAL
-    0;
-
-constexpr int sendSomeFlags =
-#ifdef MSG_PARTIAL
-    MSG_PARTIAL | // dont block if all cannot be sent at once
-#endif // MSG_PARTIAL
-#ifdef MSG_DONTWAIT
-    MSG_DONTWAIT | // dont block if all cannot be sent at once
-#endif // MSG_DONTWAIT
-    sendAllFlags;
-
 void CloseSocket(SOCKET fd)
 {
 #ifdef _WIN32
@@ -80,8 +65,14 @@ size_t DoReceive(SOCKET fd, char *data, size_t size)
   return static_cast<size_t>(received);
 }
 
-size_t DoSend(SOCKET fd, char const *data, size_t size, int flags)
+size_t DoSend(SOCKET fd, char const *data, size_t size)
 {
+  constexpr int flags =
+#ifdef MSG_NOSIGNAL
+      MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
+#endif // MSG_NOSIGNAL
+      0;
+
   auto sent = ::send(fd,
                      data, size,
                      flags);
@@ -161,7 +152,7 @@ size_t SocketImpl::Receive(char *data, size_t size)
 std::optional<std::pair<size_t, Address>>
 SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -209,7 +200,7 @@ size_t SocketImpl::SendSome(char const *data, size_t size)
 size_t SocketImpl::SendTo(char const *data, size_t size,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritableBlocking(fd, timeout)) {
+  if(!WaitWritable(fd, timeout)) {
     return 0U; // timeout exceeded
   }
   return SendTo(data, size, dstAddr);
@@ -258,7 +249,7 @@ void SocketImpl::Listen()
 std::optional<std::pair<SocketTcp, Address>>
 SocketImpl::Accept(Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
@@ -327,7 +318,7 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
 
 std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadableBlocking(fd, timeout)) {
+  if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {DoReceive(fd, data, size)};
@@ -335,8 +326,19 @@ std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeo
 
 size_t SendAll(SOCKET fd, char const *data, size_t size)
 {
-  // set flags to block until everything is sent
-  auto sent = DoSend(fd, data, size, sendAllFlags);
+  constexpr auto noTimeout = Duration(-1);
+
+  size_t sent = 0U;
+  try {
+    do {
+      (void)WaitWritable(fd, noTimeout);
+      sent += DoSend(fd, data + sent, size - sent);
+    } while(sent < size);
+  } catch(std::system_error const &e) {
+    if(e.code().value() != EAGAIN) {
+      throw;
+    }
+  }
   assert(sent == size);
   return sent;
 }
@@ -344,13 +346,12 @@ size_t SendAll(SOCKET fd, char const *data, size_t size)
 size_t SendSome(SOCKET fd, char const *data, size_t size)
 {
   try {
-    // set flags to send only what can be sent without blocking
-    return DoSend(fd, data, size, sendSomeFlags);
+    return DoSend(fd, data, size);
   } catch(std::system_error const &e) {
-    if(e.code().value() == EAGAIN) {
-      return 0U; // maybe next time
+    if(e.code().value() != EAGAIN) {
+      throw;
     }
-    throw;
+    return 0U; // maybe next time
   }
 }
 
@@ -359,11 +360,11 @@ size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadl
   size_t sent = 0U;
   try {
     do {
-      if(!WaitWritableBlocking(fd, deadline.Remaining())) {
+      if(!WaitWritable(fd, deadline.Remaining())) {
         break; // timeout exceeded
       }
       deadline.Tick();
-      sent += DoSend(fd, data + sent, size - sent, sendSomeFlags);
+      sent += DoSend(fd, data + sent, size - sent);
     } while((sent < size) && deadline.TimeLeft());
   } catch(std::system_error const &e) {
     if(e.code().value() != EAGAIN) {
