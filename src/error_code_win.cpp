@@ -92,6 +92,11 @@ std::error_code SocketError(int code)
   return make_error_code(winsock_error_code(code));
 }
 
+bool isSocketErrorRetry(std::error_code const &error)
+{
+  return (error.value() == WSAEWOULDBLOCK);
+}
+
 } // namespace sockpuppet
 
 #endif // _WIN32

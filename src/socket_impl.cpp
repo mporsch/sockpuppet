@@ -335,7 +335,7 @@ size_t SendAll(SOCKET fd, char const *data, size_t size)
       sent += DoSend(fd, data + sent, size - sent);
     } while(sent < size);
   } catch(std::system_error const &e) {
-    if(e.code().value() != EAGAIN) {
+    if(!isSocketErrorRetry(e.code())) {
       throw;
     }
   }
@@ -348,7 +348,7 @@ size_t SendSome(SOCKET fd, char const *data, size_t size)
   try {
     return DoSend(fd, data, size);
   } catch(std::system_error const &e) {
-    if(e.code().value() != EAGAIN) {
+    if(!isSocketErrorRetry(e.code())) {
       throw;
     }
     return 0U; // maybe next time
@@ -367,7 +367,7 @@ size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadl
       sent += DoSend(fd, data + sent, size - sent);
     } while((sent < size) && deadline.TimeLeft());
   } catch(std::system_error const &e) {
-    if(e.code().value() != EAGAIN) {
+    if(!isSocketErrorRetry(e.code())) {
       throw;
     }
   }
