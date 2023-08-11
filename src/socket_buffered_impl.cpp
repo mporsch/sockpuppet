@@ -25,7 +25,7 @@ BufferPtr SocketBufferedImpl::GetBuffer()
 
 std::optional<BufferPtr> SocketBufferedImpl::Receive(Duration timeout)
 {
-  if(!WaitReadableBlocking(this->sock->fd, timeout)) {
+  if(!WaitReadable(this->sock->fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedImpl::Receive();
@@ -46,7 +46,7 @@ BufferPtr SocketBufferedImpl::Receive()
 std::optional<std::pair<BufferPtr, Address>>
 SocketBufferedImpl::ReceiveFrom(Duration timeout)
 {
-  if(!WaitReadableBlocking(this->sock->fd, timeout)) {
+  if(!WaitReadable(this->sock->fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedImpl::ReceiveFrom();

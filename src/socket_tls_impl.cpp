@@ -401,11 +401,11 @@ bool SocketTlsImpl::HandleError(int error)
   case SSL_ERROR_WANT_READ:
     // wait and update our timeout member
     return UnderDeadline([this]() -> bool {
-      return WaitReadableBlocking(this->fd, timeout);
+      return WaitReadable(this->fd, timeout);
     }, timeout);
   case SSL_ERROR_WANT_WRITE:
     return UnderDeadline([this]() -> bool {
-      return WaitWritableBlocking(this->fd, timeout);
+      return WaitWritable(this->fd, timeout);
     }, timeout);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);

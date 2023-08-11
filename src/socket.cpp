@@ -17,6 +17,7 @@ SocketUdp::SocketUdp(Address const &bindAddress)
 {
   impl->Bind(bindAddress.impl->ForUdp());
   impl->SetSockOptBroadcast();
+  impl->SetSockOptNonBlocking();
 }
 
 size_t SocketUdp::SendTo(char const *data, size_t size,
@@ -54,6 +55,7 @@ SocketTcp::SocketTcp(Address const &connectAddress)
 {
   impl->SetSockOptNoSigPipe();
   impl->Connect(connectAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
@@ -65,6 +67,7 @@ SocketTcp::SocketTcp(Address const &connectAddress,
 {
   impl->SetSockOptNoSigPipe();
   impl->Connect(connectAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 #endif // SOCKPUPPET_WITH_TLS
 
@@ -97,6 +100,7 @@ SocketTcp::SocketTcp(std::unique_ptr<SocketImpl> &&other)
   : impl(std::move(other))
 {
   impl->SetSockOptNoSigPipe();
+  impl->SetSockOptNonBlocking();
 }
 
 SocketTcp::SocketTcp(SocketTcp &&other) noexcept = default;
@@ -123,6 +127,7 @@ Acceptor::Acceptor(Address const &bindAddress,
 {
   impl->SetSockOptReuseAddr();
   impl->Bind(bindAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 #endif // SOCKPUPPET_WITH_TLS
 
