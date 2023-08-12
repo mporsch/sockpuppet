@@ -170,7 +170,10 @@ SocketImpl::ReceiveFrom(char *data, size_t size)
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
   }
-  return {static_cast<size_t>(received), Address(std::move(sas))};
+  return {
+    static_cast<size_t>(received),
+    Address(std::move(sas))
+  };
 }
 
 // TCP send will block regularly, if:
