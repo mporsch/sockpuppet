@@ -96,6 +96,8 @@ size_t SendSome(SOCKET fd, char const *data, size_t size);
 // waits for writable (repeatedly) and sends the max amount of data within the deadline
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline);
 
+std::pair<SOCKET, Address> Accept(SOCKET fd);
+
 } // namespace sockpuppet
 
 #endif // SOCKPUPPET_SOCKET_IMPL_H

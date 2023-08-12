@@ -36,7 +36,7 @@ struct SocketTlsImpl final : public SocketImpl
                 int protocol,
                 char const *certFilePath,
                 char const *keyFilePath);
-  SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx);
+  SocketTlsImpl(SOCKET fd, SSL_CTX *ctx);
   ~SocketTlsImpl() override;
 
   // waits for readable

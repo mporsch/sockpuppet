@@ -257,11 +257,10 @@ SocketImpl::Accept(Duration timeout)
 
 std::pair<SocketTcp, Address> SocketImpl::Accept()
 {
-  auto sas = std::make_shared<SockAddrStorage>();
-  auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
+  auto [clientFd, clientAddr] = sockpuppet::Accept(fd);
   return {
-    SocketTcp(std::make_unique<SocketImpl>(client)),
-    Address(std::move(sas))
+    SocketTcp(std::make_unique<SocketImpl>(clientFd)),
+    std::move(clientAddr)
   };
 }
 
@@ -372,6 +371,16 @@ size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadl
     }
   }
   return sent;
+}
+
+std::pair<SOCKET, Address> Accept(SOCKET fd)
+{
+  auto sas = std::make_shared<SockAddrStorage>();
+  auto clientFd = ::accept(fd, sas->Addr(), sas->AddrLen());
+  return {
+    clientFd,
+    Address(std::move(sas))
+  };
 }
 
 } // namespace sockpuppet

@@ -116,6 +116,7 @@ Acceptor::Acceptor(Address const &bindAddress)
 {
   impl->SetSockOptReuseAddr();
   impl->Bind(bindAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
