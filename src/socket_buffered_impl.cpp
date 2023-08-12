@@ -62,7 +62,10 @@ SocketBufferedImpl::ReceiveFrom()
       buffer->size());
   buffer->resize(size);
 
-  return {std::move(buffer), std::move(from)};
+  return {
+    std::move(buffer),
+    std::move(from)
+  };
 }
 
 } // namespace sockpuppet
