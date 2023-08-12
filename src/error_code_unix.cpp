@@ -16,7 +16,7 @@ std::error_code SocketError(int code)
   return std::error_code(code, std::system_category());
 }
 
-bool isSocketErrorRetry(std::error_code const &error)
+bool IsSocketErrorRetry(std::error_code const &error)
 {
   return (error.value() == EAGAIN);
 }
