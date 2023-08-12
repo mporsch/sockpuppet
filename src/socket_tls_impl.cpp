@@ -224,8 +224,8 @@ SocketTlsImpl::SocketTlsImpl(int family, int type, int protocol,
 {
 }
 
-SocketTlsImpl::SocketTlsImpl(SocketImpl &&sock, SSL_CTX *ctx)
-  : SocketImpl(std::move(sock))
+SocketTlsImpl::SocketTlsImpl(SOCKET fd, SSL_CTX *ctx)
+  : SocketImpl(fd)
   , sslGuard()
   , ssl(CreateSsl(ctx, this))
 {
@@ -437,16 +437,16 @@ AcceptorTlsImpl::~AcceptorTlsImpl() = default;
 
 std::pair<SocketTcp, Address> AcceptorTlsImpl::Accept()
 {
-  auto [client, addr] = SocketImpl::Accept();
+  auto [clientFd, clientAddr] = sockpuppet::Accept(this->fd);
+  auto clientSock = std::make_unique<SocketTlsImpl>(clientFd, ctx.get());
 
-  auto clientTls = std::make_unique<SocketTlsImpl>(
-      std::move(*client.impl),
-      ctx.get());
-
-  SSL_set_accept_state(clientTls->ssl.get());
+  SSL_set_accept_state(clientSock->ssl.get());
   // the TLS handshake will be performed during Send/Receive
 
-  return {SocketTcp(std::move(clientTls)), std::move(addr)};
+  return {
+    SocketTcp(std::move(clientSock)),
+    std::move(clientAddr)
+  };
 }
 
 } // namespace sockpuppet
