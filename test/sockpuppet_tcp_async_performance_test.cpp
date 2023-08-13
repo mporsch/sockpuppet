@@ -24,6 +24,7 @@ struct Server
   struct ClientSession
   {
     SocketTcpAsync clientSock;
+    unsigned int receiveCount = 0U;
 
     ClientSession(Server *parent, SocketTcp &&clientSock)
       : clientSock({std::move(clientSock)},
@@ -37,8 +38,10 @@ struct Server
 
     void HandleReceive(BufferPtr buffer)
     {
-      // simulate some processing delay to trigger TCP congestion control
-      std::this_thread::sleep_for(std::chrono::microseconds(100));
+      if(++receiveCount % 1000 == 0U) { // seeping usec intervals is inaccurate
+        // simulate some processing delay to trigger TCP congestion control
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
 
       // echo received data
       (void)clientSock.Send(std::move(buffer));
