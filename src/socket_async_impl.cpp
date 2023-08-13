@@ -130,10 +130,9 @@ void SocketAsyncImpl::DriverConnect(ConnectHandler const &onConnect)
 
 void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
 {
-  if(pendingTlsSend) {
-    // a previous TLS send failed because handshake receipt was pending
-    // which probably arrived now: repeat the same send call to handle
-    // the handshake and continue where it left off sending
+  if(pendingTlsSend) { // a previous TLS send failed
+    // because handshake receipt was pending which probably arrived now
+    // retry to continue where it left off sending
     // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
     bool isSendQueueEmpty = DriverOnWritable();
     if(!isSendQueueEmpty) {
@@ -191,15 +190,11 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
   if(!sendQSize) {
     throw std::logic_error("uncalled send");
   }
-
   auto &&[promise, buffer] = q.front();
-  if(pendingTlsSend) {
-    assert(pendingTlsSend == buffer->data());
-    pendingTlsSend = nullptr;
-  }
 
   try {
     if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
+      pendingTlsSend = false;
       if(sent == buffer->size()) {
         promise.set_value();
       } else {
@@ -207,11 +202,11 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
         buffer->erase(0, sent);
         return false;
       }
-    } else { // zero-size sent data
+    } else { // zero-size sent data although socket was writable
       // TLS can't send while handshake receipt pending:
       // give up for now by proclaiming the send queue is empty,
-      // but actually keep the data queued and retry the exact same call on readable
-      pendingTlsSend = buffer->data();
+      // but actually keep the data queued and retry the exact same buffer on readable
+      pendingTlsSend = true;
       return true;
     }
   } catch(std::runtime_error const &e) {
