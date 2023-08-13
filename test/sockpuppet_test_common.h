@@ -1,10 +1,12 @@
 #include "sockpuppet/socket_async.h" // for SocketTcpAsync
 
 #include <algorithm> // for std::generate
+#include <cassert> // for assert
 #include <iostream> // for std::cout
 #include <random> // for std::default_random_engine
+#include <string> // for std::string
+#include <string_view> // for std::string_view
 #include <thread> // for std::this_thread
-#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -24,18 +26,18 @@ struct TestData
   static constexpr size_t tcpPacketSizeMin = 100U;
   static constexpr size_t tcpPacketSizeMax = 10000U;
 
-  std::vector<char> const referenceData;
+  std::string referenceData;
 
   TestData(size_t size)
     : referenceData(Generate(size))
   {
   }
 
-  static std::vector<char> Generate(size_t size)
+  static std::string Generate(size_t size)
   {
     std::cout << "generating random reference data" << std::endl;
 
-    std::vector<char> bytes(size);
+    auto bytes = std::string(size, '\0');
 
     std::default_random_engine generator;
     std::uniform_int_distribution<int> distribution(
@@ -85,11 +87,18 @@ struct TestData
           tcpPacketSizeMin, tcpPacketSizeMax);
     auto gen = [&]() -> size_t { return distribution(generator); };
 
-    size_t pos = 0;
-    while(pos < referenceData.size()) {
-      auto const packetSize = gen();
-      pos += sendFn(referenceData.data() + pos,
-                    std::min(packetSize, referenceData.size() - pos));
+    std::string_view remaining = referenceData;
+    while(!remaining.empty()) {
+      auto packetSize = std::min(gen(), remaining.size());
+      auto packet = std::string_view(remaining.data(), packetSize);
+
+      while(!packet.empty()) {
+        auto sent = sendFn(packet.data(), packet.size());
+        assert(sent <= packet.size());
+        packet.remove_prefix(sent);
+      }
+
+      remaining.remove_prefix(packetSize);
     }
   }
 
