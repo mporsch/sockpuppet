@@ -9,6 +9,7 @@
 #include <openssl/ssl.h> // for SSL_CTX
 
 #include <memory> // for std::unique_ptr
+#include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
@@ -28,7 +29,7 @@ struct SocketTlsImpl final : public SocketImpl
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
   int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
-  char const *pendingSend = nullptr;  ///< Flag to satisfy OpenSSL_write retry requirements
+  std::string_view pendingSend;  ///< Buffer view to verify OpenSSL_write retry requirements
   Duration timeout;  ///< Use-case dependent timeout
 
   SocketTlsImpl(int family,

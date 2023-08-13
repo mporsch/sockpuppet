@@ -282,7 +282,7 @@ size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 {
   // we have been deemed writable/readable
   if((lastError == SSL_ERROR_WANT_WRITE) ||
-     (pendingSend && (lastError == SSL_ERROR_WANT_READ))) {
+     (!pendingSend.empty() && (lastError == SSL_ERROR_WANT_READ))) {
     lastError = SSL_ERROR_NONE;
   }
 
@@ -322,29 +322,33 @@ size_t SocketTlsImpl::Write(char const *data, size_t size, Duration timeout)
 {
   // timeout will be honored during waiting and BIO read/write
   this->timeout = timeout;
+  auto remaining = std::string_view(data, size);
 
-  if(pendingSend) {
-    assert(pendingSend == data);
-    pendingSend = nullptr;
-  }
-
-  size_t sent = 0U;
   if(HandleLastError()) {
-    for(int i = 1; (i <= handshakeStepsMax) && (sent < size); ++i) {
+    for(int i = 1; (i <= handshakeStepsMax) && !remaining.empty(); ++i) {
+      // if a previous TLS send failed (because handshake receipt was pending or
+      // TCP congestion control blocked) we must repeat the call with the same buffer
+      // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
+      assert(pendingSend.empty() || (pendingSend == remaining));
+
       size_t written = 0U;
-      auto res = SSL_write_ex(ssl.get(), data + sent, size - sent, &written);
+      auto res = SSL_write_ex(ssl.get(), remaining.data(), remaining.size(), &written);
       if(res <= 0) {
+        pendingSend = remaining;
         if(!HandleResult(res)) {
-          pendingSend = data;
           break; // timeout / socket was writable for TLS handshake only
         }
       } else {
-        sent += written;
+        pendingSend = {};
+        assert(written <= remaining.size());
+        remaining.remove_prefix(written);
       }
       assert(i < handshakeStepsMax);
     }
   }
-  return sent;
+
+  assert(size >= remaining.size());
+  return size - remaining.size();
 }
 
 void SocketTlsImpl::Shutdown()
