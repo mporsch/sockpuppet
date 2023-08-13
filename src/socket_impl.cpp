@@ -8,6 +8,7 @@
 #endif // _WIN32
 
 #include <cassert> // for assert
+#include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
@@ -65,7 +66,7 @@ size_t DoReceive(SOCKET fd, char *data, size_t size)
   return static_cast<size_t>(received);
 }
 
-size_t DoSend(SOCKET fd, char const *data, size_t size)
+size_t DoSend(SOCKET fd, std::string_view buf)
 {
   constexpr int flags =
 #ifdef MSG_NOSIGNAL
@@ -74,13 +75,14 @@ size_t DoSend(SOCKET fd, char const *data, size_t size)
       0;
 
   auto sent = ::send(fd,
-                     data, size,
+                     buf.data(), buf.size(),
                      flags);
   if(sent < 0) {
     throw std::system_error(SocketError(), "failed to send");
-  } else if((sent == 0) && (size > 0U)) {
+  } else if((sent == 0) && !buf.empty()) {
     throw std::logic_error("unexpected send result");
   }
+  assert(static_cast<size_t>(sent) <= buf.size());
   return static_cast<size_t>(sent);
 }
 
@@ -329,26 +331,28 @@ std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeo
 size_t SendAll(SOCKET fd, char const *data, size_t size)
 {
   constexpr auto noTimeout = Duration(-1);
+  auto remaining = std::string_view(data, size);
 
-  size_t sent = 0U;
   try {
     do {
       (void)WaitWritable(fd, noTimeout);
-      sent += DoSend(fd, data + sent, size - sent);
-    } while(sent < size);
+      auto sent = DoSend(fd, remaining);
+      remaining.remove_prefix(sent);
+    } while(!remaining.empty());
   } catch(std::system_error const &e) {
     if(!IsSocketErrorRetry(e.code())) {
       throw;
     }
   }
-  assert(sent == size);
-  return sent;
+
+  assert(remaining.empty());
+  return size - remaining.size();
 }
 
 size_t SendSome(SOCKET fd, char const *data, size_t size)
 {
   try {
-    return DoSend(fd, data, size);
+    return DoSend(fd, std::string_view(data, size));
   } catch(std::system_error const &e) {
     if(!IsSocketErrorRetry(e.code())) {
       throw;
@@ -359,21 +363,25 @@ size_t SendSome(SOCKET fd, char const *data, size_t size)
 
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline)
 {
-  size_t sent = 0U;
+  auto remaining = std::string_view(data, size);
+
   try {
     do {
       if(!WaitWritable(fd, deadline.Remaining())) {
         break; // timeout exceeded
       }
       deadline.Tick();
-      sent += DoSend(fd, data + sent, size - sent);
-    } while((sent < size) && deadline.TimeLeft());
+      auto sent = DoSend(fd, remaining);
+      remaining.remove_prefix(sent);
+    } while(!remaining.empty() && deadline.TimeLeft());
   } catch(std::system_error const &e) {
     if(!IsSocketErrorRetry(e.code())) {
       throw;
     }
   }
-  return sent;
+
+  assert(size >= remaining.size());
+  return size - remaining.size();
 }
 
 std::pair<SOCKET, Address> Accept(SOCKET fd)
