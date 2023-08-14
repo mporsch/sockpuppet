@@ -38,8 +38,8 @@ struct Server
 
     void HandleReceive(BufferPtr buffer)
     {
-      if(++receiveCount % 1000 == 0U) { // seeping usec intervals is inaccurate
-        // simulate some processing delay to trigger TCP congestion control
+      // simulate some processing delay to trigger TCP congestion control
+      if(++receiveCount % 1000 == 0U) { // sleeping usec intervals is inaccurate
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
 

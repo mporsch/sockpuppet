@@ -26,8 +26,8 @@ void ServerHandler(std::pair<SocketTcp, Address> p)
     for(;;) {
       storage.emplace_back(clientSock.Receive().value());
 
-      if(storage.size() % 1000 == 0U) { // seeping usec intervals is inaccurate
-        // simulate some processing delay to trigger TCP congestion control
+      // simulate some processing delay to trigger TCP congestion control
+      if(storage.size() % 1000 == 0U) { // sleeping usec intervals is inaccurate
         std::this_thread::sleep_for(100ms);
       }
     }
