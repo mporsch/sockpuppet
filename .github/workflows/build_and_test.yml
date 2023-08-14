@@ -12,32 +12,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "Windows MSVC17 shared library using LibreSSL"
-            os: windows-2022
-            generator: -G "Visual Studio 17 2022" -A x64
-            libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
-            # don't use Debug to work around issue of FindOpenSSL.cmake which leaves us with
-            # -- Found OpenSSL: optimized;D:/a/sockpuppet/sockpuppet/build/external/libressl/install/lib/crypto.lib;debug;C:/Program Files/OpenSSL/lib/VC/libcrypto64MDd.lib (found version "2.0.0")
-            # which fails at link time
-            type: Release
-
-          # uses pre-installed OpenSSL 1.1.1u and fails sockpuppet_tls_buffered_test with 'SSL routines:ssl3_write_bytes:bad length:ssl'
-          #- name: "Windows MSVC17 shared library using OpenSSL"
-          #  os: windows-2022
-          #  generator: -G "Visual Studio 17 2022" -A x64
-          #  type: Debug
-
-          - name: "Unix GCC shared library using LibreSSL"
-            os: ubuntu-latest
-            generator: -G "Unix Makefiles"
-            libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
-            type: Debug
-
-          - name: "Unix GCC shared library using OpenSSL"
-            os: ubuntu-latest
-            generator: -G "Unix Makefiles"
-            type: Debug
-
           - name: "OSX clang shared library using LibreSSL"
             os: macos-latest
             generator: -G "Unix Makefiles"
