@@ -1,6 +1,7 @@
 #include "socket_async_impl.h"
 #include "driver_impl.h" // for DriverImpl
 
+#include <iostream>
 #include <cassert> // for assert
 #include <stdexcept> // for std::runtime_error
 #include <type_traits> // for std::is_same_v
@@ -136,10 +137,12 @@ void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
     // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
     bool isSendQueueEmpty = DriverOnWritable();
     if(!isSendQueueEmpty) {
+      std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: !isSendQueueEmpty" << std::endl;
       if(auto ptr = driver.lock()) {
         ptr->AsyncWantSend(buff->sock->fd);
       }
-    }
+    } else
+      std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: isSendQueueEmpty" << std::endl;
 
     return;
   }
@@ -152,6 +155,7 @@ void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
       onReceive(std::move(buffer));
     }
   } catch(std::runtime_error const &e) {
+    std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: " << e.what() << std::endl;
     onError(e.what());
   }
 }
@@ -194,6 +198,8 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
 
   try {
     if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
+      if(pendingTlsSend)
+        std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: pendingTlsSend <- false" << std::endl;
       pendingTlsSend = false;
       if(sent == buffer->size()) {
         promise.set_value();
@@ -207,9 +213,12 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
       // give up for now by proclaiming the send queue is empty,
       // but actually keep the data queued and retry the exact same buffer on readable
       pendingTlsSend = true;
+      std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: pendingTlsSend <- true" << std::endl;
+
       return true;
     }
   } catch(std::runtime_error const &e) {
+    std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: " << e.what() << std::endl;
     promise.set_exception(std::make_exception_ptr(e));
   }
   q.pop();
