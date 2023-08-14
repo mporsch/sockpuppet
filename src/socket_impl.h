@@ -91,7 +91,7 @@ std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeo
 size_t SendAll(SOCKET fd, char const *data, size_t size);
 
 // send what can be sent now without blocking
-size_t SendSome(SOCKET fd, char const *data, size_t size);
+size_t SendTry(SOCKET fd, char const *data, size_t size);
 
 // waits for writable (repeatedly) and sends the max amount of data within the deadline
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline);

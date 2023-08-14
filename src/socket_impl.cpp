@@ -188,7 +188,7 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
     return SendAll(fd, data, size);
   }
   if(timeout.count() == 0) {
-    return sockpuppet::SendSome(fd, data, size);
+    return SendTry(fd, data, size);
   }
   DeadlineLimited deadline(timeout);
   return sockpuppet::SendSome(fd, data, size, deadline);
@@ -196,7 +196,7 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 
 size_t SocketImpl::SendSome(char const *data, size_t size)
 {
-  return sockpuppet::SendSome(fd, data, size);
+  return DoSend(fd, std::string_view(data, size));
 }
 
 // UDP send will block only rarely,
@@ -333,52 +333,38 @@ size_t SendAll(SOCKET fd, char const *data, size_t size)
   constexpr auto noTimeout = Duration(-1);
   auto remaining = std::string_view(data, size);
 
-  try {
-    do {
-      (void)WaitWritable(fd, noTimeout);
-      auto sent = DoSend(fd, remaining);
-      remaining.remove_prefix(sent);
-    } while(!remaining.empty());
-  } catch(std::system_error const &e) {
-    if(!IsSocketErrorRetry(e.code())) {
-      throw;
-    }
-  }
+  do {
+    (void)WaitWritable(fd, noTimeout);
+    auto sent = DoSend(fd, remaining);
+    remaining.remove_prefix(sent);
+  } while(!remaining.empty());
 
   assert(remaining.empty());
   return size - remaining.size();
 }
 
-size_t SendSome(SOCKET fd, char const *data, size_t size)
+size_t SendTry(SOCKET fd, char const *data, size_t size)
 {
-  try {
-    return DoSend(fd, std::string_view(data, size));
-  } catch(std::system_error const &e) {
-    if(!IsSocketErrorRetry(e.code())) {
-      throw;
-    }
-    return 0U; // maybe next time
+  constexpr auto zeroTimeout = Duration(0);
+
+  if(!WaitWritable(fd, zeroTimeout)) {
+    return 0U; // timeout exceeded
   }
+  return DoSend(fd, std::string_view(data, size));
 }
 
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline)
 {
   auto remaining = std::string_view(data, size);
 
-  try {
-    do {
-      if(!WaitWritable(fd, deadline.Remaining())) {
-        break; // timeout exceeded
-      }
-      deadline.Tick();
-      auto sent = DoSend(fd, remaining);
-      remaining.remove_prefix(sent);
-    } while(!remaining.empty() && deadline.TimeLeft());
-  } catch(std::system_error const &e) {
-    if(!IsSocketErrorRetry(e.code())) {
-      throw;
+  do {
+    if(!WaitWritable(fd, deadline.Remaining())) {
+      break; // timeout exceeded
     }
-  }
+    deadline.Tick();
+    auto sent = DoSend(fd, remaining);
+    remaining.remove_prefix(sent);
+  } while(!remaining.empty() && deadline.TimeLeft());
 
   assert(size >= remaining.size());
   return size - remaining.size();
