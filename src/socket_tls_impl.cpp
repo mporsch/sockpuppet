@@ -43,10 +43,10 @@ namespace bio {
 int DoWrite(SOCKET fd, char const *data, size_t size, Duration &timeout)
 {
   if(timeout.count() < 0) { // timeout remains unchanged
-    return static_cast<int>(sockpuppet::SendAll(fd, data, size));
+    return static_cast<int>(SendAll(fd, data, size));
   }
   if(timeout.count() == 0) { // timeout remains unchanged
-    return static_cast<int>(sockpuppet::SendSome(fd, data, size));
+    return static_cast<int>(SendTry(fd, data, size));
   }
   DeadlineLimited deadline(timeout);
   auto sent = sockpuppet::SendSome(fd, data, size, deadline);
