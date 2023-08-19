@@ -21,6 +21,12 @@ constexpr auto fdInvalid =
     SOCKET(-1);
 #endif // _WIN32
 
+constexpr int sendFlags =
+#ifdef MSG_NOSIGNAL
+    MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
+#endif // MSG_NOSIGNAL
+    0;
+
 void CloseSocket(SOCKET fd)
 {
 #ifdef _WIN32
@@ -50,40 +56,6 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
   if(DoSetBlocking(fd, blocking)) {
     throw std::system_error(SocketError(), errorMessage);
   }
-}
-
-size_t DoReceive(SOCKET fd, char *data, size_t size)
-{
-  constexpr int flags = 0;
-  auto received = ::recv(fd,
-                         data, size,
-                         flags);
-  if(received < 0) {
-    throw std::system_error(SocketError(), "failed to receive");
-  } else if(received == 0) {
-    throw std::runtime_error("connection closed");
-  }
-  return static_cast<size_t>(received);
-}
-
-size_t DoSend(SOCKET fd, std::string_view buf)
-{
-  constexpr int flags =
-#ifdef MSG_NOSIGNAL
-      MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
-#endif // MSG_NOSIGNAL
-      0;
-
-  auto sent = ::send(fd,
-                     buf.data(), buf.size(),
-                     flags);
-  if(sent < 0) {
-    throw std::system_error(SocketError(), "failed to send");
-  } else if((sent == 0) && !buf.empty()) {
-    throw std::logic_error("unexpected send result");
-  }
-  assert(static_cast<size_t>(sent) <= buf.size());
-  return static_cast<size_t>(sent);
 }
 
 void SetSockOpt(SOCKET fd, int id, int value, char const *errorMessage)
@@ -147,7 +119,7 @@ std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration time
 
 size_t SocketImpl::Receive(char *data, size_t size)
 {
-  return DoReceive(fd, data, size);
+  return ReceiveNow(fd, data, size);
 }
 
 // used for UDP only
@@ -196,7 +168,7 @@ size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 
 size_t SocketImpl::SendSome(char const *data, size_t size)
 {
-  return DoSend(fd, std::string_view(data, size));
+  return SendNow(fd, data, size);
 }
 
 // UDP send will block only rarely,
@@ -320,12 +292,40 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
 }
 
 
+size_t ReceiveNow(SOCKET fd, char *data, size_t size)
+{
+  constexpr int flags = 0;
+  auto received = ::recv(fd,
+                         data, size,
+                         flags);
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
+    throw std::runtime_error("connection closed");
+  }
+  return static_cast<size_t>(received);
+}
+
 std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout)
 {
   if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
-  return {DoReceive(fd, data, size)};
+  return {ReceiveNow(fd, data, size)};
+}
+
+size_t SendNow(SOCKET fd, char const *data, size_t size)
+{
+  auto sent = ::send(fd,
+                     data, size,
+                     sendFlags);
+  if(sent < 0) {
+    throw std::system_error(SocketError(), "failed to send");
+  } else if((sent == 0) && (size > 0U)) {
+    throw std::logic_error("unexpected send result");
+  }
+  assert(static_cast<size_t>(sent) <= size);
+  return static_cast<size_t>(sent);
 }
 
 size_t SendAll(SOCKET fd, char const *data, size_t size)
@@ -335,7 +335,7 @@ size_t SendAll(SOCKET fd, char const *data, size_t size)
 
   do {
     (void)WaitWritable(fd, noTimeout);
-    auto sent = DoSend(fd, remaining);
+    auto sent = SendNow(fd, remaining.data(), remaining.size());
     remaining.remove_prefix(sent);
   } while(!remaining.empty());
 
@@ -350,7 +350,7 @@ size_t SendTry(SOCKET fd, char const *data, size_t size)
   if(!WaitWritable(fd, zeroTimeout)) {
     return 0U; // timeout exceeded
   }
-  return DoSend(fd, std::string_view(data, size));
+  return SendNow(fd, data, size);
 }
 
 size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadline)
@@ -362,7 +362,7 @@ size_t SendSome(SOCKET fd, char const *data, size_t size, DeadlineLimited &deadl
       break; // timeout exceeded
     }
     deadline.Tick();
-    auto sent = DoSend(fd, remaining);
+    auto sent = SendNow(fd, remaining.data(), remaining.size());
     remaining.remove_prefix(sent);
   } while(!remaining.empty() && deadline.TimeLeft());
 
