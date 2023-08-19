@@ -73,6 +73,9 @@ struct SocketTlsImpl final : public SocketImpl
   bool HandleResult(int res);
   bool HandleLastError();
   bool HandleError(int error);
+
+  void DriverQuery(short &events) override;
+  void DriverPending() override;
 };
 
 struct AcceptorTlsImpl : public SocketImpl

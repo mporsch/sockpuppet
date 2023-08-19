@@ -25,10 +25,16 @@ BufferPtr SocketBufferedImpl::GetBuffer()
 
 std::optional<BufferPtr> SocketBufferedImpl::Receive(Duration timeout)
 {
-  if(!WaitReadable(this->sock->fd, timeout)) {
-    return {std::nullopt}; // timeout exceeded
+  auto buffer = GetBuffer();
+
+  auto received = sock->Receive(
+      const_cast<char *>(buffer->data()),
+      buffer->size(), timeout);
+  if(received) {
+    buffer->resize(*received);
+    return buffer;
   }
-  return SocketBufferedImpl::Receive();
+  return {std::nullopt};
 }
 
 BufferPtr SocketBufferedImpl::Receive()

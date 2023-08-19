@@ -146,6 +146,10 @@ Duration Driver::DriverImpl::StepTodos(Deadline deadline)
 
 void Driver::DriverImpl::StepFds(Duration timeout)
 {
+  // query sockets whether they request/deny write
+  // the TLS socket uses this override for the TLS handshake
+  QueryFds();
+
   if(!Wait(pfds, timeout)) {
     return; // timeout exceeded
   }
@@ -240,6 +244,20 @@ void Driver::DriverImpl::Unbump()
   (void)pipeTo.ReceiveFrom(dump, sizeof(dump));
 }
 
+void Driver::DriverImpl::QueryFds()
+{
+#ifdef SOCKPUPPET_WITH_TLS
+  assert(sockets.size() + 1U == pfds.size());
+
+  for(size_t i = 0U; i < sockets.size(); ++i) {
+    auto &&pfd = pfds[i + 1U];
+    auto &&sock = sockets[i].get();
+
+    sock.DriverQuery(pfd.events);
+  }
+#endif // SOCKPUPPET_WITH_TLS
+}
+
 void Driver::DriverImpl::DoOneFdTask()
 {
   assert(sockets.size() + 1U == pfds.size());
@@ -255,6 +273,7 @@ void Driver::DriverImpl::DoOneFdTask()
       return;
     } else if(pfd.revents & POLLOUT) {
       if(sock.DriverOnWritable()) {
+        // send queue emptied
         pfd.events &= ~POLLOUT;
       }
       return;
