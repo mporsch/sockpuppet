@@ -291,6 +291,17 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
   return sas;
 }
 
+void SocketImpl::DriverQuery(short &)
+{
+  return;
+}
+
+void SocketImpl::DriverPending()
+{
+  // this interface is intended for the TLS socket only
+  assert(false);
+}
+
 
 size_t ReceiveNow(SOCKET fd, char *data, size_t size)
 {

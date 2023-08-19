@@ -94,6 +94,7 @@ struct Driver::DriverImpl
   void Bump();
   void Unbump();
 
+  void QueryFds();
   void DoOneFdTask();
 };
 

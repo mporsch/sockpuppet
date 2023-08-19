@@ -424,6 +424,33 @@ bool SocketTlsImpl::HandleLastError()
   return false;
 }
 
+void SocketTlsImpl::DriverQuery(short &events)
+{
+  if(!SSL_is_init_finished(ssl.get())) {
+    if(lastError == SSL_ERROR_WANT_WRITE) {
+      events |= POLLOUT;
+    } else if(lastError == SSL_ERROR_WANT_READ) {
+      events &= ~POLLOUT;
+    }
+  }
+}
+
+void SocketTlsImpl::DriverPending()
+{
+  // we have been deemed writable/readable
+  remainingTime = std::nullopt;
+  isWritable = true;
+  if(lastError == SSL_ERROR_WANT_WRITE) {
+    lastError = SSL_ERROR_NONE;
+  }
+
+  char buf[64];
+  auto received = Read(buf, sizeof(buf));
+  if(received) {
+    throw std::logic_error("unexpected recceive");
+  }
+}
+
 bool SocketTlsImpl::HandleError(int error)
 {
   constexpr char errorMessage[] = "failed to TLS receive/send/handshake";

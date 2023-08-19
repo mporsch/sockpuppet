@@ -82,6 +82,9 @@ struct SocketImpl
   size_t GetSockOptRcvBuf() const;
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
+
+  virtual void DriverQuery(short &events);
+  virtual void DriverPending();
 };
 
 // assumes a readable socket

@@ -1,7 +1,6 @@
 #include "socket_async_impl.h"
 #include "driver_impl.h" // for DriverImpl
 
-#include <iostream>
 #include <cassert> // for assert
 #include <stdexcept> // for std::runtime_error
 #include <type_traits> // for std::is_same_v
@@ -107,7 +106,6 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
 
   auto &q = std::get<Queue>(sendQ);
   bool wasEmpty = q.empty();
-  assert(!pendingTlsSend || !wasEmpty); // queue cannot be empty while TLS send is pending
   q.emplace(std::move(promise), std::forward<Args>(args)...);
   return wasEmpty;
 }
@@ -131,22 +129,6 @@ void SocketAsyncImpl::DriverConnect(ConnectHandler const &onConnect)
 
 void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
 {
-  if(pendingTlsSend) { // a previous TLS send failed
-    // because handshake receipt was pending which probably arrived now
-    // retry to continue where it left off sending
-    // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
-    bool isSendQueueEmpty = DriverOnWritable();
-    if(!isSendQueueEmpty) {
-      std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: !isSendQueueEmpty" << std::endl;
-      if(auto ptr = driver.lock()) {
-        ptr->AsyncWantSend(buff->sock->fd);
-      }
-    } else
-      std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: isSendQueueEmpty" << std::endl;
-
-    return;
-  }
-
   try {
     auto buffer = buff->Receive();
     if(buffer->empty()) {
@@ -155,7 +137,6 @@ void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
       onReceive(std::move(buffer));
     }
   } catch(std::runtime_error const &e) {
-    std::cout << to_string(*buff->sock->GetSockName()) << " DriverReceive: " << e.what() << std::endl;
     onError(e.what());
   }
 }
@@ -168,6 +149,11 @@ void SocketAsyncImpl::DriverReceiveFrom(ReceiveFromHandler const &onReceiveFrom)
   } catch(std::runtime_error const &e) {
     onError(e.what());
   }
+}
+
+void SocketAsyncImpl::DriverQuery(short &events)
+{
+  buff->sock->DriverQuery(events);
 }
 
 bool SocketAsyncImpl::DriverOnWritable()
@@ -192,33 +178,22 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
 {
   auto const sendQSize = q.size();
   if(!sendQSize) {
-    throw std::logic_error("uncalled send");
+    buff->sock->DriverPending();
+    return true;
   }
   auto &&[promise, buffer] = q.front();
 
   try {
-    if(auto sent = buff->sock->SendSome(buffer->data(), buffer->size())) {
-      if(pendingTlsSend)
-        std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: pendingTlsSend <- false" << std::endl;
-      pendingTlsSend = false;
-      if(sent == buffer->size()) {
-        promise.set_value();
-      } else {
-        // allow partial send to avoid starving other driver's sockets if this one is rate limited
-        buffer->erase(0, sent);
-        return false;
-      }
-    } else { // zero-size sent data although socket was writable
-      // TLS can't send while handshake receipt pending:
-      // give up for now by proclaiming the send queue is empty,
-      // but actually keep the data queued and retry the exact same buffer on readable
-      pendingTlsSend = true;
-      std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: pendingTlsSend <- true" << std::endl;
-
-      return true;
+    auto sent = buff->sock->SendSome(buffer->data(), buffer->size());
+    if(sent == buffer->size()) {
+      promise.set_value();
+    } else {
+      // allow partial send to avoid starving other driver's sockets if this one is rate limited
+      // (may also be zero sent despite socket being writable when TLS handshake is pending)
+      buffer->erase(0, sent);
+      return false;
     }
   } catch(std::runtime_error const &e) {
-    std::cout << to_string(*buff->sock->GetSockName()) << " DriverSend: " << e.what() << std::endl;
     promise.set_exception(std::make_exception_ptr(e));
   }
   q.pop();
