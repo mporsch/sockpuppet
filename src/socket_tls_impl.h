@@ -30,7 +30,9 @@ struct SocketTlsImpl final : public SocketImpl
   SslPtr ssl;  ///< OpenSSL session
   int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
   std::string_view pendingSend;  ///< Buffer view to verify OpenSSL_write retry requirements
-  Duration timeout;  ///< Use-case dependent timeout
+  std::optional<Duration> remainingTime;  ///< Use-case dependent timeout
+  bool isReadable = false; ///< Flag whether Driver has deemed us readable
+  bool isWritable = false; ///< Flag whether Driver has deemed us writable
 
   SocketTlsImpl(int family,
                 int type,
@@ -59,11 +61,13 @@ struct SocketTlsImpl final : public SocketImpl
   void Connect(SockAddrView const &connectAddr) override;
 
   size_t Read(char *data,
-              size_t size,
-              Duration timeout);
+              size_t size);
+  size_t BioRead(char *data,
+                 size_t size);
   size_t Write(char const *data,
-               size_t size,
-               Duration timeout);
+               size_t size);
+  size_t BioWrite(char const *data,
+                  size_t size);
   void Shutdown();
 
   bool HandleResult(int res);

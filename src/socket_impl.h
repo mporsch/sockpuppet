@@ -84,8 +84,14 @@ struct SocketImpl
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
 };
 
+// assumes a readable socket
+size_t ReceiveNow(SOCKET fd, char *data, size_t size);
+
 // wait for readable and read what is available
 std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout);
+
+// assumes a writable socket
+size_t SendNow(SOCKET fd, char const *data, size_t size);
 
 // send everything no matter how long it takes
 size_t SendAll(SOCKET fd, char const *data, size_t size);
