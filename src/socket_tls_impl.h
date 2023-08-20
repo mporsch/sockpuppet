@@ -62,6 +62,10 @@ struct SocketTlsImpl final : public SocketImpl
 
   void Connect(SockAddrView const &connectAddr) override;
 
+  void DriverQuery(short &events) override;
+  void DriverPending() override;
+
+  void Shutdown();
   size_t Read(char *data,
               size_t size);
   size_t BioRead(char *data,
@@ -70,14 +74,10 @@ struct SocketTlsImpl final : public SocketImpl
                size_t size);
   size_t BioWrite(char const *data,
                   size_t size);
-  void Shutdown();
 
   bool HandleResult(int res);
   bool HandleLastError();
   bool HandleError(int error);
-
-  void DriverQuery(short &events) override;
-  void DriverPending() override;
 };
 
 struct AcceptorTlsImpl : public SocketImpl

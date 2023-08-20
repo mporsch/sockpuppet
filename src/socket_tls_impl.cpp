@@ -40,20 +40,6 @@ auto UnderDeadline(Fn &&fn, Duration &timeout) -> auto
 // BIO_set_data/BIO_get_data connect the socket to the BIO implementation
 namespace bio {
 
-int Write(BIO *b, char const *data, int size)
-{
-  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
-
-  BIO_clear_retry_flags(b);
-
-  auto sent = sock->BioWrite(data, static_cast<size_t>(size));
-  if(sent != static_cast<size_t>(size)) {
-    BIO_set_retry_write(b);
-  }
-
-  return static_cast<int>(sent);
-}
-
 int Read(BIO *b, char *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
@@ -66,6 +52,20 @@ int Read(BIO *b, char *data, int size)
   }
 
   return static_cast<int>(received);
+}
+
+int Write(BIO *b, char const *data, int size)
+{
+  auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
+
+  BIO_clear_retry_flags(b);
+
+  auto sent = sock->BioWrite(data, static_cast<size_t>(size));
+  if(sent != static_cast<size_t>(size)) {
+    BIO_set_retry_write(b);
+  }
+
+  return static_cast<int>(sent);
 }
 
 long Ctrl(BIO *, int cmd, long, void *)
@@ -101,8 +101,8 @@ MethodPtr CreateMethod()
   auto method = MethodPtr(BIO_meth_new(
       BIO_get_new_index() | BIO_TYPE_SOURCE_SINK,
       "sockpuppet"));
-  if(BIO_meth_set_write(method.get(), Write) &&
-     BIO_meth_set_read(method.get(), Read) &&
+  if(BIO_meth_set_read(method.get(), Read) &&
+     BIO_meth_set_write(method.get(), Write) &&
      BIO_meth_set_ctrl(method.get(), Ctrl) &&
      BIO_meth_set_create(method.get(), Create)) {
     return method;
@@ -282,6 +282,70 @@ void SocketTlsImpl::Connect(SockAddrView const &connectAddr)
   // the TLS handshake will be performed during Send/Receive
 }
 
+void SocketTlsImpl::DriverQuery(short &events)
+{
+  if(!SSL_is_init_finished(ssl.get())) {
+    if(lastError == SSL_ERROR_WANT_WRITE) {
+      // while handshake send is pending we actively request send attempts from the Driver
+      events |= POLLOUT;
+    } else if(lastError == SSL_ERROR_WANT_READ) {
+      // while handshake receive is pending we suppress send attempts from the Driver
+      driverSendSuppressed |= (events & POLLOUT);
+      events &= ~POLLOUT;
+    }
+  } else if(driverSendSuppressed) {
+    // if Driver send has been suppressed before handshake finished, restore it now
+    driverSendSuppressed = false;
+    events |= POLLOUT;
+  }
+}
+
+void SocketTlsImpl::DriverPending()
+{
+  if(SSL_is_init_finished(ssl.get())) {
+    return;
+  }
+
+  // we have been deemed writable
+  remainingTime = zeroTimeout;
+  isWritable = true;
+  if(lastError == SSL_ERROR_WANT_WRITE) {
+    lastError = SSL_ERROR_NONE;
+  }
+
+  char buf[64];
+  auto received = Read(buf, sizeof(buf));
+  if(received) {
+    throw std::logic_error("unexpected recceive");
+  }
+}
+
+void SocketTlsImpl::Shutdown()
+{
+  // timeout will be honored during waiting and BIO read/write
+  isReadable = false;
+  isWritable = false;
+  remainingTime = std::chrono::seconds(1);
+
+  if(SSL_shutdown(ssl.get()) <= 0) {
+    // sent the shutdown, but have not received one from the peer yet
+    // spend some time trying to receive it, but go on eventually
+    char buf[1024];
+    for(int i = 0; i < handshakeStepsMax; ++i) {
+      auto res = SSL_read(ssl.get(), buf, sizeof(buf));
+      if(res < 0) {
+        if(!HandleResult(res)) {
+          break;
+        }
+      } else if(res == 0) {
+        break;
+      }
+    }
+
+    (void)SSL_shutdown(ssl.get());
+  }
+}
+
 size_t SocketTlsImpl::Read(char *data, size_t size)
 {
   if(HandleLastError()) {
@@ -370,32 +434,6 @@ size_t SocketTlsImpl::BioWrite(char const *data, size_t size)
   return sent;
 }
 
-void SocketTlsImpl::Shutdown()
-{
-  // timeout will be honored during waiting and BIO read/write
-  isReadable = false;
-  isWritable = false;
-  remainingTime = std::chrono::seconds(1);
-
-  if(SSL_shutdown(ssl.get()) <= 0) {
-    // sent the shutdown, but have not received one from the peer yet
-    // spend some time trying to receive it, but go on eventually
-    char buf[1024];
-    for(int i = 0; i < handshakeStepsMax; ++i) {
-      auto res = SSL_read(ssl.get(), buf, sizeof(buf));
-      if(res < 0) {
-        if(!HandleResult(res)) {
-          break;
-        }
-      } else if(res == 0) {
-        break;
-      }
-    }
-
-    (void)SSL_shutdown(ssl.get());
-  }
-}
-
 bool SocketTlsImpl::HandleResult(int res)
 {
   auto error = SSL_get_error(ssl.get(), res);
@@ -414,44 +452,6 @@ bool SocketTlsImpl::HandleLastError()
     return true;
   }
   return false;
-}
-
-void SocketTlsImpl::DriverQuery(short &events)
-{
-  if(!SSL_is_init_finished(ssl.get())) {
-    if(lastError == SSL_ERROR_WANT_WRITE) {
-      // while handshake send is pending we actively request send attempts from the Driver
-      events |= POLLOUT;
-    } else if(lastError == SSL_ERROR_WANT_READ) {
-      // while handshake receive is pending we suppress send attempts from the Driver
-      driverSendSuppressed |= (events & POLLOUT);
-      events &= ~POLLOUT;
-    }
-  } else if (driverSendSuppressed) {
-    // if Driver send has been suppressed before handshake finished, restore it now
-    driverSendSuppressed = false;
-    events |= POLLOUT;
-  }
-}
-
-void SocketTlsImpl::DriverPending()
-{
-  if(SSL_is_init_finished(ssl.get())) {
-    return;
-  }
-
-  // we have been deemed writable
-  remainingTime = zeroTimeout;
-  isWritable = true;
-  if(lastError == SSL_ERROR_WANT_WRITE) {
-    lastError = SSL_ERROR_NONE;
-  }
-
-  char buf[64];
-  auto received = Read(buf, sizeof(buf));
-  if(received) {
-    throw std::logic_error("unexpected recceive");
-  }
 }
 
 bool SocketTlsImpl::HandleError(int error)
