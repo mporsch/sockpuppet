@@ -110,6 +110,16 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
   return wasEmpty;
 }
 
+SOCKET SocketAsyncImpl::DriverGetFd() const
+{
+  return buff->sock->fd;
+}
+
+void SocketAsyncImpl::DriverQuery(short &events)
+{
+  buff->sock->DriverQuery(events);
+}
+
 void SocketAsyncImpl::DriverOnReadable()
 {
   onReadable();
@@ -149,11 +159,6 @@ void SocketAsyncImpl::DriverReceiveFrom(ReceiveFromHandler const &onReceiveFrom)
   } catch(std::runtime_error const &e) {
     onError(e.what());
   }
-}
-
-void SocketAsyncImpl::DriverQuery(short &events)
-{
-  buff->sock->DriverQuery(events);
 }
 
 bool SocketAsyncImpl::DriverOnWritable()

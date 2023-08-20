@@ -56,12 +56,12 @@ struct SocketAsyncImpl
   bool DoSendEnqueue(std::promise<void> promise, Args&&... args);
 
   // in thread context of DriverImpl
+  SOCKET DriverGetFd() const;
+  void DriverQuery(short &events);
   void DriverOnReadable();
   void DriverConnect(ConnectHandler const &onConnect);
   void DriverReceive(ReceiveHandler const &onReceive);
   void DriverReceiveFrom(ReceiveFromHandler const &onReceiveFrom);
-
-  void DriverQuery(short &events);
 
   /// @return  true if there is no more data to send, false otherwise
   bool DriverOnWritable();
