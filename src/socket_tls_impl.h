@@ -30,9 +30,10 @@ struct SocketTlsImpl final : public SocketImpl
   SslPtr ssl;  ///< OpenSSL session
   int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
   std::string_view pendingSend;  ///< Buffer view to verify OpenSSL_write retry requirements
-  std::optional<Duration> remainingTime;  ///< Use-case dependent timeout
-  bool isReadable = false; ///< Flag whether Driver has deemed us readable
-  bool isWritable = false; ///< Flag whether Driver has deemed us writable
+  Duration remainingTime;  ///< Use-case dependent timeout
+  bool isReadable = false;  ///< Flag whether Driver has deemed us readable
+  bool isWritable = false;  ///< Flag whether Driver has deemed us writable
+  bool driverPending = false;  ///< Flag whether Driver send was suppressed
 
   SocketTlsImpl(int family,
                 int type,
