@@ -436,13 +436,8 @@ size_t SocketTlsImpl::BioWrite(char const *data, size_t size)
 
 bool SocketTlsImpl::HandleResult(int res)
 {
-  auto error = SSL_get_error(ssl.get(), res);
-  if(HandleError(error)) {
-    lastError = SSL_ERROR_NONE;
-    return true;
-  }
-  lastError = error;
-  return false;
+  lastError = SSL_get_error(ssl.get(), res);
+  return HandleLastError();
 }
 
 bool SocketTlsImpl::HandleLastError()
