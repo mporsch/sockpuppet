@@ -183,6 +183,7 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
 {
   auto const sendQSize = q.size();
   if(!sendQSize) {
+    // TLS socket has requested write for TLS handshake
     buff->sock->DriverPending();
     return true;
   }

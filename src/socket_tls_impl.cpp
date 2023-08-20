@@ -22,8 +22,8 @@ constexpr int handshakeStepsMax = 10;
 template<typename Fn>
 auto UnderDeadline(Fn &&fn, Duration &timeout) -> auto
 {
-  if(timeout.count() <= 0) {
-    return fn(); // remains unchanged
+  if(timeout.count() <= 0) { // remains unchanged
+    return fn();
   }
 
   // update timeout (may be exceeded)
@@ -420,13 +420,16 @@ void SocketTlsImpl::DriverQuery(short &events)
 {
   if(!SSL_is_init_finished(ssl.get())) {
     if(lastError == SSL_ERROR_WANT_WRITE) {
+      // while handshake send is pending we actively request send attempts from the Driver
       events |= POLLOUT;
     } else if(lastError == SSL_ERROR_WANT_READ) {
-      driverPending |= (events & POLLOUT);
+      // while handshake receive is pending we suppress send attempts from the Driver
+      driverSendSuppressed |= (events & POLLOUT);
       events &= ~POLLOUT;
     }
-  } else if (driverPending) {
-    driverPending = false;
+  } else if (driverSendSuppressed) {
+    // if Driver send has been suppressed before handshake finished, restore it now
+    driverSendSuppressed = false;
     events |= POLLOUT;
   }
 }

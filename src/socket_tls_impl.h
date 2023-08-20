@@ -14,8 +14,9 @@
 namespace sockpuppet {
 
 // the interface matches SocketImpl but some implicit differences exist:
-//   may be readable but no user data can be read (only handshake data)
-//   handshake data is sent/received on the socket during both send AND read
+//   may be readable but no user data can be received (only handshake data)
+//   may be writable but no user data can be sent (handshake pending)
+//   handshake data is sent/received on the socket during both send AND receive
 //   if a send with limited timeout fails, it must be retried with the same data
 //     (see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html)
 struct SocketTlsImpl final : public SocketImpl
@@ -33,7 +34,7 @@ struct SocketTlsImpl final : public SocketImpl
   Duration remainingTime;  ///< Use-case dependent timeout
   bool isReadable = false;  ///< Flag whether Driver has deemed us readable
   bool isWritable = false;  ///< Flag whether Driver has deemed us writable
-  bool driverPending = false;  ///< Flag whether Driver send was suppressed
+  bool driverSendSuppressed = false;  ///< Flag whether Driver send polling was suppressed
 
   SocketTlsImpl(int family,
                 int type,
