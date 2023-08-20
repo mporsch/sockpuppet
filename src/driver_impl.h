@@ -53,18 +53,19 @@ struct Driver::DriverImpl
     PauseGuard &operator=(PauseGuard &&) = delete;
   };
 
-  /// internal signalling pipe for cancelling Step()
+  /// Internal signalling pipe for cancelling Step()
   AddressShared pipeToAddr;
   SocketImpl pipeFrom;
   SocketImpl pipeTo;
 
+  /// Lists of managed ToDos and Sockets protected by mutex
   std::recursive_mutex stepMtx;
   std::mutex pauseMtx;
   ToDos todos; // guarded by stepMtx
   std::vector<SocketRef> sockets; // guarded by stepMtx
   std::vector<pollfd> pfds; // front element belongs to internal signalling pipe; guarded by stepMtx
 
-  std::atomic<bool> shouldStop; ///< flag for cancelling Run()
+  std::atomic<bool> shouldStop; ///< Flag for cancelling Run()
 
   DriverImpl();
   DriverImpl(DriverImpl const &) = delete;
@@ -76,7 +77,7 @@ struct Driver::DriverImpl
   void Step(Duration timeout);
   template<typename Deadline>
   Duration StepTodos(Deadline deadline);
-  void StepFds(Duration timeout);
+  void StepSockets(Duration timeout);
 
   void Run();
   void Stop();
@@ -91,11 +92,13 @@ struct Driver::DriverImpl
   void AsyncUnregister(SOCKET fd);
   void AsyncWantSend(SOCKET fd);
 
+  // interactions with signalling pipe
   void Bump();
   void Unbump();
 
-  void QueryFds();
-  void DoOneFdTask();
+  // interactions with sockets
+  void QuerySockets();
+  void DoOneSocketTask();
 };
 
 } // namespace sockpuppet
