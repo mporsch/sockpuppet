@@ -293,7 +293,7 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
 
 void SocketImpl::DriverQuery(short &)
 {
-  return;
+  // only actively used by the TLS socket
 }
 
 void SocketImpl::DriverPending()
