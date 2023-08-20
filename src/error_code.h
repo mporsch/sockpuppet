@@ -12,8 +12,6 @@ std::error_code SocketError();
 
 std::error_code SocketError(int code);
 
-bool IsSocketErrorRetry(std::error_code const &error);
-
 std::error_code AddressError(int code);
 
 #ifdef SOCKPUPPET_WITH_TLS
