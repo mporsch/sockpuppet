@@ -44,17 +44,10 @@ int Write(BIO *b, char const *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
-  if(!sock->isWritable && !sock->remainingTime) {
-    BIO_set_retry_write(b);
-    return 0;
-  }
-
   BIO_clear_retry_flags(b);
 
-  // (try to) send handshake / user data
   auto sent = sock->BioWrite(data, static_cast<size_t>(size));
-
-  if(static_cast<int>(sent) != size) {
+  if(sent != static_cast<size_t>(size)) {
     BIO_set_retry_write(b);
   }
 
@@ -65,16 +58,9 @@ int Read(BIO *b, char *data, int size)
 {
   auto *sock = reinterpret_cast<SocketTlsImpl *>(BIO_get_data(b));
 
-  if(!sock->isReadable && !sock->remainingTime) {
-    BIO_set_retry_read(b);
-    return 0;
-  }
-
   BIO_clear_retry_flags(b);
 
-  // (try to) receive handshake / user data
   auto received = sock->BioRead(data, static_cast<size_t>(size));
-
   if(!received) {
     BIO_set_retry_read(b);
   }
@@ -254,13 +240,18 @@ std::optional<size_t> SocketTlsImpl::Receive(
 size_t SocketTlsImpl::Receive(char *data, size_t size)
 {
   // we have been deemed readable
-  remainingTime = std::nullopt;
+  remainingTime = zeroTimeout;
   isReadable = true;
   if(lastError == SSL_ERROR_WANT_READ) {
     lastError = SSL_ERROR_NONE;
   }
 
-  return Read(data, size);
+  auto received = Read(data, size);
+  if(!received && SSL_is_init_finished(ssl.get())) {
+    // don't get stuck trying to read something after being readable during handshake
+    lastError = SSL_ERROR_NONE;
+  }
+  return received;
 }
 
 size_t SocketTlsImpl::Send(char const *data, size_t size, Duration timeout)
@@ -273,8 +264,8 @@ size_t SocketTlsImpl::Send(char const *data, size_t size, Duration timeout)
 
 size_t SocketTlsImpl::SendSome(char const *data, size_t size)
 {
-  // we have been deemed writable/readable
-  remainingTime = std::nullopt;
+  // we have been deemed writable
+  remainingTime = zeroTimeout;
   isWritable = true;
   if(lastError == SSL_ERROR_WANT_WRITE) {
     lastError = SSL_ERROR_NONE;
@@ -313,15 +304,13 @@ size_t SocketTlsImpl::BioRead(char *data, size_t size)
 {
   if(isReadable) {
     isReadable = false;
-    assert(!remainingTime);
     return ReceiveNow(this->fd, data, size);
   }
-  assert(remainingTime.has_value());
 
   // (try to) receive handshake / user data and update remaining time
   auto received = UnderDeadline([=]() -> std::optional<size_t> {
-    return sockpuppet::Receive(this->fd, data, size, *remainingTime);
-  }, *remainingTime);
+    return sockpuppet::Receive(this->fd, data, size, remainingTime);
+  }, remainingTime);
   if(received) {
     return *received;
   }
@@ -363,18 +352,19 @@ size_t SocketTlsImpl::BioWrite(char const *data, size_t size)
 {
   if(isWritable) {
     isWritable = false;
-    assert(!remainingTime);
     return SendNow(this->fd, data, size);
   }
-  assert(remainingTime.has_value());
 
-  if(remainingTime->count() < 0) { // remains unchanged
+  if(remainingTime.count() < 0) { // remains unchanged
     return SendAll(this->fd, data, size);
   }
-  if(remainingTime->count() == 0) { // remains unchanged
+
+  if(remainingTime.count() == 0) { // remains unchanged
     return SendTry(this->fd, data, size);
   }
-  DeadlineLimited deadline(*remainingTime);
+
+  // (try to) send handshake / user data and update remaining time
+  DeadlineLimited deadline(remainingTime);
   auto sent = sockpuppet::SendSome(this->fd, data, size, deadline);
   remainingTime = (sent == size ? deadline.Remaining() : zeroTimeout); // update timeout (may be exceeded)
   return sent;
@@ -383,6 +373,8 @@ size_t SocketTlsImpl::BioWrite(char const *data, size_t size)
 void SocketTlsImpl::Shutdown()
 {
   // timeout will be honored during waiting and BIO read/write
+  isReadable = false;
+  isWritable = false;
   remainingTime = std::chrono::seconds(1);
 
   if(SSL_shutdown(ssl.get()) <= 0) {
@@ -430,15 +422,23 @@ void SocketTlsImpl::DriverQuery(short &events)
     if(lastError == SSL_ERROR_WANT_WRITE) {
       events |= POLLOUT;
     } else if(lastError == SSL_ERROR_WANT_READ) {
+      driverPending |= (events & POLLOUT);
       events &= ~POLLOUT;
     }
+  } else if (driverPending) {
+    driverPending = false;
+    events |= POLLOUT;
   }
 }
 
 void SocketTlsImpl::DriverPending()
 {
-  // we have been deemed writable/readable
-  remainingTime = std::nullopt;
+  if(SSL_is_init_finished(ssl.get())) {
+    return;
+  }
+
+  // we have been deemed writable
+  remainingTime = zeroTimeout;
   isWritable = true;
   if(lastError == SSL_ERROR_WANT_WRITE) {
     lastError = SSL_ERROR_NONE;
@@ -459,20 +459,14 @@ bool SocketTlsImpl::HandleError(int error)
   case SSL_ERROR_NONE:
     return true;
   case SSL_ERROR_WANT_READ:
-    if(!remainingTime) {
-      return false;
-    }
     // wait and update remaining time
     return UnderDeadline([this]() -> bool {
-      return WaitReadable(this->fd, *remainingTime);
-    }, *remainingTime);
+      return WaitReadable(this->fd, remainingTime);
+    }, remainingTime);
   case SSL_ERROR_WANT_WRITE:
-    if(!remainingTime) {
-      return false;
-    }
     return UnderDeadline([this]() -> bool {
-      return WaitWritable(this->fd, *remainingTime);
-    }, *remainingTime);
+      return WaitWritable(this->fd, remainingTime);
+    }, remainingTime);
   case SSL_ERROR_SSL:
     throw std::system_error(SslError(error), errorMessage);
   case SSL_ERROR_SYSCALL:
