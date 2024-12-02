@@ -40,7 +40,7 @@ The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide differ
 
 If built with TLS support, all TCP socket classes can be instantiated with an SSL certificate and private key file to run encrypted connections.
 
-The `ToDo` class is used for scheduling tasks to be run by a `Driver` at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attemts.
+The `ToDo` class is used for scheduling tasks to be run by a `Driver` at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attempts.
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers
