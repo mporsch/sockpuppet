@@ -52,7 +52,7 @@ jobs:
             type: Debug
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: cache externals restore
         id: cache-externals-restore
         if: matrix.libressl
@@ -62,7 +62,12 @@ jobs:
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
       - name: configure externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
-        run: cmake -B build/external -S external ${{ matrix.generator }} -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
+        run: >
+          cmake
+          -B build/external
+          -S external
+          ${{ matrix.generator }}
+          -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
       - name: build externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
         run: cmake --build build/external --config ${{ matrix.type }}
@@ -75,7 +80,10 @@ jobs:
           key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
       - name: configure library
         run: >
-          cmake -B build -S . ${{ matrix.generator }}
+          cmake
+          -B build
+          -S .
+          ${{ matrix.generator }}
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DWITH_TLS:BOOL=ON
           ${{ matrix.libressl }}
