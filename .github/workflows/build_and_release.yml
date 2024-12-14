@@ -66,11 +66,7 @@ jobs:
         uses: vimtor/action-zip@v1.2
         with:
           files: >
-            build/install/include/
-            build/install/lib/
-            build/install/bin/
-            build/install/cmake/
-            build/install/demo/
+            build/install/
           dest: ${{ matrix.release_zip }}
       - name: release
         uses: softprops/action-gh-release@v2
