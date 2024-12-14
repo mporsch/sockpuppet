@@ -53,6 +53,7 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }}
+          -DBUILD_TESTS:BOOL=OFF
           -DBUILD_EXAMPLES:BOOL=ON
           -DBUILD_SHARED_LIBS:BOOL=ON
           -DWITH_TLS:BOOL=ON
@@ -64,11 +65,12 @@ jobs:
       - name: zip
         uses: vimtor/action-zip@v1.2
         with:
-          files: |
+          files: >
             build/install/include/
             build/install/lib/
             build/install/bin/
             build/install/cmake/
+            build/install/demo/
           dest: ${{ matrix.release_zip }}
       - name: release
         uses: softprops/action-gh-release@v2
