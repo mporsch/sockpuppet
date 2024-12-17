@@ -153,7 +153,7 @@ bool SockAddrView::operator!=(SockAddrView const &other) const
 
 Address::AddressImpl::AddressImpl() = default;
 
-Address::AddressImpl::~AddressImpl() = default;
+Address::AddressImpl::~AddressImpl() noexcept = default;
 
 std::string Address::AddressImpl::Host() const
 {
@@ -246,7 +246,7 @@ SockAddrInfo::SockAddrInfo(uint16_t port)
 {
 }
 
-SockAddrInfo::~SockAddrInfo() = default;
+SockAddrInfo::~SockAddrInfo() noexcept = default;
 
 addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 {
@@ -314,7 +314,7 @@ SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
   std::memcpy(&storage, addr, addrLen);
 }
 
-SockAddrStorage::~SockAddrStorage() = default;
+SockAddrStorage::~SockAddrStorage() noexcept = default;
 
 sockaddr *SockAddrStorage::Addr()
 {

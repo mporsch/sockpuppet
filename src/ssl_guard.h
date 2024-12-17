@@ -10,7 +10,7 @@ struct SslGuard
   SslGuard();
   SslGuard(SslGuard const &other) = delete;
   SslGuard(SslGuard &&other) = delete;
-  ~SslGuard();
+  ~SslGuard() noexcept;
   SslGuard &operator=(SslGuard const &other) = delete;
   SslGuard &operator=(SslGuard &&other) = delete;
 };

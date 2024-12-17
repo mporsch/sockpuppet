@@ -68,7 +68,7 @@ Address::Address(Address const &other) = default;
 
 Address::Address(Address &&other) noexcept = default;
 
-Address::~Address() = default;
+Address::~Address() noexcept = default;
 
 Address &Address::operator=(Address const &other) = default;
 

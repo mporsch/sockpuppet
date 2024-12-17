@@ -9,7 +9,7 @@ struct WinSockGuard
   WinSockGuard();
   WinSockGuard(WinSockGuard const &other) = delete;
   WinSockGuard(WinSockGuard &&other) = delete;
-  ~WinSockGuard();
+  ~WinSockGuard() noexcept;
   WinSockGuard &operator=(WinSockGuard const &other) = delete;
   WinSockGuard &operator=(WinSockGuard &&other) = delete;
 #endif // _WIN32

@@ -5,6 +5,7 @@
 #include <openssl/crypto.h> // for CRYPTO_set_locking_callback
 #include <openssl/ssl.h> // for SSL_library_init
 
+#include <atomic> // for std::atomic
 #include <memory> // for std::unique_ptr
 #include <mutex> // for std::mutex
 #include <thread> // for std::this_thread::get_id
@@ -62,26 +63,16 @@ unsigned long Id()
   return static_cast<unsigned long>(hasher(std::this_thread::get_id()));
 }
 
-void UpdateInstanceCount(int modifier)
+std::atomic<int> &Count()
 {
-  static std::mutex mtx;
-  static int curr = 0;
+  static std::atomic<int> curr = 0;
+  return curr;
+}
 
-  std::lock_guard<std::mutex> lock(mtx);
-
-  auto prev = curr;
-  curr += modifier;
-
-  if(prev == 0 && curr == 1) {
-    // we are the first instance -> initialize
-    (void)SSL_library_init();
-    SSL_load_error_strings();
-    CRYPTO_set_id_callback(Id);
-    CRYPTO_set_locking_callback(Locking);
-    CRYPTO_set_dynlock_create_callback(DynlockCreate);
-    CRYPTO_set_dynlock_lock_callback(DynlockLock);
-    CRYPTO_set_dynlock_destroy_callback(DynlockDestroy);
-  } else if(prev == 1 && curr == 0) {
+void Dec() noexcept
+{
+  auto prev = Count().fetch_add(-1);
+  if(prev == 1) {
     // we are the last instance -> cleanup
     CRYPTO_set_dynlock_destroy_callback(nullptr);
     CRYPTO_set_dynlock_lock_callback(nullptr);
@@ -92,18 +83,33 @@ void UpdateInstanceCount(int modifier)
   }
 }
 
+void Inc()
+{
+  auto prev = Count().fetch_add(1);
+  if(prev == 0) {
+    // we are the first instance -> initialize
+    (void)SSL_library_init();
+    SSL_load_error_strings();
+    CRYPTO_set_id_callback(Id);
+    CRYPTO_set_locking_callback(Locking);
+    CRYPTO_set_dynlock_create_callback(DynlockCreate);
+    CRYPTO_set_dynlock_lock_callback(DynlockLock);
+    CRYPTO_set_dynlock_destroy_callback(DynlockDestroy);
+  }
+}
+
 } // unnamed namespace
 
 namespace sockpuppet {
 
 SslGuard::SslGuard()
 {
-  UpdateInstanceCount(1);
+  Inc();
 }
 
-SslGuard::~SslGuard()
+SslGuard::~SslGuard() noexcept
 {
-  UpdateInstanceCount(-1);
+  Dec();
 }
 
 } // namespace sockpuppet

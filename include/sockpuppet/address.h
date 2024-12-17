@@ -53,7 +53,7 @@ struct Address
   Address(std::shared_ptr<AddressImpl> other);
   Address(Address const &other);
   Address(Address &&other) noexcept;
-  ~Address();
+  ~Address() noexcept;
   Address &operator=(Address const &other);
   Address &operator=(Address &&other) noexcept;
   bool operator<(Address const &other) const;

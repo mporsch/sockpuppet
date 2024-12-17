@@ -33,7 +33,7 @@ struct Address::AddressImpl
   WinSockGuard guard;  ///< Guard to initialize socket subsystem on windows
 
   AddressImpl();
-  virtual ~AddressImpl();
+  virtual ~AddressImpl() noexcept;
 
   virtual SockAddrView ForTcp() const = 0;
   virtual SockAddrView ForUdp() const = 0;
@@ -65,7 +65,7 @@ struct SockAddrInfo : public Address::AddressImpl
   SockAddrInfo(std::string const &uri);
   SockAddrInfo(std::string const &host, std::string const &serv);
   SockAddrInfo(uint16_t port);
-  ~SockAddrInfo() override;
+  ~SockAddrInfo() noexcept override;
 
   addrinfo const *Find(int type, int protocol) const;
 
@@ -82,7 +82,7 @@ struct SockAddrStorage : public Address::AddressImpl
 
   SockAddrStorage();
   SockAddrStorage(sockaddr const *addr, size_t addrLen);
-  ~SockAddrStorage() override;
+  ~SockAddrStorage() noexcept override;
 
   sockaddr *Addr();
   socklen_t *AddrLen();
