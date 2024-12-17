@@ -21,13 +21,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - name: cache externals restore
         id: cache-externals-restore
         if: matrix.libressl
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/external/libressl/install
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
+
       - name: configure externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
         run: >
@@ -37,16 +39,18 @@ jobs:
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }}
           -B build/external
           -S external
+
       - name: build externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
         run: cmake --build build/external --config ${{ matrix.build_type }}
+
       - name: cache externals save
-        id: cache-externals-save
-        if: matrix.libressl
-        uses: actions/cache/save@v3
+        if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
+        uses: actions/cache/save@v4
         with:
           path: build/external/libressl/install
           key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
+
       - name: configure
         run: >
           cmake
@@ -60,14 +64,17 @@ jobs:
           ${{ matrix.libressl }}
           -B build
           -S .
+
       - name: build and install
         run: cmake --build build --target install --config ${{ matrix.build_type }}
+
       - name: zip
         uses: vimtor/action-zip@v1.2
         with:
           files: >
             build/install/
           dest: ${{ matrix.release_zip }}
+
       - name: release
         uses: softprops/action-gh-release@v2
         with:

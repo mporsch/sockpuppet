@@ -53,13 +53,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - name: cache externals restore
         id: cache-externals-restore
         if: matrix.libressl
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: build/external/libressl/install
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
+
       - name: configure externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
         run: >
@@ -68,16 +70,18 @@ jobs:
           -S external
           ${{ matrix.generator }}
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
+
       - name: build externals
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
         run: cmake --build build/external --config ${{ matrix.type }}
+
       - name: cache externals save
-        id: cache-externals-save
-        if: matrix.libressl
-        uses: actions/cache/save@v3
+        if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
+        uses: actions/cache/save@v4
         with:
           path: build/external/libressl/install
           key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
+
       - name: configure library
         run: >
           cmake
@@ -88,8 +92,10 @@ jobs:
           -DWITH_TLS:BOOL=ON
           ${{ matrix.libressl }}
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
+
       - name: build library
         run: cmake --build build --config ${{ matrix.type }}
+
       - name: build & run tests
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
