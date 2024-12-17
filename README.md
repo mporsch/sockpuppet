@@ -24,7 +24,7 @@ So you want to have network communication in your little program but boost seems
 - [ ] UDP multicast
 - [ ] address arithmetic/lookup for network/broadcast addresses
 
-## Build [![Build Status](https://app.travis-ci.com/mporsch/sockpuppet.svg?branch=master)](https://app.travis-ci.com/mporsch/sockpuppet)
+## Build [![Build Status](https://github.com/mporsch/sockpuppet/actions/workflows/build_and_test.yml/badge.svg?branch=master)](https://github.com/mporsch/sockpuppet/actions/workflows/build_and_test.yml)
 Configure and build library/examples/demo/tests using CMake.
 
 ## Quickstart
@@ -40,7 +40,7 @@ The socket classes `Socket*`, `Socket*Buffered`and `Socket*Async` provide differ
 
 If built with TLS support, all TCP socket classes can be instantiated with an SSL certificate and private key file to run encrypted connections.
 
-The `ToDo` class is used for scheduling tasks to be run by a `Driver` at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attemts.
+The `ToDo` class is used for scheduling tasks to be run by a `Driver` at a given point in time, e.g. periodic heartbeat packet transmissions or reconnect attempts.
 
 ## Design rationale
 * most user-visible classes employ a bridge/PIMPL pattern to avoid forwarding the internally included system headers

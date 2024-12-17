@@ -1,6 +1,5 @@
 #include "socket_impl.h"
 #include "error_code.h" // for SocketError
-#include "wait.h" // for WaitReadableBlocking
 
 #ifndef _WIN32
 # include <fcntl.h> // for ::fcntl
@@ -8,36 +7,25 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
-#include <algorithm>
 #include <cassert> // for assert
 #include <numeric>
-#include <string_view>
 
 namespace sockpuppet {
 
 namespace {
 
-static auto const fdInvalid =
+constexpr auto fdInvalid =
 #ifdef _WIN32
     INVALID_SOCKET;
 #else
     SOCKET(-1);
 #endif // _WIN32
 
-static int const sendAllFlags =
+constexpr int sendFlags =
 #ifdef MSG_NOSIGNAL
     MSG_NOSIGNAL | // avoid SIGPIPE on connection closed (in Linux)
 #endif // MSG_NOSIGNAL
     0;
-
-static int const sendSomeFlags =
-#ifdef MSG_PARTIAL
-    MSG_PARTIAL | // dont block if all cannot be sent at once
-#endif // MSG_PARTIAL
-#ifdef MSG_DONTWAIT
-    MSG_DONTWAIT | // dont block if all cannot be sent at once
-#endif // MSG_DONTWAIT
-    sendAllFlags;
 
 void CloseSocket(SOCKET fd)
 {
@@ -46,6 +34,71 @@ void CloseSocket(SOCKET fd)
 #else
   (void)::close(fd);
 #endif // _WIN32
+}
+
+size_t DoSendTo(SOCKET fd, Views &bufs, SockAddrView const &dstAddr)
+{
+#ifdef _WIN32
+  DWORD sent;
+  constexpr int flags = 0;
+  auto res = ::WSASendTo(fd,
+                         bufs.data(), bufs.size(),
+                         &sent,
+                         flags,
+                         dstAddr.addr, dstAddr.addrLen,
+                         nullptr,
+                         nullptr);
+  if(res != 0) {
+#else // _WIN32
+  msghdr msg = {
+    dstAddr.addr, dstAddr.addrLen,
+    buf.data(), buf.size(),
+    nullptr, 0U,
+    0
+  };
+  auto sent = ::sendmsg(fd, &msg, flags);
+  if(sent < 0) {
+#endif // _WIN32
+    auto error = SocketError(); // cache before risking another
+    throw std::system_error(error, "failed to send to " + to_string(dstAddr));
+  }
+
+  bufs.Advance(static_cast<size_t>(sent));
+  if(!bufs.empty()) {
+    throw std::logic_error("unexpected UDP send result");
+  }
+  return static_cast<size_t>(sent);
+}
+
+size_t DoSend(SOCKET fd, Views &bufs, int flags)
+{
+#ifdef _WIN32
+  DWORD sent;
+  auto res = ::WSASend(fd,
+                       bufs.data(), static_cast<DWORD>(bufs.size()),
+                       &sent,
+                       static_cast<DWORD>(flags),
+                       nullptr,
+                       nullptr);
+  if(res != 0) {
+#else // _WIN32
+  msghdr msg = {
+    nullptr, 0U,
+    buf.data(), buf.size(),
+    nullptr, 0U,
+    0
+  };
+  auto sent = ::sendmsg(fd, &msg, flags);
+  if(sent < 0) {
+#endif // _WIN32
+    throw std::system_error(SocketError(), "failed to send");
+  }
+
+  bufs.Advance(static_cast<size_t>(sent));
+  if((sent == 0) && (bufs.OverallSize() > 0U)) {
+    throw std::logic_error("unexpected send result");
+  }
+  return static_cast<size_t>(sent);
 }
 
 int DoSetBlocking(SOCKET fd, bool blocking)
@@ -68,39 +121,6 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
   if(DoSetBlocking(fd, blocking)) {
     throw std::system_error(SocketError(), errorMessage);
   }
-}
-
-size_t DoSend(SOCKET fd, Views &buf, int flags)
-{
-#ifdef _WIN32
-  DWORD sent;
-  auto res = ::WSASend(fd,
-                       buf.data(), static_cast<DWORD>(buf.size()),
-                       &sent,
-                       static_cast<DWORD>(flags),
-                       nullptr,
-                       nullptr);
-  if(res != 0) {
-    throw std::system_error(SocketError(res), "failed to send");
-  } else if((sent == 0) && (buf.OverallSize() > 0U)) {
-    throw std::logic_error("unexpected send result");
-  }
-#else // _WIN32
-  msghdr msg = {
-    nullptr, 0U,
-    buf.data(), buf.size(),
-    nullptr, 0U,
-    0
-  };
-  auto sent = ::sendmsg(fd, &msg, flags);
-  if(sent < 0) {
-    throw std::system_error(SocketError(), "failed to send");
-  } else if((sent == 0) && (buf.OverallSize() > 0U)) {
-    throw std::logic_error("unexpected send result");
-  }
-#endif // _WIN32
-
-  return static_cast<size_t>(sent);
 }
 
 void SetSockOpt(SOCKET fd, int id, int value, char const *errorMessage)
@@ -135,6 +155,11 @@ View::View(char const *data, size_t size)
 {
 }
 
+View::View(std::string_view sv)
+  : View(sv.data(), sv.size())
+{
+}
+
 char const *View::Data() const
 {
 #ifdef _WIN32
@@ -155,12 +180,13 @@ size_t View::Size() const
 
 void View::Advance(size_t count)
 {
+  if(count >= Size()) {
+    throw std::logic_error("invalid advance size");
+  }
 #ifdef _WIN32
-  assert(count < this->len);
   this->buf += count;
   this->len -= count;
 #else
-  assert(count < this->iov_len);
   this->iov_base = static_cast<char*>(this->iov_base) + count;
   this->iov_len -= count;
 #endif // _WIN32
@@ -173,23 +199,13 @@ Views::Views(char const *data, size_t size)
 }
 
 Views::Views(std::initializer_list<std::string_view> ilist)
+  : ViewsBackend(std::begin(ilist), std::end(ilist))
 {
-  auto count = std::distance(std::begin(ilist), std::end(ilist));
-  this->reserve(static_cast<size_t>(count));
-  (void)std::transform(
-        std::begin(ilist), std::end(ilist),
-        std::back_inserter(*this),
-        [](std::string_view str) -> View {
-          return View(str.data(), str.size());
-        });
 }
 
 void Views::Advance(size_t count)
 {
-  if(count > OverallSize()) {
-    throw std::logic_error("invalid advance size");
-  }
-
+  assert(count <= OverallSize());
   this->erase(
     std::remove_if(
       this->begin(), this->end(),
@@ -201,8 +217,8 @@ void Views::Advance(size_t count)
         return false;
       }),
     this->end());
-  assert(count < OverallSize());
-  if(count > 0) {
+  assert((count == 0U) || (this->size() == 1U));
+  if(count > 0U) {
     this->front().Advance(count);
   }
 }
@@ -249,31 +265,19 @@ SocketImpl::~SocketImpl()
 // used for TCP only
 std::optional<size_t> SocketImpl::Receive(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
-    return {std::nullopt}; // timeout exceeded
-  }
-  return {Receive(data, size)};
+  return sockpuppet::Receive(fd, data, size, timeout);
 }
 
 size_t SocketImpl::Receive(char *data, size_t size)
 {
-  static int const flags = 0;
-  auto const received = ::recv(fd,
-                               data, size,
-                               flags);
-  if(received < 0) {
-    throw std::system_error(SocketError(), "failed to receive");
-  } else if(received == 0) {
-    throw std::runtime_error("connection closed");
-  }
-  return static_cast<size_t>(received);
+  return ReceiveNow(fd, data, size);
 }
 
 // used for UDP only
 std::optional<std::pair<size_t, Address>>
 SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return {ReceiveFrom(data, size)};
@@ -282,93 +286,75 @@ SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 std::pair<size_t, Address>
 SocketImpl::ReceiveFrom(char *data, size_t size)
 {
-  static int const flags = 0;
+  constexpr int flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
-  auto const received = ::recvfrom(fd,
-                                   data, size,
-                                   flags,
-                                   sas->Addr(), sas->AddrLen());
+  auto received = ::recvfrom(fd,
+                             data, size,
+                             flags,
+                             sas->Addr(), sas->AddrLen());
   if(received < 0) {
     throw std::system_error(SocketError(), "failed to receive");
   }
-  return {static_cast<size_t>(received), Address(std::move(sas))};
+  return {
+    static_cast<size_t>(received),
+    Address(std::move(sas))
+  };
 }
 
 // TCP send will block regularly, if:
 //   the user enqueues faster than the NIC can send or the peer can process
 //   network losses/delay causes retransmissions
 // causing the OS send buffer to fill up
-size_t SocketImpl::Send(Views &buf, Duration timeout)
+size_t SocketImpl::Send(char const *data, size_t size, Duration timeout)
 {
-  return (timeout.count() < 0 ?
-            SendAll(buf) :
-            (timeout.count() == 0 ?
-               SendSome(buf, DeadlineZero()) :
-               SendSome(buf, DeadlineLimited(timeout))));
+  auto bufs = Views(data, size);
+  return Send(bufs, timeout);
 }
 
-size_t SocketImpl::SendAll(Views &buf)
+size_t SocketImpl::Send(Views &bufs, Duration timeout)
 {
-  // set flags to block until everything is sent
-  auto const sent = DoSend(fd, buf, sendAllFlags);
-  assert(sent == size);
-  return sent;
+  if(timeout.count() < 0) {
+    return SendAll(fd, bufs);
+  }
+  if(timeout.count() == 0) {
+    return SendTry(fd, bufs);
+  }
+  DeadlineLimited deadline(timeout);
+  return sockpuppet::SendSome(fd, bufs, deadline);
 }
 
-template<typename Deadline>
-size_t SocketImpl::SendSome(Views &buf, Deadline deadline)
+size_t SocketImpl::SendSome(char const *data, size_t size)
 {
-  size_t sentOverall = 0U;
-  do {
-    if(!WaitWritable(deadline.Remaining())) {
-      break; // timeout exceeded
-    }
-    auto sent = SendSome(buf);
-    buf.Advance(sent);
-    sentOverall += sent;
-    deadline.Tick();
-  } while(!buf.empty() && deadline.TimeLeft());
-  return sentOverall;
+  auto bufs = Views(data, size);
+  return SendSome(bufs);
 }
 
-size_t SocketImpl::SendSome(Views &buf)
+size_t SocketImpl::SendSome(Views &bufs)
 {
-  // set flags to send only what can be sent without blocking
-  return DoSend(fd, buf, sendSomeFlags);
+  return SendNow(fd, bufs);
 }
 
 // UDP send will block only rarely,
 // if the user enqueues faster than the NIC can send
 // causing the OS send buffer to fill up
-size_t SocketImpl::SendTo(char const *data, size_t size,
+size_t SocketImpl::SendTo(Views &bufs,
     SockAddrView const &dstAddr, Duration timeout)
 {
-  if(!WaitWritable(timeout)) {
+  if(!WaitWritable(fd, timeout)) {
     return 0U; // timeout exceeded
   }
-  return SendTo(data, size, dstAddr);
+  return SendTo(bufs, dstAddr);
 }
 
-size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
+size_t SocketImpl::SendTo(Views &bufs, SockAddrView const &dstAddr)
 {
-  static int const flags = 0;
-  auto const sent = ::sendto(fd,
-                             data, size,
-                             flags,
-                             dstAddr.addr, dstAddr.addrLen);
-  if(sent < 0) {
-    auto const error = SocketError(); // cache before risking another
-    throw std::system_error(error, "failed to send to " + to_string(dstAddr));
-  } else if(static_cast<size_t>(sent) != size) {
-    throw std::logic_error("unexpected UDP send result");
-  }
-  return static_cast<size_t>(sent);
+  return DoSendTo(fd, bufs, dstAddr);
 }
 
 void SocketImpl::Connect(SockAddrView const &connectAddr)
 {
   if(::connect(fd, connectAddr.addr, connectAddr.addrLen)) {
-    auto const error = SocketError(); // cache before risking another
+    auto error = SocketError(); // cache before risking another
     throw std::system_error(error, "failed to connect to " + to_string(connectAddr));
   }
 }
@@ -376,14 +362,14 @@ void SocketImpl::Connect(SockAddrView const &connectAddr)
 void SocketImpl::Bind(SockAddrView const &bindAddr)
 {
   if(::bind(fd, bindAddr.addr, bindAddr.addrLen)) {
-    auto const error = SocketError(); // cache before risking another
+    auto error = SocketError(); // cache before risking another
     throw std::system_error(error, "failed to bind socket to address " + to_string(bindAddr));
   }
 }
 
 void SocketImpl::Listen()
 {
-  static int const backlog = 128;
+  constexpr int backlog = 128;
   if(::listen(fd, backlog)) {
     throw std::system_error(SocketError(), "failed to listen");
   }
@@ -392,31 +378,19 @@ void SocketImpl::Listen()
 std::optional<std::pair<SocketTcp, Address>>
 SocketImpl::Accept(Duration timeout)
 {
-  if(!WaitReadable(timeout)) {
+  if(!WaitReadable(fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return Accept();
 }
 
-std::pair<SocketTcp, Address>
-SocketImpl::Accept()
+std::pair<SocketTcp, Address> SocketImpl::Accept()
 {
-  auto sas = std::make_shared<SockAddrStorage>();
-  auto client = ::accept(fd, sas->Addr(), sas->AddrLen());
+  auto [clientFd, clientAddr] = sockpuppet::Accept(fd);
   return {
-    SocketTcp(std::make_unique<SocketImpl>(client)),
-    Address(std::move(sas))
+    SocketTcp(std::make_unique<SocketImpl>(clientFd)),
+    std::move(clientAddr)
   };
-}
-
-bool SocketImpl::WaitReadable(Duration timeout)
-{
-  return WaitReadableBlocking(fd, timeout);
-}
-
-bool SocketImpl::WaitWritable(Duration timeout)
-{
-  return WaitWritableBlocking(fd, timeout);
 }
 
 void SocketImpl::SetSockOptNonBlocking()
@@ -467,6 +441,93 @@ std::shared_ptr<SockAddrStorage> SocketImpl::GetPeerName() const
     throw std::system_error(SocketError(), "failed to get peer address");
   }
   return sas;
+}
+
+void SocketImpl::DriverQuery(short &)
+{
+  // only actively used by the TLS socket
+}
+
+void SocketImpl::DriverPending()
+{
+  // this interface is intended for the TLS socket only
+  assert(false);
+}
+
+
+size_t ReceiveNow(SOCKET fd, char *data, size_t size)
+{
+  constexpr int flags = 0;
+  auto received = ::recv(fd,
+                         data, size,
+                         flags);
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  } else if(received == 0) {
+    throw std::runtime_error("connection closed");
+  }
+  return static_cast<size_t>(received);
+}
+
+std::optional<size_t> Receive(SOCKET fd, char *data, size_t size, Duration timeout)
+{
+  if(!WaitReadable(fd, timeout)) {
+    return {std::nullopt}; // timeout exceeded
+  }
+  return {ReceiveNow(fd, data, size)};
+}
+
+size_t SendNow(SOCKET fd, Views &bufs)
+{
+  return DoSend(fd, bufs, sendFlags);
+}
+
+size_t SendAll(SOCKET fd, Views &bufs)
+{
+  constexpr auto noTimeout = Duration(-1);
+  size_t sent = 0U;
+
+  do {
+    (void)WaitWritable(fd, noTimeout);
+    sent += SendNow(fd, bufs);
+  } while(!bufs.empty());
+
+  return sent;
+}
+
+size_t SendTry(SOCKET fd, Views &bufs)
+{
+  constexpr auto zeroTimeout = Duration(0);
+
+  if(!WaitWritable(fd, zeroTimeout)) {
+    return 0U; // timeout exceeded
+  }
+  return SendNow(fd, bufs);
+}
+
+size_t SendSome(SOCKET fd, Views &bufs, DeadlineLimited &deadline)
+{
+  size_t sent = 0U;
+
+  do {
+    if(!WaitWritable(fd, deadline.Remaining())) {
+      break; // timeout exceeded
+    }
+    deadline.Tick();
+    sent += SendNow(fd, bufs);
+  } while(!bufs.empty() && deadline.TimeLeft());
+
+  return sent;
+}
+
+std::pair<SOCKET, Address> Accept(SOCKET fd)
+{
+  auto sas = std::make_shared<SockAddrStorage>();
+  auto clientFd = ::accept(fd, sas->Addr(), sas->AddrLen());
+  return {
+    clientFd,
+    Address(std::move(sas))
+  };
 }
 
 } // namespace sockpuppet

@@ -23,25 +23,23 @@ void Client(Address remoteAddress)
             << std::endl;
 
   // query and send until cancelled
-  for(;;) {
-    // query a string to send from the command line
-    std::string line;
-    std::cout << "message to send? (empty for exit) - ";
-    std::getline(std::cin, line);
+  std::cerr << "message(s) to send? (Ctrl-C for exit)" << std::endl;
 
-    if(line.empty()) {
-      break;
-    } else {
-      static Duration const noTimeout(-1);
+  // query strings to send from the command line or piped text (file) input
+  std::string line;
+  while(std::getline(std::cin, line)) {
+    // as TCP cannot send empty lines, we always append a newline
+    // the server example application is written accordingly
+    line += '\n';
 
-      // send the given string data to the connected peer
-      // negative timeout -> blocking until sent
-      // ignore the return value as - with unlimited timeout -
-      // it will always match the sent size
-      (void)client.Send(line.c_str(),
-                        line.size(),
-                        noTimeout);
-    }
+    // send the given string data to the connected peer
+    // negative timeout -> blocking until sent
+    // ignore the return value as - with unlimited timeout -
+    // it will always match the sent size
+    constexpr Duration noTimeout(-1);
+    (void)client.Send(line.c_str(),
+                      line.size(),
+                      noTimeout);
   }
 
   std::cout << "closing connection "
@@ -54,18 +52,19 @@ void Client(Address remoteAddress)
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {
-    std::cout << "Usage: " << argv[0]
+    std::cerr << "Usage: " << argv[0]
       << " DESTINATION\n\n"
          "\tDESTINATION is an address string to connect to, "
          "e.g. \"localhost:8554\""
       << std::endl;
-  } else {
-    // parse given address string
-    Address remoteAddress(argv[1]);
-
-    // create, connect and run a TCP client socket
-    Client(remoteAddress);
+    return EXIT_FAILURE;
   }
+
+  // parse given address string
+  Address remoteAddress(argv[1]);
+
+  // create, connect and run a TCP client socket
+  Client(remoteAddress);
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {

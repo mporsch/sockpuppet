@@ -30,7 +30,6 @@ struct SocketAsyncImpl
   std::function<void(char const *)> onError; // contains use-case-dependent data as bound arguments
   mutable std::mutex sendQMtx;
   std::variant<SendQ, SendToQ> sendQ; // use-case dependent queue type
-  bool pendingTlsSend = false; // flag to satisfy OpenSSL_write retry requirements
 
   SocketAsyncImpl(std::unique_ptr<SocketBufferedImpl> &&buff,
                   DriverShared &driver,
@@ -57,6 +56,8 @@ struct SocketAsyncImpl
   bool DoSendEnqueue(std::promise<void> promise, Args&&... args);
 
   // in thread context of DriverImpl
+  SOCKET DriverGetFd() const;
+  void DriverQuery(short &events);
   void DriverOnReadable();
   void DriverConnect(ConnectHandler const &onConnect);
   void DriverReceive(ReceiveHandler const &onReceive);

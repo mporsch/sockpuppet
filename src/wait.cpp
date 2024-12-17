@@ -50,24 +50,12 @@ bool Wait(SOCKET fd, short events, Duration timeout)
 
 } // unnamed namespace
 
-bool WaitReadableBlocking(SOCKET fd, Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          WaitReadableNonBlocking(fd, timeout));
-}
-
-bool WaitReadableNonBlocking(SOCKET fd, Duration timeout)
+bool WaitReadable(SOCKET fd, Duration timeout)
 {
   return Wait(fd, POLLIN, timeout);
 }
 
-bool WaitWritableBlocking(SOCKET fd, Duration timeout)
-{
-  return ((timeout.count() < 0) ||
-          WaitWritableNonBlocking(fd, timeout));
-}
-
-bool WaitWritableNonBlocking(SOCKET fd, Duration timeout)
+bool WaitWritable(SOCKET fd, Duration timeout)
 {
   return Wait(fd, POLLOUT, timeout);
 }

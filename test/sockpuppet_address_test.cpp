@@ -5,6 +5,8 @@
 #include <initializer_list> // for std::initializer_list
 #include <iomanip> // for std::setw
 #include <iostream> // for std::cerr
+#include <optional> // for std::optional
+#include <sstream> // for std::ostringstream
 
 using namespace sockpuppet;
 
@@ -22,10 +24,48 @@ struct Expected
   }
 };
 
-void Verify(std::initializer_list<Expected> expected, Address addr)
+void Verify(std::initializer_list<Expected> expected, const Address &addr)
 {
   if(std::find(std::begin(expected), std::end(expected), addr) == std::end(expected)) {
-    throw std::runtime_error("constructed address does not match any reference");
+    throw std::runtime_error("constructed address '" + to_string(addr) + "' does not match any reference");
+  }
+}
+
+template<typename... Strings>
+std::string AddressCallString(const std::string &str, Strings&&... strings)
+{
+  std::ostringstream oss;
+  ((oss << "\", \"" << strings), ...);
+  return "Address(\"" + str + oss.str() + "\")";
+}
+
+template<typename... Strings>
+void DoTest(std::initializer_list<Expected> expected, Strings&&... strings)
+{
+  std::optional<Address> addr;
+  try {
+    addr.emplace(strings...);
+  } catch(const std::exception &) {
+  }
+
+  auto addressCallString = AddressCallString(strings...);
+  if(expected.size() && addr) {
+    Verify(std::move(expected), *addr);
+    std::cout << std::setw(20)
+              << to_string(*addr)
+              << " <-- "
+              << addressCallString
+              << std::endl;
+  } else if(expected.size()) {
+    throw std::runtime_error("failed to create an address from " + addressCallString);
+  } else if(addr) {
+    throw std::runtime_error("unexpected address " + to_string(*addr) + " from " + addressCallString);
+  } else {
+    std::cout << std::setw(20)
+              << "<invalid>"
+              << " <-- "
+              << addressCallString
+              << std::endl;
   }
 }
 
@@ -57,28 +97,12 @@ void Test(std::initializer_list<Expected> expected, uint16_t port)
 
 void Test(std::initializer_list<Expected> expected, std::string uri)
 {
-  Address addr(uri);
-
-  std::cout << std::setw(20)
-            << to_string(addr)
-            << " <-- "
-            << "Address(\"" << uri << "\")"
-            << std::endl;
-
-  Verify(std::move(expected), std::move(addr));
+  DoTest(std::move(expected), std::move(uri));
 }
 
 void Test(std::initializer_list<Expected> expected, std::string host, std::string serv)
 {
-  Address addr(host, serv);
-
-  std::cout << std::setw(20)
-            << to_string(addr)
-            << " <-- "
-            << "Address(\"" << host << "\", \"" << serv << "\")"
-            << std::endl;
-
-  Verify(std::move(expected), std::move(addr));
+  DoTest(std::move(expected), std::move(host), std::move(serv));
 }
 
 int main(int, char **)
@@ -101,24 +125,48 @@ try {
        "http://localhost");
   Test({{"127.0.0.1", "8080", false}, {"::1", "8080", true}},
        "http://localhost:8080");
+  Test({},
+       "http://localhost:-3");
+  Test({},
+       "http://localhost:99999");
 
   // localhost host, OS-assigned IPv4 or IPv6, with port/protocol
   Test({{"127.0.0.1", "554", false}, {"::1", "554", true}},
        "localhost", "554");
+  Test({},
+       "localhost", "-3");
+  Test({},
+       "localhost", "99999");
   Test({{"127.0.0.1", "80", false}, {"::1", "80", true}},
        "localhost", "http");
+  Test({},
+       "localhost", "httttttp");
 
   // IPv4 URI without port/protocol
   Test({{"91.198.174.192", "0", false}},
        "91.198.174.192");
+  Test({},
+       "999.999.999.999");
 
   // IPv4 URI with port/protocol
   Test({{"91.198.174.192", "80", false}},
        "91.198.174.192:80");
+  Test({},
+       "999.999.999.999:80");
+  Test({},
+       "91.198.174.192:-3");
+  Test({},
+       "91.198.174.192:99999");
   Test({{"91.198.174.192", "80", false}},
        "http://91.198.174.192");
+  Test({},
+       "httttttp://91.198.174.192");
   Test({{"91.198.174.192", "8080", false}},
        "http://91.198.174.192:8080");
+  Test({},
+       "http://91.198.174.192:-3");
+  Test({},
+       "http://91.198.174.192:99999");
 
   // IPv4 URI with port/protocol and path
   Test({{"91.198.174.192", "8080", false}},
@@ -131,8 +179,14 @@ try {
   // IPv4 host with port/protocol
   Test({{"91.198.174.192", "80", false}},
        "91.198.174.192", "80");
+  Test({},
+       "999.999.999.999", "80");
+  Test({},
+       "91.198.174.192", "99999");
   Test({{"91.198.174.192", "80", false}},
        "91.198.174.192", "http");
+  Test({},
+       "91.198.174.192", "httttttp");
 
   // IPv6 URI without port/protocol
   Test({{"::1", "0", true}},
@@ -171,6 +225,14 @@ try {
        "::1", "http");
   Test({{"a:b::c:1", "80", true}},
        "a:b::c:1", "http");
+
+  // invalid URI without port/protocol
+  Test({},
+       "Hi! My name is ?");
+
+  // invalid URI with port/protocol
+  Test({},
+       "Hi! My name is ?", "80");
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {

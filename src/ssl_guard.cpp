@@ -69,7 +69,7 @@ void UpdateInstanceCount(int modifier)
 
   std::lock_guard<std::mutex> lock(mtx);
 
-  auto const prev = curr;
+  auto prev = curr;
   curr += modifier;
 
   if(prev == 0 && curr == 1) {

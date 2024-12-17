@@ -13,7 +13,7 @@ namespace {
 
 size_t const clientCount = 3U;
 
-size_t const testDataSize = 10000000U;
+constexpr size_t testDataSize = 10U * 1024 * 1024;
 TestData const testData(testDataSize);
 
 std::promise<void> promiseClientsDone;
@@ -23,13 +23,14 @@ struct Server
 {
   struct ClientSession
   {
-    SocketTcpAsync client;
+    SocketTcpAsync clientSock;
+    unsigned int receiveCount = 0U;
 
-    ClientSession(Server *parent, SocketTcp &&client)
-      : client({std::move(client)},
-               parent->driver,
-               std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
-               std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1))
+    ClientSession(Server *parent, SocketTcp &&clientSock)
+      : clientSock({std::move(clientSock)},
+                   parent->driver,
+                   std::bind(&ClientSession::HandleReceive, this, std::placeholders::_1),
+                   std::bind(&Server::HandleDisconnect, parent, std::placeholders::_1, std::placeholders::_2))
     {
     }
     ClientSession(ClientSession const &) = delete;
@@ -37,22 +38,27 @@ struct Server
 
     void HandleReceive(BufferPtr buffer)
     {
+      // simulate some processing delay to trigger TCP congestion control
+      if(++receiveCount % 1000 == 0U) { // sleeping usec intervals is inaccurate
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+
       // echo received data
-      (void)client.Send(std::move(buffer));
+      (void)clientSock.Send(std::move(buffer));
     }
   };
 
-  AcceptorAsync server;
+  AcceptorAsync serverSock;
   Driver &driver;
   std::map<Address, std::unique_ptr<ClientSession>> clientSessions;
 
-  Server(Address bindAddress, Driver &driver)
-    : server(MakeTestSocket<Acceptor>(bindAddress),
-             driver,
-             std::bind(&Server::HandleConnect,
-                       this,
-                       std::placeholders::_1,
-                       std::placeholders::_2))
+  Server(Acceptor serverSock, Driver &driver)
+    : serverSock(std::move(serverSock),
+                 driver,
+                 std::bind(&Server::HandleConnect,
+                           this,
+                           std::placeholders::_1,
+                           std::placeholders::_2))
     , driver(driver)
   {
   }
@@ -69,10 +75,11 @@ struct Server
           std::make_unique<ClientSession>(this, std::move(clientSock)));
   }
 
-  void HandleDisconnect(Address clientAddress)
+  void HandleDisconnect(Address clientAddress, char const *reason)
   {
     std::cout << "client " << to_string(clientAddress)
-              << " closed connection to server" << std::endl;
+              << " closed connection to server"
+              << " (" << reason << ")" << std::endl;
 
     clientSessions.erase(clientAddress);
 
@@ -98,10 +105,11 @@ struct Clients
       , client({std::move(client)},
                driver,
                std::bind(&Client::HandleReceive, this, std::placeholders::_1),
-               std::bind(&Clients::HandleDisconnect, parent, std::placeholders::_1))
+               std::bind(&Clients::HandleDisconnect, parent, std::placeholders::_1, std::placeholders::_2))
       , driver(driver)
       , receivedSize(0U)
     {
+      receivedData.reserve(testDataSize / TestData::tcpPacketSizeMin);
     }
     Client(Client const &) = delete;
     Client(Client &&) = delete;
@@ -122,7 +130,7 @@ struct Clients
         ToDo(
           driver,
           [this]() {
-            parent->HandleDisconnect(client.LocalAddress());
+            parent->HandleDisconnect(client.LocalAddress(), "self-initiated shutdown");
           },
           Duration(0));
       }
@@ -137,22 +145,23 @@ struct Clients
 
   SocketTcpAsync &Add(Address serverAddr, Driver &driver)
   {
-    auto client = MakeTestSocket<SocketTcp>(serverAddr);
-    auto clientAddr = client.LocalAddress();
+    auto clientSock = MakeTestSocket<SocketTcp>(serverAddr);
+    auto clientAddr = clientSock.LocalAddress();
 
     std::cout << "client " << to_string(clientAddr)
               << " connecting to server" << std::endl;
 
     auto p = clients.emplace(
           std::move(clientAddr),
-          std::make_unique<Client>(this, std::move(client), driver));
+          std::make_unique<Client>(this, std::move(clientSock), driver));
     return p.first->second->client;
   }
 
-  void HandleDisconnect(Address clientAddr)
+  void HandleDisconnect(Address clientAddr, char const *reason)
   {
     std::cout << "client " << to_string(clientAddr)
-              << " closing connection to server" << std::endl;
+              << " closing connection to server"
+              << " (" << reason << ")" << std::endl;
 
     clients.erase(clientAddr);
   }
@@ -168,11 +177,13 @@ void ClientSend(SocketTcpAsync &client)
   }
 }
 
-void RunServer(Address serverAddr, Driver &driver)
+void RunServer(Acceptor serverSock, Driver &driver)
 {
-  Server server(serverAddr, driver);
+  std::cout << "server listening at "
+            << to_string(serverSock.LocalAddress())
+            << std::endl;
 
-  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
+  auto server = Server(std::move(serverSock), driver);
 
   // run server until stopped by main thread
   driver.Run();
@@ -215,10 +226,11 @@ try {
   Driver serverDriver;
   Driver clientDriver;
 
-  Address serverAddr("localhost:8554");
+  auto serverSock = MakeTestSocket<Acceptor>(Address());
+  auto serverAddr = serverSock.LocalAddress();
 
   // set up a server that echoes all input data on multiple sessions
-  auto serverThread = std::thread(RunServer, serverAddr, std::ref(serverDriver));
+  auto serverThread = std::thread(RunServer, std::move(serverSock), std::ref(serverDriver));
 
   // wait for server to come up
   std::this_thread::sleep_for(1s);

@@ -45,13 +45,13 @@ struct ReconnectClient
           to_string(client->LocalAddress()) +
           " -> " +
           to_string(remoteAddress));
-    } catch(std::exception const &) {
+    } catch(std::exception const &e) {
       ioBuf.Print(
           "failed to (re)connect to " +
           to_string(remoteAddress) +
+          " (" + e.what() + ")"
           " will retry in " +
-          std::to_string(delay.count()) +
-          "s");
+          std::to_string(delay.count()) + "s");
 
       // schedule a reconnect attempt with increasing backoff delay
       ToDo(driver,
@@ -126,18 +126,19 @@ void Client(Address remoteAddress)
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {
-    std::cout << "Usage: " << argv[0]
+    std::cerr << "Usage: " << argv[0]
       << " DESTINATION\n\n"
          "\tDESTINATION is an address string to connect to, "
          "e.g. \"localhost:8554\""
       << std::endl;
-  } else {
-    // parse given address string
-    Address remoteAddress(argv[1]);
-
-    // create, connect and run a client socket
-    Client(remoteAddress);
+    return EXIT_FAILURE;
   }
+
+  // parse given address string
+  Address remoteAddress(argv[1]);
+
+  // create, connect and run a client socket
+  Client(remoteAddress);
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {

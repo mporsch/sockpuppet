@@ -25,17 +25,23 @@ BufferPtr SocketBufferedImpl::GetBuffer()
 
 std::optional<BufferPtr> SocketBufferedImpl::Receive(Duration timeout)
 {
-  if(!this->sock->WaitReadable(timeout)) {
-    return {std::nullopt}; // timeout exceeded
+  auto buffer = GetBuffer();
+
+  auto received = sock->Receive(
+      const_cast<char *>(buffer->data()),
+      buffer->size(), timeout);
+  if(received) {
+    buffer->resize(*received);
+    return buffer;
   }
-  return SocketBufferedImpl::Receive();
+  return {std::nullopt};
 }
 
 BufferPtr SocketBufferedImpl::Receive()
 {
   auto buffer = GetBuffer();
 
-  auto const size = sock->Receive(
+  auto size = sock->Receive(
       const_cast<char *>(buffer->data()),
       buffer->size());
   buffer->resize(size);
@@ -46,7 +52,7 @@ BufferPtr SocketBufferedImpl::Receive()
 std::optional<std::pair<BufferPtr, Address>>
 SocketBufferedImpl::ReceiveFrom(Duration timeout)
 {
-  if(!this->sock->WaitReadable(timeout)) {
+  if(!WaitReadable(this->sock->fd, timeout)) {
     return {std::nullopt}; // timeout exceeded
   }
   return SocketBufferedImpl::ReceiveFrom();
@@ -62,7 +68,10 @@ SocketBufferedImpl::ReceiveFrom()
       buffer->size());
   buffer->resize(size);
 
-  return {std::move(buffer), std::move(from)};
+  return {
+    std::move(buffer),
+    std::move(from)
+  };
 }
 
 } // namespace sockpuppet

@@ -56,9 +56,9 @@ struct SockAddrInfo : public Address::AddressImpl
 {
   struct AddrInfoDeleter
   {
-    void operator()(addrinfo *ptr) const noexcept;
+    void operator()(addrinfo const *ptr) const noexcept;
   };
-  using AddrInfoPtr = std::unique_ptr<addrinfo, AddrInfoDeleter>;
+  using AddrInfoPtr = std::unique_ptr<addrinfo const, AddrInfoDeleter>;
 
   AddrInfoPtr info;
 

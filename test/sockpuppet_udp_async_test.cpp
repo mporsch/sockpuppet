@@ -34,12 +34,14 @@ int main(int, char **)
   auto thread = std::thread(&Driver::Run, &driver);
 
   {
-    Address serverAddress("localhost:8554");
-    SocketUdpAsync server({serverAddress, 1U, 1500U},
-                          driver,
-                          HandleReceiveFrom);
+    auto serverSock = SocketUdpAsync(
+        {Address(), 1U, 1500U},
+        driver,
+        HandleReceiveFrom);
+    auto serverAddr = serverSock.LocalAddress();
 
-    std::cout << "waiting for receipt at " << to_string(serverAddress)
+    std::cout << "waiting for receipt at "
+              << to_string(serverAddr)
               << std::endl;
 
     auto futureReceipt = promisedReceipt->get_future();
@@ -47,20 +49,20 @@ int main(int, char **)
     {
       BufferPool sendPool(clientSendCount, clientSendSize);
 
-      SocketUdpAsync client({Address("localhost")},
-                            driver,
-                            ReceiveFromDummy);
+      auto clientSock = SocketUdpAsync(
+          {Address()},
+          driver,
+          ReceiveFromDummy);
 
-      std::cout << "sending from " << to_string(client.LocalAddress())
-                << " to " << to_string(serverAddress) << std::endl;
+      std::cout << "sending from " << to_string(clientSock.LocalAddress())
+                << " to " << to_string(serverAddr) << std::endl;
 
       std::vector<std::future<void>> futuresSend;
       futuresSend.reserve(clientSendCount);
       for(size_t i = 0U; i < clientSendCount; ++i) {
         auto buffer = sendPool.Get();
         buffer->assign(clientSendSize, 'a');
-        futuresSend.emplace_back(
-              client.SendTo(std::move(buffer), serverAddress));
+        futuresSend.emplace_back(clientSock.SendTo(std::move(buffer), serverAddr));
       }
 
       auto deadline = steady_clock::now() + seconds(1);

@@ -68,7 +68,7 @@ SocketAsyncImpl::SocketAsyncImpl(
 
 SocketAsyncImpl::~SocketAsyncImpl()
 {
-  if(auto const ptr = driver.lock()) {
+  if(auto ptr = driver.lock()) {
     ptr->AsyncUnregister(buff->sock->fd);
   }
 }
@@ -91,7 +91,7 @@ std::future<void> SocketAsyncImpl::DoSend(Args&&... args)
 
   bool wasEmpty = DoSendEnqueue<Queue>(std::move(promise), std::forward<Args>(args)...);
   if(wasEmpty) {
-    if(auto const ptr = driver.lock()) {
+    if(auto ptr = driver.lock()) {
       ptr->AsyncWantSend(buff->sock->fd);
     }
   }
@@ -105,9 +105,19 @@ bool SocketAsyncImpl::DoSendEnqueue(std::promise<void> promise, Args&&... args)
   std::lock_guard<std::mutex> lock(sendQMtx);
 
   auto &q = std::get<Queue>(sendQ);
-  bool const wasEmpty = q.empty();
+  bool wasEmpty = q.empty();
   q.emplace(std::move(promise), std::forward<Args>(args)...);
   return wasEmpty;
+}
+
+SOCKET SocketAsyncImpl::DriverGetFd() const
+{
+  return buff->sock->fd;
+}
+
+void SocketAsyncImpl::DriverQuery(short &events)
+{
+  buff->sock->DriverQuery(events);
 }
 
 void SocketAsyncImpl::DriverOnReadable()
@@ -129,23 +139,6 @@ void SocketAsyncImpl::DriverConnect(ConnectHandler const &onConnect)
 
 void SocketAsyncImpl::DriverReceive(ReceiveHandler const &onReceive)
 {
-  if(pendingTlsSend) {
-    pendingTlsSend = false;
-
-    // a previous TLS send failed because handshake receipt was pending
-    // which probably arrived now: repeat the same send call to handle
-    // the handshake and continue where it left off sending
-    // see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html
-    bool isSendQueueEmpty = DriverOnWritable();
-    if(!isSendQueueEmpty) {
-      if(auto const ptr = driver.lock()) {
-        ptr->AsyncWantSend(buff->sock->fd);
-      }
-    }
-
-    return;
-  }
-
   try {
     auto buffer = buff->Receive();
     if(buffer->empty()) {
@@ -190,26 +183,22 @@ bool SocketAsyncImpl::DriverSend(SendQ &q)
 {
   auto const sendQSize = q.size();
   if(!sendQSize) {
-    throw std::logic_error("uncalled send");
+    // TLS socket has requested write for TLS handshake
+    buff->sock->DriverPending();
+    return true;
   }
-
   auto &&[promise, buffer] = q.front();
+
   try {
-    Views buf(buffer->data(), buffer->size());
-    if(auto sent = buff->sock->SendSome(buf)) {
-      if(sent == buffer->size()) {
-        promise.set_value();
-      } else {
-        // allow partial send to avoid starving other driver's sockets if this one is rate limited
-        buffer->erase(0, sent);
-        return false;
-      }
-    } else { // zero-size sent data
-      // TLS can't send while handshake receipt pending:
-      // give up for now but keep the data in the send
-      // queue and retry the exact same call on readable
-      pendingTlsSend = true;
-      return true;
+    auto bufs = Views(buffer->data(), buffer->size());
+    auto sent = buff->sock->SendSome(bufs);
+    if(sent == buffer->size()) {
+      promise.set_value();
+    } else {
+      // allow partial send to avoid starving other driver's sockets if this one is rate limited
+      // (may also be zero sent despite socket being writable when TLS handshake is pending)
+      buffer->erase(0, sent);
+      return false;
     }
   } catch(std::runtime_error const &e) {
     promise.set_exception(std::make_exception_ptr(e));
@@ -227,9 +216,8 @@ bool SocketAsyncImpl::DriverSendTo(SendToQ &q)
 
   auto &&[promise, buffer, addr] = q.front();
   try {
-    [[maybe_unused]] auto sent = buff->sock->SendTo(
-          buffer->data(), buffer->size(),
-          addr->ForUdp());
+    auto bufs = Views(buffer->data(), buffer->size());
+    [[maybe_unused]] auto sent = buff->sock->SendTo(bufs, addr->ForUdp());
     assert(sent == buffer->size());
     promise.set_value();
   } catch(std::runtime_error const &e) {
@@ -245,9 +233,14 @@ void SocketAsyncImpl::DriverOnError(char const *message)
 }
 
 void SocketAsyncImpl::DriverDisconnect(DisconnectHandler const &onDisconnect,
-    AddressShared peerAddr, char const *)
+    AddressShared peerAddr, char const *reason)
 {
-  onDisconnect(Address(std::move(peerAddr)));
+  // don't try to do any further receives that would just lead to more errors
+  if(auto ptr = driver.lock()) {
+    ptr->AsyncUnregister(buff->sock->fd);
+  }
+
+  onDisconnect(Address(std::move(peerAddr)), reason);
 }
 
 

@@ -86,6 +86,7 @@ struct SocketTcp
 
 #ifdef SOCKPUPPET_WITH_TLS
   /// Create a TLS-enabled TCP socket connected to given address.
+  /// @param  connectAddress  Peer address to connect to.
   /// @param  certFilePath  Path to certificate file in PEM format
   /// @param  keyFilePath  Path to private key file in PEM format.
   /// @throws  If loading certificate/key or connect fails.

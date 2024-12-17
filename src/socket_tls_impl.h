@@ -3,21 +3,23 @@
 
 #ifdef SOCKPUPPET_WITH_TLS
 
-#include "address_impl.h" // for SockAddrView
 #include "socket_impl.h" // for SocketImpl
 #include "ssl_guard.h" // for SslGuard
 
 #include <openssl/ssl.h> // for SSL_CTX
 
-#include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
-#include <utility> // for std::pair
+#include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
-// unlike the regular TCP client socket, the TLS one is set to non-blocking mode
-// to maintain control of the timing behaviour during the TLS handshake
-struct SocketTlsClientImpl : public SocketImpl
+// the interface matches SocketImpl but some implicit differences exist:
+//   may be readable but no user data can be received (only handshake data)
+//   may be writable but no user data can be sent (handshake pending)
+//   handshake data is sent/received on the socket during both send AND receive
+//   if a send with limited timeout fails, it must be retried with the same data
+//     (see https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html)
+struct SocketTlsImpl final : public SocketImpl
 {
   struct SslDeleter
   {
@@ -27,15 +29,20 @@ struct SocketTlsClientImpl : public SocketImpl
 
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   SslPtr ssl;  ///< OpenSSL session
-  bool properShutdown;  ///< Flag whether proper OpenSSL shutdown shall be performed
+  int lastError = SSL_ERROR_NONE;  ///< OpenSSL error cache
+  std::string_view pendingSend;  ///< Buffer view to verify OpenSSL_write retry requirements
+  Duration remainingTime;  ///< Use-case dependent timeout
+  bool isReadable = false;  ///< Flag whether Driver has deemed us readable
+  bool isWritable = false;  ///< Flag whether Driver has deemed us writable
+  bool driverSendSuppressed = false;  ///< Flag whether Driver send polling was suppressed
 
-  SocketTlsClientImpl(int family,
-                      int type,
-                      int protocol,
-                      char const *certFilePath,
-                      char const *keyFilePath);
-  SocketTlsClientImpl(SocketImpl &&sock, SSL_CTX *ctx);
-  ~SocketTlsClientImpl() override;
+  SocketTlsImpl(int family,
+                int type,
+                int protocol,
+                char const *certFilePath,
+                char const *keyFilePath);
+  SocketTlsImpl(SOCKET fd, SSL_CTX *ctx);
+  ~SocketTlsImpl() override;
 
   // waits for readable
   std::optional<size_t> Receive(char *data,
@@ -44,40 +51,36 @@ struct SocketTlsClientImpl : public SocketImpl
   // assumes a readable socket
   size_t Receive(char *data,
                  size_t size) override;
-  template<typename Deadline>
-  size_t Receive(char *data,
-                 size_t size,
-                 Deadline deadline);
 
+  // waits for writable (repeatedly if needed)
   size_t Send(char const *data,
               size_t size,
               Duration timeout) override;
-  size_t SendAll(char const *data,
-                 size_t size);
-  // waits for writable repeatedly and
-  // sends the max amount of data within the user-provided timeout
-  template<typename Deadline>
-  size_t SendSome(char const *data,
-                  size_t size,
-                  Deadline deadline);
   // assumes a writable socket
   size_t SendSome(char const *data,
                   size_t size) override;
-  template<typename Deadline>
-  size_t Send(char const *data,
-              size_t size,
-              Deadline &&deadline);
 
   void Connect(SockAddrView const &connectAddr) override;
 
-  void Shutdown();
+  void DriverQuery(short &events) override;
+  void DriverPending() override;
 
-  bool WaitReadable(Duration timeout) override;
-  bool WaitWritable(Duration timeout) override;
-  bool Wait(int code, Duration timeout);
+  void Shutdown();
+  size_t Read(char *data,
+              size_t size);
+  size_t BioRead(char *data,
+                 size_t size);
+  size_t Write(char const *data,
+               size_t size);
+  size_t BioWrite(char const *data,
+                  size_t size);
+
+  bool HandleResult(int res);
+  bool HandleLastError();
+  bool HandleError(int error);
 };
 
-struct SocketTlsServerImpl : public SocketImpl
+struct AcceptorTlsImpl : public SocketImpl
 {
   struct CtxDeleter
   {
@@ -88,15 +91,14 @@ struct SocketTlsServerImpl : public SocketImpl
   SslGuard sslGuard;  ///< Guard to initialize OpenSSL
   CtxPtr ctx;  ///< OpenSSL context to be shared with all accepted clients
 
-  SocketTlsServerImpl(int family,
-                      int type,
-                      int protocol,
-                      char const *certFilePath,
-                      char const *keyFilePath);
-  ~SocketTlsServerImpl() override;
+  AcceptorTlsImpl(int family,
+                  int type,
+                  int protocol,
+                  char const *certFilePath,
+                  char const *keyFilePath);
+  ~AcceptorTlsImpl() override;
 
-  std::pair<SocketTcp, Address>
-  Accept() override;
+  std::pair<SocketTcp, Address> Accept() override;
 };
 
 } // namespace sockpuppet

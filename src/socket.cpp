@@ -17,12 +17,14 @@ SocketUdp::SocketUdp(Address const &bindAddress)
 {
   impl->Bind(bindAddress.impl->ForUdp());
   impl->SetSockOptBroadcast();
+  impl->SetSockOptNonBlocking();
 }
 
 size_t SocketUdp::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return impl->SendTo(data, size, dstAddress.impl->ForUdp(), timeout);
+  auto bufs = Views(data, size);
+  return impl->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
 }
 
 std::optional<std::pair<size_t, Address>>
@@ -54,30 +56,26 @@ SocketTcp::SocketTcp(Address const &connectAddress)
 {
   impl->SetSockOptNoSigPipe();
   impl->Connect(connectAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
 SocketTcp::SocketTcp(Address const &connectAddress,
     char const *certFilePath, char const *keyFilePath)
-  : impl(std::make_unique<SocketTlsClientImpl>(
+  : impl(std::make_unique<SocketTlsImpl>(
       connectAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
       certFilePath, keyFilePath))
 {
   impl->SetSockOptNoSigPipe();
   impl->Connect(connectAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 #endif // SOCKPUPPET_WITH_TLS
 
 size_t SocketTcp::Send(char const *data, size_t size, Duration timeout)
 {
-  Views buf(data, size);
-  return impl->Send(buf, timeout);
-}
-
-size_t SocketTcp::Send(std::initializer_list<std::string_view> ilist, Duration timeout)
-{
-  Views buf(std::move(ilist));
-  return impl->Send(buf, timeout);
+  auto bufs = Views(data, size);
+  return impl->Send(bufs, timeout);
 }
 
 std::optional<size_t> SocketTcp::Receive(char *data, size_t size, Duration timeout)
@@ -104,6 +102,7 @@ SocketTcp::SocketTcp(std::unique_ptr<SocketImpl> &&other)
   : impl(std::move(other))
 {
   impl->SetSockOptNoSigPipe();
+  impl->SetSockOptNonBlocking();
 }
 
 SocketTcp::SocketTcp(SocketTcp &&other) noexcept = default;
@@ -119,17 +118,19 @@ Acceptor::Acceptor(Address const &bindAddress)
 {
   impl->SetSockOptReuseAddr();
   impl->Bind(bindAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 
 #ifdef SOCKPUPPET_WITH_TLS
 Acceptor::Acceptor(Address const &bindAddress,
     char const *certFilePath, char const *keyFilePath)
-  : impl(std::make_unique<SocketTlsServerImpl>(
+  : impl(std::make_unique<AcceptorTlsImpl>(
       bindAddress.impl->Family(), SOCK_STREAM, IPPROTO_TCP,
       certFilePath, keyFilePath))
 {
   impl->SetSockOptReuseAddr();
   impl->Bind(bindAddress.impl->ForTcp());
+  impl->SetSockOptNonBlocking();
 }
 #endif // SOCKPUPPET_WITH_TLS
 

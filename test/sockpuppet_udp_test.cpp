@@ -8,28 +8,29 @@
 #include <thread> // for std::thread
 
 using namespace sockpuppet;
+using namespace std::chrono_literals;
 
 static std::atomic<bool> success(true);
 
-void Server(Address serverAddr)
+void Server(SocketUdp serverSock)
 try {
-  SocketUdp server(serverAddr);
-
-  std::cout << "waiting for receipt at " << to_string(serverAddr)
+  std::cout << "waiting for receipt at "
+            << to_string(serverSock.LocalAddress())
             << std::endl;
 
   char buffer[256];
-  if(auto rx = server.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(1))) {
+  constexpr Duration receiveTimeout = 1s;
+  if(auto rx = serverSock.ReceiveFrom(buffer, sizeof(buffer), receiveTimeout)) {
     auto &&[receiveSize, fromAddr] = *rx;
     if(receiveSize == 0U) {
       std::cout << "received <empty> from " << to_string(fromAddr)
                 << " responding with 'hello?'" << std::endl;
 
       for(int i = 0; i < 3; ++i) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(100ms);
 
         static char const hello[] = "hello?";
-        (void)server.SendTo(hello, sizeof(hello), fromAddr);
+        (void)serverSock.SendTo(hello, sizeof(hello), fromAddr);
       }
       return;
     }
@@ -43,11 +44,12 @@ try {
 
 void Client(Address serverAddr)
 try {
-  SocketUdp client(Address("localhost"));
-  auto const clientAddr = client.LocalAddress();
+  auto clientSock = SocketUdp(Address());
+  auto clientAddr = clientSock.LocalAddress();
 
   char buffer[256];
-  if(client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::milliseconds(100))) {
+  constexpr Duration unexpectedReceiveTimeout = 100ms;
+  if(clientSock.ReceiveFrom(buffer, sizeof(buffer), unexpectedReceiveTimeout)) {
     throw std::runtime_error("unexpected receive");
   }
 
@@ -56,12 +58,13 @@ try {
             << to_string(serverAddr) << std::endl;
 
   for(int i = 0; i < 3; ++i) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(100ms);
 
-    (void)client.SendTo(nullptr, 0U, serverAddr);
+    (void)clientSock.SendTo(nullptr, 0U, serverAddr);
   }
 
-  if(auto rx = client.ReceiveFrom(buffer, sizeof(buffer), std::chrono::seconds(1))) {
+  constexpr Duration expectedReceiveTimeout = 1s;
+  if(auto rx = clientSock.ReceiveFrom(buffer, sizeof(buffer), expectedReceiveTimeout)) {
     auto &&[receiveSize, fromAddr] = *rx;
     if(std::string_view(buffer, receiveSize).find("hello?") != std::string_view::npos) {
       std::cout << "received 'hello?' from " << to_string(fromAddr) << std::endl;
@@ -77,9 +80,10 @@ try {
 
 int main(int, char **)
 try {
-  Address serverAddr("localhost:8554");
+  auto serverSock = SocketUdp(Address());
+  auto serverAddr = serverSock.LocalAddress();
 
-  std::thread server(Server, serverAddr);
+  std::thread server(Server, std::move(serverSock));
   std::thread client(Client, serverAddr);
 
   if(server.joinable()) {

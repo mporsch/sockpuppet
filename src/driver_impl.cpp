@@ -10,7 +10,7 @@ namespace sockpuppet {
 
 namespace {
 
-auto const noTimeout = Duration(-1);
+constexpr auto noTimeout = Duration(-1);
 
 struct FdEqual
 {
@@ -18,7 +18,7 @@ struct FdEqual
 
   bool operator()(SocketAsyncImpl const &async) const
   {
-    return (async.buff->sock->fd == fd);
+    return (async.DriverGetFd() == fd);
   }
 
   bool operator()(pollfd const &pfd) const
@@ -102,7 +102,7 @@ void Driver::DriverImpl::Step(Duration timeout)
   StepGuard lock(*this);
 
   if(todos.empty()) {
-    StepFds(timeout);
+    StepSockets(timeout);
   } else {
     // execute due ToDos while keeping track of the time
     auto remaining =
@@ -113,7 +113,7 @@ void Driver::DriverImpl::Step(Duration timeout)
               StepTodos(DeadlineLimited(timeout))));
 
     // run sockets with remaining time
-    StepFds(remaining);
+    StepSockets(remaining);
   }
 }
 
@@ -144,8 +144,12 @@ Duration Driver::DriverImpl::StepTodos(Deadline deadline)
   return Duration(0);
 }
 
-void Driver::DriverImpl::StepFds(Duration timeout)
+void Driver::DriverImpl::StepSockets(Duration timeout)
 {
+  // query sockets whether they request/suppress write poll
+  // the TLS socket uses this override for the TLS handshake
+  QuerySockets();
+
   if(!Wait(pfds, timeout)) {
     return; // timeout exceeded
   }
@@ -157,7 +161,7 @@ void Driver::DriverImpl::StepFds(Duration timeout)
   } else if(pfds.front().revents != 0) {
     throw std::logic_error("unexpected signalling pipe poll result");
   } else {
-    DoOneFdTask();
+    DoOneSocketTask();
   }
 }
 
@@ -193,54 +197,45 @@ void Driver::DriverImpl::ToDoMove(ToDoShared todo, TimePoint when)
   todos.Move(std::move(todo), when);
 }
 
-void Driver::DriverImpl::AsyncRegister(
-    SocketAsyncImpl &sock)
+void Driver::DriverImpl::AsyncRegister(SocketAsyncImpl &sock)
 {
   PauseGuard lock(*this);
 
   sockets.emplace_back(sock);
-  pfds.emplace_back(pollfd{sock.buff->sock->fd, POLLIN, 0});
+  pfds.emplace_back(pollfd{sock.DriverGetFd(), POLLIN, 0});
 }
 
 void Driver::DriverImpl::AsyncUnregister(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto const itSocket = std::find_if(
-        std::begin(sockets),
-        std::end(sockets),
-        FdEqual{fd});
-  assert(itSocket != std::end(sockets));
-  sockets.erase(itSocket);
+  if(auto it = std::find_if(begin(sockets), end(sockets), FdEqual{fd}); it != end(sockets)) {
+    sockets.erase(it);
+  }
 
-  auto const itPfd = std::find_if(
-        std::begin(pfds),
-        std::end(pfds),
-        FdEqual{fd});
-  assert(itPfd != std::end(pfds));
-  pfds.erase(itPfd);
+  if(auto it = std::find_if(begin(pfds), end(pfds), FdEqual{fd}); it != end(pfds)) {
+    pfds.erase(it);
+  }
 }
 
 void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 {
   PauseGuard lock(*this);
 
-  auto const itPfd = std::find_if(
-        std::begin(pfds),
-        std::end(pfds),
-        FdEqual{fd});
-  assert(itPfd != std::end(pfds));
+  auto itPfd = std::find_if(begin(pfds), end(pfds), FdEqual{fd});
+  assert(itPfd != end(pfds));
   itPfd->events |= POLLOUT;
 }
 
 void Driver::DriverImpl::Bump()
 {
-  static char const one = '1';
- [[maybe_unused]] auto sent = pipeFrom.SendTo(
-        &one, sizeof(one),
+  constexpr auto one = std::string_view("1", 1U);
+  auto bufs = Views{one};
+  [[maybe_unused]] auto sent = pipeFrom.SendTo(
+        bufs,
         pipeToAddr->ForUdp(),
         noTimeout);
-  assert(sent == sizeof(one));
+  assert(sent == one.size());
 }
 
 void Driver::DriverImpl::Unbump()
@@ -249,7 +244,22 @@ void Driver::DriverImpl::Unbump()
   (void)pipeTo.ReceiveFrom(dump, sizeof(dump));
 }
 
-void Driver::DriverImpl::DoOneFdTask()
+void Driver::DriverImpl::QuerySockets()
+{
+#ifdef SOCKPUPPET_WITH_TLS
+  assert(sockets.size() + 1U == pfds.size());
+
+  for(size_t i = 0U; i < sockets.size(); ++i) {
+    auto &&pfd = pfds[i + 1U];
+    auto &&sock = sockets[i].get();
+    assert(pfd.fd == sock.DriverGetFd());
+
+    sock.DriverQuery(pfd.events);
+  }
+#endif // SOCKPUPPET_WITH_TLS
+}
+
+void Driver::DriverImpl::DoOneSocketTask()
 {
   assert(sockets.size() + 1U == pfds.size());
 
@@ -257,13 +267,14 @@ void Driver::DriverImpl::DoOneFdTask()
   for(size_t i = 0U; i < sockets.size(); ++i) {
     auto &&pfd = pfds[i + 1U];
     auto &&sock = sockets[i].get();
-    assert(pfd.fd == sock.buff->sock->fd);
+    assert(pfd.fd == sock.DriverGetFd());
 
     if(pfd.revents & POLLIN) {
       sock.DriverOnReadable();
       return;
     } else if(pfd.revents & POLLOUT) {
       if(sock.DriverOnWritable()) {
+        // send queue emptied -> stop write poll
         pfd.events &= ~POLLOUT;
       }
       return;

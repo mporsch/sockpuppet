@@ -2,12 +2,28 @@
 #include "error_code.h" // for AddressError
 
 #include <cstring> // for std::memcmp
+#include <limits> // for std::numeric_limits
 #include <regex> // for std::regex
 #include <string_view> // for std::string_view
 
 namespace sockpuppet {
 
 namespace {
+
+bool IsServiceNumeric(std::string const &serv)
+{
+  static std::regex const reNumeric(R"(^\-?\d+$)");
+  return std::regex_match(serv, reNumeric);
+}
+
+void CheckServiceNumericOutOfRange(std::string const &serv)
+{
+  auto port = std::stoll(serv);
+  if(port < std::numeric_limits<uint16_t>::min() ||
+     port > std::numeric_limits<uint16_t>::max()) {
+    throw std::runtime_error("numeric service " + serv + " out of range");
+  }
+}
 
 struct UriDissect
 {
@@ -38,6 +54,7 @@ struct UriDissect
         // URI of type [IPv6-host]:port or host:port
         host = match[1].str();
         serv = match[2].str();
+        CheckServiceNumericOutOfRange(serv);
         hints.ai_flags |= AI_NUMERICSERV;
       } else {
         host = uri;
@@ -57,7 +74,7 @@ SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
   addrinfo *info;
   {
     auto dissect = UriDissect(uri);
-    if(auto const result = ::getaddrinfo(
+    if(auto result = ::getaddrinfo(
          dissect.host.c_str(), dissect.serv.c_str(),
          &dissect.hints, &info)) {
       throw std::system_error(AddressError(result),
@@ -74,6 +91,8 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
     throw std::invalid_argument("empty host");
   } else if(serv.empty()) {
     throw std::invalid_argument("empty service");
+  } else if(IsServiceNumeric(serv)) {
+    CheckServiceNumericOutOfRange(serv);
   }
 
   addrinfo *info;
@@ -81,7 +100,7 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
     addrinfo hints{};
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
-    if(auto const result = ::getaddrinfo(
+    if(auto result = ::getaddrinfo(
          host.c_str(), serv.c_str(),
          &hints, &info)) {
       throw std::system_error(AddressError(result),
@@ -91,17 +110,19 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
   return SockAddrInfo::AddrInfoPtr(info);
 }
 
-SockAddrInfo::AddrInfoPtr ParsePort(std::string const &port)
+SockAddrInfo::AddrInfoPtr ParsePort(uint16_t port)
 {
+  auto serv = std::to_string(port);
+
   addrinfo hints{};
   hints.ai_family = AF_INET; // force IPv4 here
   hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
   addrinfo *info;
-  if(auto const result = ::getaddrinfo(
-       "localhost", port.c_str(),
+  if(auto result = ::getaddrinfo(
+       "localhost", serv.c_str(),
        &hints, &info)) {
     throw std::system_error(AddressError(result),
-          "failed to parse port \"" + port + "\"");
+          "failed to parse port \"" + serv + "\"");
   }
   return SockAddrInfo::AddrInfoPtr(info);
 }
@@ -139,7 +160,7 @@ std::string Address::AddressImpl::Host() const
   auto const sockAddr = ForAny();
 
   std::string host(NI_MAXHOST, '\0');
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       const_cast<char *>(host.data()), NI_MAXHOST,
       nullptr, 0,
@@ -156,7 +177,7 @@ std::string Address::AddressImpl::Service() const
   auto const sockAddr = ForAny();
 
   std::string service(NI_MAXSERV, '\0');
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       nullptr, 0,
       const_cast<char *>(service.data()), NI_MAXSERV,
@@ -170,8 +191,8 @@ std::string Address::AddressImpl::Service() const
 
 uint16_t Address::AddressImpl::Port() const
 {
-  auto const sockAddr = ForAny();
-  auto const num = IsV6() ?
+  auto sockAddr = ForAny();
+  auto num = IsV6() ?
         reinterpret_cast<sockaddr_in6 const *>(sockAddr.addr)->sin6_port :
         reinterpret_cast<sockaddr_in const *>(sockAddr.addr)->sin_port;
   return ntohs(num); // careful; ntohs is a fragile macro in OSX
@@ -201,9 +222,9 @@ bool Address::AddressImpl::operator!=(
 }
 
 
-void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo *ptr) const noexcept
+void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo const *ptr) const noexcept
 {
-  ::freeaddrinfo(ptr);
+  ::freeaddrinfo(const_cast<addrinfo *>(ptr));
 }
 
 SockAddrInfo::SockAddrInfo(std::string const &uri)
@@ -221,7 +242,7 @@ SockAddrInfo::SockAddrInfo(std::string const &host,
 
 SockAddrInfo::SockAddrInfo(uint16_t port)
   : AddressImpl()
-  , info(ParsePort(std::to_string(port)))
+  , info(ParsePort(port))
 {
 }
 
@@ -241,7 +262,7 @@ addrinfo const *SockAddrInfo::Find(int type, int protocol) const
 
 SockAddrView SockAddrInfo::ForTcp() const
 {
-  if(auto const it = Find(SOCK_STREAM, IPPROTO_TCP)) {
+  if(auto it = Find(SOCK_STREAM, IPPROTO_TCP)) {
     return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
@@ -252,7 +273,7 @@ SockAddrView SockAddrInfo::ForTcp() const
 
 SockAddrView SockAddrInfo::ForUdp() const
 {
-  if(auto const it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
+  if(auto it = Find(SOCK_DGRAM, IPPROTO_UDP)) {
     return SockAddrView{
       it->ai_addr
     , static_cast<socklen_t>(it->ai_addrlen)
@@ -340,13 +361,13 @@ std::string to_string(SockAddrView const &sockAddr)
   std::string str(NI_MAXHOST + NI_MAXSERV + 3, '\0');
   size_t host = 0;
   size_t serv = NI_MAXHOST + 1;
-  bool const isV6 = (sockAddr.addr->sa_family != AF_INET);
+  bool isV6 = (sockAddr.addr->sa_family != AF_INET);
   if(isV6) {
     str[host++] = '[';
     serv += 2;
   }
 
-  if(auto const result = ::getnameinfo(
+  if(auto result = ::getnameinfo(
       sockAddr.addr, sockAddr.addrLen,
       &str[host], NI_MAXHOST,
       &str[serv], NI_MAXSERV,

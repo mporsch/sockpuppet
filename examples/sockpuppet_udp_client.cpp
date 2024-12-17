@@ -1,7 +1,5 @@
 #include "sockpuppet/socket.h" // for SocketUdp
 
-#include <atomic> // for std::atomic
-#include <csignal> // for std::signal
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
 #include <string> // for std::string
@@ -10,15 +8,6 @@ using namespace sockpuppet;
 
 void Client(Address bindAddress, Address remoteAddress)
 {
-  // set up the handler for Ctrl-C
-  static std::atomic<bool> shouldStop = false;
-  auto signalHandler = [](int) {
-    shouldStop = true;
-  };
-  if(std::signal(SIGINT, signalHandler) == SIG_ERR) {
-    throw std::logic_error("failed to set signal handler");
-  }
-
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
 
@@ -33,18 +22,17 @@ void Client(Address bindAddress, Address remoteAddress)
             << std::endl;
 
   // query and send until cancelled
-  while(!shouldStop) {
-    // query a string to send from the command line
-    std::string line;
-    std::cout << "message to send? (Ctrl-C for exit) - ";
-    std::getline(std::cin, line);
+  std::cerr << "message(s) to send? (Ctrl-C for exit)" << std::endl;
 
+  // query strings to send from the command line or piped text (file) input
+  std::string line;
+  while(std::getline(std::cin, line)) {
     // send the given string data to the remote address
     // negative timeout -> blocking until sent (although
     // UDP sockets will rarely ever block on send)
     // ignore the return value as - with unlimited timeout -
     // it will always match the sent size
-    static Duration const noTimeout(-1);
+    constexpr Duration noTimeout(-1);
     (void)sock.SendTo(line.c_str(),
                       line.size(),
                       remoteAddress,
@@ -55,23 +43,24 @@ void Client(Address bindAddress, Address remoteAddress)
 int main(int argc, char *argv[])
 try {
   if(argc < 2) {
-    std::cout << "Usage: " << argv[0]
+    std::cerr << "Usage: " << argv[0]
       << " DESTINATION [SOURCE]\n\n"
          "\tDESTINATION is an address string to send to\n"
          "\tSOURCE is an address string to bind to, "
          "e.g. \"localhost:8554\""
       << std::endl;
-  } else {
-    // parse given address string(s)
-    Address remoteAddress(argv[1]);
-    Address bindAddress;
-    if(argc >= 3) {
-      bindAddress = Address(argv[2]);
-    }
-
-    // create and run a UDP socket
-    Client(bindAddress, remoteAddress);
+    return EXIT_FAILURE;
   }
+
+  // parse given address string(s)
+  Address remoteAddress(argv[1]);
+  Address bindAddress;
+  if(argc >= 3) {
+    bindAddress = Address(argv[2]);
+  }
+
+  // create and run a UDP socket
+  Client(bindAddress, remoteAddress);
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {

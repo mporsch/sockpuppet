@@ -136,8 +136,9 @@ using ConnectHandler = std::function<void(SocketTcp, Address)>;
 /// @param  Address of peer that just disconnected from local socket.
 ///         Matches connect address the socket was created with or
 ///         obtained peer address of incoming connection.
+/// @param  Error/reason message.
 /// @note  After peer disconnect the socket is invalid and should be released.
-using DisconnectHandler = std::function<void(Address)>;
+using DisconnectHandler = std::function<void(Address, char const *)>;
 
 /// UDP (unreliable communication) socket class that adds an interface for
 /// an external socket driver to the buffered UDP class.

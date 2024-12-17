@@ -21,11 +21,6 @@ try {
   auto &&clientSock = p.first;
   auto &&clientAddr = p.second;
 
-  char buffer[256];
-  if(clientSock.Receive(buffer, sizeof(buffer), seconds(0))) {
-    throw std::runtime_error("unexpected receive");
-  }
-
   std::cout << "server sending to client " << to_string(clientAddr) << std::endl;
 
   static char const hello[] = "hello";
@@ -37,17 +32,17 @@ try {
   success = false;
 }
 
-void Server(Address serverAddr)
+void Server(Acceptor serverSock)
 try {
-  auto server = MakeTestSocket<Acceptor>(serverAddr);
-
-  std::cout << "server listening at " << to_string(serverAddr) << std::endl;
+  std::cout << "server listening at "
+            << to_string(serverSock.LocalAddress())
+            << std::endl;
 
   std::thread serverHandlers[clientCount];
   for(auto &&serverHandler : serverHandlers) {
     serverHandler = std::thread(
           ServerHandler,
-          server.Listen(seconds(2)).value());
+          serverSock.Listen(seconds(2)).value());
   }
 
   for(auto &&serverHandler : serverHandlers) {
@@ -62,15 +57,16 @@ try {
 
 void Client(Address serverAddr)
 try {
-  auto client = MakeTestSocket<SocketTcp>(serverAddr);
-  auto const clientAddr = client.LocalAddress();
+  auto clientSock = MakeTestSocket<SocketTcp>(serverAddr);
+  auto clientAddr = clientSock.LocalAddress();
 
   std::cout << "client " << to_string(clientAddr)
             << " connected to server " << to_string(serverAddr)
             << std::endl;
 
   char buffer[256];
-  if(auto rx = client.Receive(buffer, sizeof(buffer), seconds(1))) {
+  constexpr Duration receiveTimeout = seconds(1);
+  if(auto rx = clientSock.Receive(buffer, sizeof(buffer), receiveTimeout)) {
     if(std::string_view(buffer, rx.value()).find("hello") != std::string::npos) {
       std::cout << "client " << to_string(clientAddr)
                 << " received from server" << std::endl;
@@ -78,7 +74,7 @@ try {
       try {
         // the server closes the connection after the "hello" message
         // we expect to get the corresponding exception now
-        (void)client.Receive(buffer, sizeof(buffer), seconds(1));
+        (void)clientSock.Receive(buffer, sizeof(buffer), receiveTimeout);
         success = false;
       } catch(std::exception const &e) {
         std::cout << e.what() << std::endl;
@@ -95,8 +91,10 @@ try {
 
 int main(int, char **)
 {
-  Address const serverAddr("localhost:8554");
-  std::thread server(Server, serverAddr);
+  auto serverSock = MakeTestSocket<Acceptor>(Address());
+  auto serverAddr = serverSock.LocalAddress();
+
+  std::thread server(Server, std::move(serverSock));
 
   // wait for server thread to come up
   std::this_thread::sleep_for(seconds(1));

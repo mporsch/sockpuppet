@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "Windows MSVC17 shared library using LibreSSL"
+            os: windows-2022
+            c_compiler: cl
+            cpp_compiler: cl
+            libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
+            build_type: Release
+            release_zip: build/sockpuppet-${{ github.ref_name }}-msvc2022.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cache externals restore
+        id: cache-externals-restore
+        if: matrix.libressl
+        uses: actions/cache/restore@v4
+        with:
+          path: build/external/libressl/install
+          key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
+
+      - name: configure externals
+        if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
+        run: >
+          cmake
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }}
+          -B build/external
+          -S external
+
+      - name: build externals
+        if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
+        run: cmake --build build/external --config ${{ matrix.build_type }}
+
+      - name: cache externals save
+        if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
+        uses: actions/cache/save@v4
+        with:
+          path: build/external/libressl/install
+          key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
+
+      - name: configure
+        run: >
+          cmake
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }}
+          -DBUILD_TESTS:BOOL=OFF
+          -DBUILD_EXAMPLES:BOOL=ON
+          -DBUILD_SHARED_LIBS:BOOL=ON
+          -DWITH_TLS:BOOL=ON
+          ${{ matrix.libressl }}
+          -B build
+          -S .
+
+      - name: build and install
+        run: cmake --build build --target install --config ${{ matrix.build_type }}
+
+      - name: zip
+        uses: vimtor/action-zip@v1.2
+        with:
+          files: >
+            build/install/
+          dest: ${{ matrix.release_zip }}
+
+      - name: release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ matrix.release_zip }}
