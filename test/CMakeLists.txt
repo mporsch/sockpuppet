@@ -10,7 +10,17 @@ if(WITH_TLS)
 
   add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/test_key.pem ${CMAKE_BINARY_DIR}/test_cert.pem
-    COMMAND ${OPENSSL_BINARY} req -newkey rsa:2048 -new -nodes -x509 -days 3650 -subj "/" -batch -keyout ${CMAKE_BINARY_DIR}/test_key.pem -out ${CMAKE_BINARY_DIR}/test_cert.pem
+    COMMAND ${OPENSSL_BINARY}
+      req
+      -newkey rsa:2048
+      -new
+      -nodes
+      -x509
+      -days 3650
+      -subj "/"
+      -batch
+      -keyout ${CMAKE_BINARY_DIR}/test_key.pem
+      -out ${CMAKE_BINARY_DIR}/test_cert.pem
     COMMENT "Generating a self-signed certificate and private key to test with"
   )
   add_custom_target(generate_certificate DEPENDS ${CMAKE_BINARY_DIR}/test_key.pem ${CMAKE_BINARY_DIR}/test_cert.pem)
