@@ -2,16 +2,23 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 if(WITH_TLS)
-  # find openssl binary, hint to where we previously built/found it
+  # find OpenSSL binary, hint to where we previously built/found it
   find_program(OPENSSL_BINARY openssl
     REQUIRED
     HINTS ${OPENSSL_ROOT_DIR}
+  )
+
+  # if we built LibreSSL's OpenSSL ourselves, it might refuse to work without a config file
+  find_file(OPENSSL_CONFIG openssl.cnf
+    PATHS ${OPENSSL_ROOT_DIR}
+    PATH_SUFFIXES etc/ssl
   )
 
   add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/test_key.pem ${CMAKE_BINARY_DIR}/test_cert.pem
     COMMAND ${OPENSSL_BINARY}
       req
+      "$<$<BOOL:${OPENSSL_CONFIG}>:-config>" "$<$<BOOL:${OPENSSL_CONFIG}>:${OPENSSL_CONFIG}>"
       -newkey rsa:2048
       -new
       -nodes
