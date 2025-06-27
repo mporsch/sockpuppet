@@ -1,4 +1,6 @@
 #include "sockpuppet/socket.h" // for SocketUdp
+#include "../src/address_impl.h" // for Address::impl
+#include "../src/socket_impl.h" // for SocketUdp::impl
 
 #include <cstdlib> // for EXIT_SUCCESS
 #include <iostream> // for std::cout
@@ -10,6 +12,15 @@ void Client(Address bindAddress, Address remoteAddress)
 {
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
+
+  // for IPv4 (IPv6 has its own ID and structure)
+  auto &&bindAddr = reinterpret_cast<sockaddr_in const *>(bindAddress.impl->ForUdp().addr)->sin_addr;
+  auto &&remoteAddr = reinterpret_cast<sockaddr_in const *>(remoteAddress.impl->ForUdp().addr)->sin_addr;
+  auto opt = ip_mreq{
+    remoteAddr,
+    bindAddr
+  };
+  sock.impl->SetSockOpt(IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<char const *>(&opt), sizeof(opt));
 
   // print the bound UDP socket address
   // (might have OS-assigned port number if
