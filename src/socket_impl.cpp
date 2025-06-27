@@ -58,12 +58,22 @@ void SetBlocking(SOCKET fd, bool blocking, char const *errorMessage)
   }
 }
 
-void SetSockOpt(SOCKET fd, int id, int value, char const *errorMessage)
+void DoSetSockOpt(
+    SOCKET fd, int level, int id,
+    char const *opt, socklen_t optLen,
+    char const *errorMessage)
 {
-  if(::setsockopt(fd, SOL_SOCKET, id,
-       reinterpret_cast<char const *>(&value), sizeof(value))) {
+  if(::setsockopt(fd, level, id, opt, optLen)) {
     throw std::system_error(SocketError(), errorMessage);
   }
+}
+
+template<typename T>
+void DoSetSockOpt(SOCKET fd, int id, T const &opt, char const *errorMessage)
+{
+    DoSetSockOpt(fd, SOL_SOCKET, id,
+       reinterpret_cast<char const *>(&opt), sizeof(opt),
+       errorMessage);
 }
 
 template<typename T>
@@ -248,20 +258,25 @@ void SocketImpl::SetSockOptNonBlocking()
 
 void SocketImpl::SetSockOptReuseAddr()
 {
-  SetSockOpt(fd, SO_REUSEADDR, 1, "failed to set socket option address reuse");
+  DoSetSockOpt(fd, SO_REUSEADDR, 1, "failed to set socket option address reuse");
 }
 
 void SocketImpl::SetSockOptBroadcast()
 {
-  SetSockOpt(fd, SO_BROADCAST, 1, "failed to set socket option broadcast");
+  DoSetSockOpt(fd, SO_BROADCAST, 1, "failed to set socket option broadcast");
 }
 
 void SocketImpl::SetSockOptNoSigPipe()
 {
 #ifdef SO_NOSIGPIPE
   // avoid SIGPIPE on connection closed (in OSX)
-  SetSockOpt(fd, SO_NOSIGPIPE, 1, "failed to set socket option non-SIGPIPE");
+  DoSetSockOpt(fd, SO_NOSIGPIPE, 1, "failed to set socket option non-SIGPIPE");
 #endif // SO_NOSIGPIPE
+}
+
+void SocketImpl::SetSockOpt(int level, int id, char const *opt, socklen_t optLen)
+{
+  DoSetSockOpt(fd, level, id, opt, optLen, "failed to set socket option");
 }
 
 size_t SocketImpl::GetSockOptRcvBuf() const

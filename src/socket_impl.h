@@ -79,6 +79,8 @@ struct SocketImpl
   void SetSockOptReuseAddr();
   void SetSockOptBroadcast();
   void SetSockOptNoSigPipe();
+  void SetSockOpt(int level, int id, char const *opt, socklen_t optLen);
+
   size_t GetSockOptRcvBuf() const;
   std::shared_ptr<SockAddrStorage> GetSockName() const;
   std::shared_ptr<SockAddrStorage> GetPeerName() const;
