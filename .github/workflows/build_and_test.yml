@@ -88,8 +88,8 @@ jobs:
           -B build
           -S .
           ${{ matrix.generator }}
-          -DBUILD_SHARED_LIBS:BOOL=ON
-          -DWITH_TLS:BOOL=ON
+          -DSOCKPUPPET_BUILD_SHARED_LIBS:BOOL=ON
+          -DSOCKPUPPET_WITH_TLS:BOOL=ON
           ${{ matrix.libressl }}
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
 

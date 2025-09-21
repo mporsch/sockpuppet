@@ -57,10 +57,10 @@ jobs:
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE:STRING=${{ matrix.build_type }}
-          -DBUILD_TESTS:BOOL=OFF
-          -DBUILD_EXAMPLES:BOOL=ON
-          -DBUILD_SHARED_LIBS:BOOL=ON
-          -DWITH_TLS:BOOL=ON
+          -DSOCKPUPPET_BUILD_TESTS:BOOL=OFF
+          -DSOCKPUPPET_BUILD_EXAMPLES:BOOL=ON
+          -DSOCKPUPPET_BUILD_SHARED_LIBS:BOOL=ON
+          -DSOCKPUPPET_WITH_TLS:BOOL=ON
           ${{ matrix.libressl }}
           -B build
           -S .

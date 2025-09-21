@@ -6,11 +6,13 @@ if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default
   set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "" FORCE)
 endif()
-option(BUILD_TESTS "Build test executables" TRUE)
-option(BUILD_EXAMPLES "Build example executables" TRUE)
-option(BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
-option(WITH_TLS "Build with support for encrypted connections using OpenSSL (or compatible)" FALSE)
 
+option(SOCKPUPPET_BUILD_TESTS "Build test executables" TRUE)
+option(SOCKPUPPET_BUILD_EXAMPLES "Build example executables" TRUE)
+option(SOCKPUPPET_BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
+option(SOCKPUPPET_WITH_TLS "Build with support for encrypted connections using OpenSSL (or compatible)" FALSE)
+
+set(BUILD_SHARED_LIBS ${SOCKPUPPET_BUILD_SHARED_LIBS})
 if(${BUILD_SHARED_LIBS})
   # auto-generate DLL exports for Windows
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -74,7 +76,7 @@ target_include_directories(sockpuppet PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-if(${WITH_TLS})
+if(${SOCKPUPPET_WITH_TLS})
   # LibreSSL works fine as well, just had to remove version suffix from installed lib filenames
   message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
   find_package(OpenSSL REQUIRED)
@@ -104,14 +106,16 @@ else()
   target_link_libraries(sockpuppet PUBLIC ${DEPENDENCIES})
 endif()
 
-if(${BUILD_TESTS})
+if(${SOCKPUPPET_BUILD_TESTS})
   add_subdirectory(test)
 endif()
-if(${BUILD_EXAMPLES})
+if(${SOCKPUPPET_BUILD_EXAMPLES})
   add_subdirectory(examples)
 endif()
 
 # install the library, includes and CMake package
+export(TARGETS sockpuppet FILE sockpuppet-config.cmake)
+install(EXPORT sockpuppet-config DESTINATION lib/cmake/sockpuppet)
 install(TARGETS sockpuppet
   EXPORT sockpuppet-config
   ARCHIVE DESTINATION lib
@@ -119,16 +123,17 @@ install(TARGETS sockpuppet
   RUNTIME DESTINATION bin
   PUBLIC_HEADER DESTINATION include/sockpuppet
 )
-install(EXPORT sockpuppet-config DESTINATION cmake)
-export(TARGETS sockpuppet FILE sockpuppet-config.cmake)
 
 # install the demo project
-set(DEMO_CMAKE_FILE_CONFIGURE_CODE
-  "configure_file(
-    \"${CMAKE_SOURCE_DIR}/examples/CMakeLists.txt.in\"
-    \"${CMAKE_INSTALL_PREFIX}/demo/CMakeLists.txt\"
-    @ONLY
-  )"
+if(${BUILD_SHARED_LIBS})
+  configure_file(examples/CMakeLists.txt.shared.in examples/CMakeLists.txt)
+elseif(${SOCKPUPPET_WITH_TLS})
+  configure_file(examples/CMakeLists.txt.static.tls.in examples/CMakeLists.txt)
+else()
+  configure_file(examples/CMakeLists.txt.static.in examples/CMakeLists.txt)
+endif()
+install(FILES
+    examples/sockpuppet_http_server.cpp
+    "${CMAKE_CURRENT_BINARY_DIR}/examples/CMakeLists.txt"
+  DESTINATION demo
 )
-install(CODE ${DEMO_CMAKE_FILE_CONFIGURE_CODE})
-install(FILES examples/sockpuppet_http_server.cpp DESTINATION demo)
