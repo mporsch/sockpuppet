@@ -316,7 +316,7 @@ void SocketTlsImpl::DriverPending()
   char buf[64];
   auto received = Read(buf, sizeof(buf));
   if(received) {
-    throw std::logic_error("unexpected recceive");
+    throw std::logic_error("unexpected receive");
   }
 }
 
