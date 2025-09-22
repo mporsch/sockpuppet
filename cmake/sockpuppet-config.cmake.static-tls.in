@@ -5,6 +5,7 @@ set(OPENSSL_ROOT_DIR "@OPENSSL_ROOT_DIR@" CACHE PATH "Path to search for OpenSSL
 
 # find OpenSSL needed for transitive static linking
 include(CMakeFindDependencyMacro)
+message("OPENSSL_ROOT_DIR points to: ${OPENSSL_ROOT_DIR}")
 find_dependency(OpenSSL REQUIRED)
 
 # include our targets
