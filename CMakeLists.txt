@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.12.0)
 
-project(sockpuppet CXX)
+project(sockpuppet
+  LANGUAGES CXX
+  VERSION 1.1.0 # sets sockpuppet_VERSION, sockpuppet_VERSION_MAJOR, sockpuppet_VERSION_MINOR, sockpuppet_VERSION_PATCH
+)
 
 if(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
   # install to the build directory by default
@@ -114,21 +117,43 @@ if(${SOCKPUPPET_BUILD_EXAMPLES})
 endif()
 
 # install the library, includes and CMake package
-export(TARGETS sockpuppet FILE sockpuppet-config.cmake)
-install(EXPORT sockpuppet-config DESTINATION lib/cmake/sockpuppet)
+include(CMakePackageConfigHelpers)
+export(TARGETS sockpuppet FILE sockpuppet-targets.cmake)
+install(EXPORT sockpuppet-targets DESTINATION lib/cmake/sockpuppet)
 install(TARGETS sockpuppet
-  EXPORT sockpuppet-config
+  EXPORT sockpuppet-targets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
   PUBLIC_HEADER DESTINATION include/sockpuppet
 )
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/sockpuppet-config-version.cmake
+  VERSION ${sockpuppet_VERSION}
+  COMPATIBILITY AnyNewerVersion
+)
+if(NOT ${BUILD_SHARED_LIBS} AND ${SOCKPUPPET_WITH_TLS})
+  configure_package_config_file(
+    cmake/sockpuppet-config.cmake.static-tls.in
+    ${CMAKE_CURRENT_BINARY_DIR}/sockpuppet-config.cmake
+    INSTALL_DESTINATION lib/cmake/sockpuppet
+  )
+else()
+  configure_package_config_file(
+    cmake/sockpuppet-config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/sockpuppet-config.cmake
+    INSTALL_DESTINATION lib/cmake/sockpuppet
+  )
+endif()
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/sockpuppet-config-version.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/sockpuppet-config.cmake
+  DESTINATION lib/cmake/sockpuppet
+)
 
 # install the demo project
 if(${BUILD_SHARED_LIBS})
   configure_file(examples/CMakeLists.txt.shared.in examples/CMakeLists.txt)
-elseif(${SOCKPUPPET_WITH_TLS})
-  configure_file(examples/CMakeLists.txt.static.tls.in examples/CMakeLists.txt)
 else()
   configure_file(examples/CMakeLists.txt.static.in examples/CMakeLists.txt)
 endif()

@@ -1,0 +1,13 @@
+@PACKAGE_INIT@
+
+# add a cache variable to simplify manual OpenSSL find
+set(OPENSSL_ROOT_DIR "@OPENSSL_ROOT_DIR@" CACHE PATH "Path to search for OpenSSL")
+
+# find OpenSSL needed for transitive static linking
+include(CMakeFindDependencyMacro)
+find_dependency(OpenSSL REQUIRED)
+
+# include our targets
+include("${CMAKE_CURRENT_LIST_DIR}/sockpuppet-targets.cmake")
+
+check_required_components(sockpuppet)

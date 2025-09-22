@@ -1,0 +1,6 @@
+@PACKAGE_INIT@
+
+# include our targets
+include("${CMAKE_CURRENT_LIST_DIR}/sockpuppet-targets.cmake")
+
+check_required_components(sockpuppet)
