@@ -26,21 +26,21 @@ jobs:
             os: windows-2022
             generator: -G "Visual Studio 17 2022" -A x64
             shared: ON
-            # uses pre-installed OpenSSL 1.1.1u
+            # uses pre-installed OpenSSL 1.1.1w
             type: Debug
 
-          - name: "Unix GCC static library using LibreSSL"
-            os: ubuntu-latest
-            generator: -G "Unix Makefiles"
-            shared: OFF
-            libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
-            type: Debug
-
-          - name: "Unix GCC shared library using OpenSSL"
+          - name: "Unix GCC shared library using LibreSSL"
             os: ubuntu-latest
             generator: -G "Unix Makefiles"
             shared: ON
-            # uses pre-installed OpenSSL 3.0.2
+            libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
+            type: Debug
+
+          - name: "Unix GCC static library using OpenSSL"
+            os: ubuntu-latest
+            generator: -G "Unix Makefiles"
+            shared: OFF
+            # uses pre-installed OpenSSL 3.0.13
             type: Debug
 
           - name: "OSX clang shared library using LibreSSL"
@@ -48,13 +48,16 @@ jobs:
             generator: -G "Unix Makefiles"
             shared: ON
             libressl: -DOPENSSL_ROOT_DIR:PATH=build/external/libressl/install
+            # don't mix LibreSSL with a static build because on demo's OpenSSL find, it will find the pre-installed one with
+            # -- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.0.13")
+            # which fails at link time
             type: Debug
 
           - name: "OSX clang static library using OpenSSL"
             os: macos-latest
             generator: -G "Unix Makefiles"
             shared: OFF
-            # uses pre-installed OpenSSL 3.1.1
+            # uses pre-installed OpenSSL 3.5.2
             type: Debug
     runs-on: ${{ matrix.os }}
     steps:
