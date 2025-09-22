@@ -106,3 +106,16 @@ jobs:
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
         run: cmake --build build --target run_tests --config ${{ matrix.type }}
+
+      - name: install library and demo
+        run: cmake --build build --config ${{ matrix.type }} --target install
+
+      - name: configure demo
+        run: >
+          cmake
+          -B build/install/demo/build
+          -S build/install/demo
+          -DCMAKE_BUILD_TYPE:STRING=${{ matrix.type }}
+
+      - name: build demo
+        run: cmake --build build/install/demo/build --config ${{ matrix.type }}
