@@ -12,7 +12,7 @@ endif()
 
 option(SOCKPUPPET_BUILD_TESTS "Build test executables" TRUE)
 option(SOCKPUPPET_BUILD_EXAMPLES "Build example executables" TRUE)
-option(SOCKPUPPET_BUILD_SHARED_LIBS "Build shared instead of static library" FALSE)
+option(SOCKPUPPET_BUILD_SHARED_LIBS "Build shared instead of static library" TRUE)
 option(SOCKPUPPET_WITH_TLS "Build with support for encrypted connections using OpenSSL (or compatible)" FALSE)
 
 set(BUILD_SHARED_LIBS ${SOCKPUPPET_BUILD_SHARED_LIBS})
