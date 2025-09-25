@@ -1,3 +1,6 @@
+# build binaries next to the (shared) library
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
 # link everything with the static/shared library
 link_libraries(sockpuppet)
 
