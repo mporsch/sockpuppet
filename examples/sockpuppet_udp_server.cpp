@@ -15,12 +15,23 @@ using namespace sockpuppet;
   SocketUdp sock(bindAddress);
 
   if (remoteAddress) {
+    if(bindAddress.IsV6() != remoteAddress->IsV6())
+      throw std::runtime_error("mismatching address families");
+
+    if(bindAddress.IsV6()) {
+      auto opt = ipv6_mreq{
+        reinterpret_cast<sockaddr_in6 const *>(remoteAddress->impl->ForUdp().addr)->sin6_addr, // IP multicast address of group.
+        sock.LocalAddress().impl->LocalInterfaceIndex()
+      };
+      sock.impl->SetSockOpt(IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, reinterpret_cast<char const *>(&opt), sizeof(opt));
+    } else {
       // for IPv4 (IPv6 has its own ID and structure)
       auto opt = ip_mreq{
         reinterpret_cast<sockaddr_in const *>(remoteAddress->impl->ForUdp().addr)->sin_addr, // IP multicast address of group.
-        reinterpret_cast<sockaddr_in const *>(bindAddress.impl->ForUdp().addr)->sin_addr // Local IP address of interface.
+        reinterpret_cast<sockaddr_in const *>(sock.LocalAddress().impl->ForUdp().addr)->sin_addr // Local IP address of interface.
       };
       sock.impl->SetSockOpt(IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<char const *>(&opt), sizeof(opt));
+    }
   }
 
   // print the bound UDP socket address
