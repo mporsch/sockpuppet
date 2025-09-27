@@ -23,6 +23,7 @@ struct SockAddrView
   sockaddr const *addr;
   socklen_t addrLen;
 
+  // mind that the comparisons include the port number
   bool operator<(SockAddrView const &other) const;
   bool operator==(SockAddrView const &other) const;
   bool operator!=(SockAddrView const &other) const;
@@ -50,6 +51,7 @@ struct Address::AddressImpl
   bool operator!=(Address::AddressImpl const &other) const;
 
   static std::vector<Address> LocalAddresses();
+  unsigned int LocalInterfaceIndex() const;
 };
 
 struct SockAddrInfo : public Address::AddressImpl
