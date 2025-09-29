@@ -4,9 +4,62 @@
 
 #include <iphlpapi.h> // for GetAdaptersAddresses
 
+#include <cstring> // for std::memcmp
 #include <stdexcept> // for std::runtime_error
 
 namespace sockpuppet {
+
+namespace {
+
+struct AdaptersAddresses : private std::string
+{
+  AdaptersAddresses()
+    : std::string(1024 * 16, '\0')
+  {
+    for(int i = 0; i < 3; ++i) {
+      auto size = static_cast<ULONG>(this->size());
+      auto res = ::GetAdaptersAddresses(
+        AF_UNSPEC, // Family
+        0, // Flags,
+        nullptr, // Reserved
+        Get(), // AdapterAddresses
+        &size); // SizePointer
+      if(res == NO_ERROR) {
+        return;
+      } else if(res == ERROR_BUFFER_OVERFLOW) {
+        this->resize(size);
+      } else {
+        break;
+      }
+    }
+    throw std::runtime_error("failed to get adapters info");
+  }
+
+  PIP_ADAPTER_ADDRESSES Get() noexcept
+  {
+    return reinterpret_cast<PIP_ADAPTER_ADDRESSES>(this->data());
+  }
+};
+
+bool IsEqualAddr(SockAddrView lhs, SOCKET_ADDRESS const &rhs, int family)
+{
+  if(lhs.addrLen != rhs.iSockaddrLength)
+    return false;
+
+  // explicitly not comparing port number
+  if(family == AF_INET6)
+    return (0 == memcmp(
+      &reinterpret_cast<sockaddr_in6 const *>(lhs.addr)->sin6_addr,
+      &reinterpret_cast<sockaddr_in6 const *>(rhs.lpSockaddr)->sin6_addr,
+      sizeof(in6_addr)));
+  else
+    return (0 == memcmp(
+      &reinterpret_cast<sockaddr_in const *>(lhs.addr)->sin_addr,
+      &reinterpret_cast<sockaddr_in const *>(rhs.lpSockaddr)->sin_addr,
+      sizeof(in_addr)));
+}
+
+} // unnamed namespace
 
 std::vector<Address>
 Address::AddressImpl::LocalAddresses()
@@ -31,41 +84,22 @@ Address::AddressImpl::LocalAddresses()
 
 unsigned int Address::AddressImpl::LocalInterfaceIndex() const
 {
-  std::string buffer(1024, '\0');
-  for(int i = 0; i < 3; ++i) {
-    auto size = static_cast<ULONG>(buffer.size());
-    auto res = ::GetAdaptersAddresses(
-      AF_UNSPEC, // Family
-      0, // Flags,
-      nullptr, // Reserved
-      reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buffer.data()), // AdapterAddresses
-      &size); // SizePointer
-    if(res == NO_ERROR) {
-      break;
-    } else if(res == ERROR_BUFFER_OVERFLOW) {
-      buffer.resize(size);
-    } else {
-      throw std::runtime_error("failed to get adapters info");
-    }
-  }
+  auto const family = Family();
+  auto sockAddr = ForAny();
 
-  //auto const family = Family();
-  auto const thisHost = Host();
-  for(auto adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES const *>(buffer.data()); adapter; adapter = adapter->Next) {
+  auto adapters = AdaptersAddresses();
+  for(auto adapter = adapters.Get(); adapter; adapter = adapter->Next) {
     for(auto address = adapter->FirstUnicastAddress; address; address = address->Next) {
-      auto otherHost = SockAddrStorage(
-        reinterpret_cast<sockaddr const *>(address->Address.lpSockaddr),
-        static_cast<size_t>(address->Address.iSockaddrLength)
-      ).Host();
+      if(address->Address.lpSockaddr->sa_family != family)
+        continue;
 
-      if(true &&
-          (address->Address.lpSockaddr->sa_family == AF_INET) &&
-          (otherHost == thisHost))
-        return adapter->IfIndex;
-      else if(true &&
-          (address->Address.lpSockaddr->sa_family == AF_INET6) &&
-          (otherHost == thisHost))
+      if(!IsEqualAddr(sockAddr, address->Address, family))
+        continue;
+
+      if(family == AF_INET6)
         return adapter->Ipv6IfIndex;
+      else
+        return adapter->IfIndex;
     }
   }
   throw std::runtime_error("failed to determine local address interface index");
