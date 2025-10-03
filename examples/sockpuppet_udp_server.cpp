@@ -14,6 +14,13 @@ using namespace sockpuppet;
   // bind a UDP socket to given address
   SocketUdp sock(bindAddress);
 
+  // print the bound UDP socket address
+  // (might have OS-assigned port number if
+  // it has not been explicitly set in the bind address)
+  std::cerr << "receiving at "
+            << to_string(sock.LocalAddress())
+            << std::endl;
+
   if (remoteAddress) {
     if(bindAddress.IsV6() != remoteAddress->IsV6())
       throw std::runtime_error("mismatching address families");
@@ -33,13 +40,6 @@ using namespace sockpuppet;
       sock.impl->SetSockOpt(IPPROTO_IP, IP_ADD_MEMBERSHIP, reinterpret_cast<char const *>(&opt), sizeof(opt));
     }
   }
-
-  // print the bound UDP socket address
-  // (might have OS-assigned port number if
-  // it has not been explicitly set in the bind address)
-  std::cerr << "receiving at "
-            << to_string(sock.LocalAddress())
-            << std::endl;
 
   // receive and print until Ctrl-C
   for(;;) {
@@ -69,7 +69,8 @@ try {
       << " SOURCE [REMOTE]\n\n"
          "\tSOURCE is an address string to bind to, "
          "e.g. \"localhost:8554\""
-         "\tREMOTE is a (multicast) address string to receive from, "
+         "\tREMOTE is a (multicast) IP address string to receive from, "
+         "e.g. \"224.0.0.1\""
       << std::endl;
     return EXIT_FAILURE;
   }
