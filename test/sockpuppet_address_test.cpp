@@ -95,6 +95,19 @@ void Test(std::initializer_list<Expected> expected, uint16_t port)
   Verify(std::move(expected), std::move(addr));
 }
 
+void Test(std::initializer_list<Expected> expected, Address ref, uint16_t port)
+{
+  Address addr(ref, port);
+
+  std::cout << std::setw(20)
+            << to_string(addr)
+            << " <-- "
+            << "Address(Address(" << to_string(ref) << "), " << port << ")"
+            << std::endl;
+
+  Verify(std::move(expected), std::move(addr));
+}
+
 void Test(std::initializer_list<Expected> expected, std::string uri)
 {
   DoTest(std::move(expected), std::move(uri));
@@ -226,6 +239,12 @@ try {
   Test({{"a:b::c:1", "80", true}},
        "a:b::c:1", "http");
 
+  // IPv4 with port override
+  Test({{"127.0.0.1", "80", false}}, Address("127.0.0.1:0"), 80);
+
+  // IPv6 with port override
+  Test({{"::1", "80", true}}, Address("[::1]:0"), 80);
+
   // invalid URI without port/protocol
   Test({},
        "Hi! My name is ?");
@@ -233,6 +252,11 @@ try {
   // invalid URI with port/protocol
   Test({},
        "Hi! My name is ?", "80");
+
+  // just print the local interface addresses
+  std::cout << std::endl << "local interface addresses:" << std::endl;
+  for(auto &&addr : Address::LocalAddresses())
+    std::cout << "  - " << to_string(addr) << std::endl;
 
   return EXIT_SUCCESS;
 } catch (std::exception const &e) {
