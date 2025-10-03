@@ -9,8 +9,15 @@ Address::Address(std::string const &uri)
 }
 
 Address::Address(std::string const &host,
-    std::string const &service)
+      std::string const &service)
   : impl(std::make_shared<SockAddrInfo>(host, service))
+{
+}
+
+Address::Address(Address const &other,
+      uint16_t port)
+  : impl(std::make_shared<SockAddrStorage>(
+      other.impl->ForAny(), port))
 {
 }
 

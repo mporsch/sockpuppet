@@ -84,10 +84,14 @@ struct SockAddrStorage : public Address::AddressImpl
 
   SockAddrStorage();
   SockAddrStorage(sockaddr const *addr, size_t addrLen);
+  SockAddrStorage(SockAddrView);
+  SockAddrStorage(SockAddrView, uint16_t port);
   ~SockAddrStorage() override;
 
   sockaddr *Addr();
   socklen_t *AddrLen();
+
+  void SetPort(uint16_t port);
 
   SockAddrView ForTcp() const override;
   SockAddrView ForUdp() const override;

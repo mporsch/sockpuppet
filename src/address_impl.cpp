@@ -314,6 +314,19 @@ SockAddrStorage::SockAddrStorage(sockaddr const *addr, size_t addrLen)
   std::memcpy(&storage, addr, addrLen);
 }
 
+SockAddrStorage::SockAddrStorage(SockAddrView sockAddr)
+  : SockAddrStorage(
+      sockAddr.addr,
+      static_cast<size_t>(sockAddr.addrLen))
+{
+}
+
+SockAddrStorage::SockAddrStorage(SockAddrView sockAddr, uint16_t port)
+  : SockAddrStorage(sockAddr)
+{
+  SetPort(port);
+}
+
 SockAddrStorage::~SockAddrStorage() = default;
 
 sockaddr *SockAddrStorage::Addr()
@@ -324,6 +337,15 @@ sockaddr *SockAddrStorage::Addr()
 socklen_t *SockAddrStorage::AddrLen()
 {
   return &size;
+}
+
+void SockAddrStorage::SetPort(uint16_t port)
+{
+  auto const num = ntohs(port);
+  if(Family() == AF_INET6)
+    reinterpret_cast<sockaddr_in6 *>(&storage)->sin6_port = num;
+  else
+    reinterpret_cast<sockaddr_in *>(&storage)->sin_port = num;
 }
 
 SockAddrView SockAddrStorage::ForTcp() const
