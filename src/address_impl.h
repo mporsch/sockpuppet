@@ -51,7 +51,7 @@ struct Address::AddressImpl
   bool operator!=(Address::AddressImpl const &other) const;
 
   static std::vector<Address> LocalAddresses();
-  unsigned int LocalInterfaceIndex() const;
+  unsigned long LocalInterfaceIndex() const;
 };
 
 struct SockAddrInfo : public Address::AddressImpl
