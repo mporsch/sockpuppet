@@ -68,7 +68,7 @@ try {
 
   // set the server port for each address
   for(auto &&addr : addrs) {
-    addr = Address(addr.Host(), "8080");
+    addr = Address(addr, 8080);
   }
 
   // prepare a server for each interface address

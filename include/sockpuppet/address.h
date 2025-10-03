@@ -28,6 +28,14 @@ struct Address
   Address(std::string const &host,
           std::string const &service);
 
+  /// Create a local/remote host address from given reference address and
+  /// override port number.
+  /// @param  other  reference address.
+  /// @param  port  Port number; 0 can be used for
+  ///               binding to an OS-assigned port.
+  Address(Address const &other,
+          uint16_t port);
+
   /// Create a localhost address from given port number.
   /// @param  port  Port number; 0 can be used for
   ///               binding to an OS-assigned port.
