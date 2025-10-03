@@ -45,7 +45,7 @@ using namespace sockpuppet;
   for(;;) {
     // wait for and receive incoming data into provided buffer
     // negative timeout -> blocking until receipt
-    char buffer[256];
+    char buffer[4096];
     constexpr Duration noTimeout(-1);
     auto [receiveSize, fromAddr] = *sock.ReceiveFrom(
         buffer, sizeof(buffer),
