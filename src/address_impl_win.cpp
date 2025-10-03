@@ -22,7 +22,7 @@ struct AdaptersAddresses : private std::string
         AF_UNSPEC, // Family
         0, // Flags,
         nullptr, // Reserved
-        Get(), // AdapterAddresses
+        Data(), // AdapterAddresses
         &size); // SizePointer
       if(res == NO_ERROR) {
         return;
@@ -35,11 +35,22 @@ struct AdaptersAddresses : private std::string
     throw std::runtime_error("failed to get adapters info");
   }
 
-  PIP_ADAPTER_ADDRESSES Get() noexcept
+  PIP_ADAPTER_ADDRESSES Data() noexcept
   {
     return reinterpret_cast<PIP_ADAPTER_ADDRESSES>(this->data());
   }
+
+  IP_ADAPTER_ADDRESSES const *Data() const noexcept
+  {
+    return reinterpret_cast<IP_ADAPTER_ADDRESSES const *>(this->data());
+  }
 };
+
+template<typename T>
+bool IsEqualAddr(T const &lhs, T const &rhs)
+{
+  return (0 == std::memcmp(&lhs, &rhs, sizeof(T)));
+}
 
 bool IsEqualAddr(SockAddrView lhs, SOCKET_ADDRESS const &rhs, int family)
 {
@@ -48,15 +59,13 @@ bool IsEqualAddr(SockAddrView lhs, SOCKET_ADDRESS const &rhs, int family)
 
   // explicitly not comparing port number
   if(family == AF_INET6)
-    return (0 == memcmp(
-      &reinterpret_cast<sockaddr_in6 const *>(lhs.addr)->sin6_addr,
-      &reinterpret_cast<sockaddr_in6 const *>(rhs.lpSockaddr)->sin6_addr,
-      sizeof(in6_addr)));
+    return IsEqualAddr(
+      reinterpret_cast<sockaddr_in6 const *>(lhs.addr)->sin6_addr,
+      reinterpret_cast<sockaddr_in6 const *>(rhs.lpSockaddr)->sin6_addr);
   else
-    return (0 == memcmp(
-      &reinterpret_cast<sockaddr_in const *>(lhs.addr)->sin_addr,
-      &reinterpret_cast<sockaddr_in const *>(rhs.lpSockaddr)->sin_addr,
-      sizeof(in_addr)));
+    return IsEqualAddr(
+      reinterpret_cast<sockaddr_in const *>(lhs.addr)->sin_addr,
+      reinterpret_cast<sockaddr_in const *>(rhs.lpSockaddr)->sin_addr);
 }
 
 } // unnamed namespace
@@ -82,13 +91,13 @@ Address::AddressImpl::LocalAddresses()
   return ret;
 }
 
-unsigned int Address::AddressImpl::LocalInterfaceIndex() const
+unsigned long Address::AddressImpl::LocalInterfaceIndex() const
 {
   auto const family = Family();
-  auto sockAddr = ForAny();
+  auto const sockAddr = ForAny();
 
-  auto adapters = AdaptersAddresses();
-  for(auto adapter = adapters.Get(); adapter; adapter = adapter->Next) {
+  auto const adapters = AdaptersAddresses();
+  for(auto adapter = adapters.Data(); adapter; adapter = adapter->Next) {
     for(auto address = adapter->FirstUnicastAddress; address; address = address->Next) {
       if(address->Address.lpSockaddr->sa_family != family)
         continue;
@@ -102,7 +111,7 @@ unsigned int Address::AddressImpl::LocalInterfaceIndex() const
         return adapter->IfIndex;
     }
   }
-  throw std::runtime_error("failed to determine local address interface index");
+  return 0;
 }
 
 } // namespace sockpuppet
