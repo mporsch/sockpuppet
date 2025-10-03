@@ -32,7 +32,7 @@ try {
 
   char buffer[256];
   while(clientSock.Receive(buffer, sizeof(buffer),
-                           std::chrono::milliseconds(10))) {
+                           std::chrono::milliseconds(50))) {
     // simply keep receiving whatever the client sends
     // until we run into the timeout
     // assume this to be an HTTP GET
