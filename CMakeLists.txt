@@ -100,7 +100,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
   target_compile_definitions(sockpuppet PRIVATE NOMINMAX NOCRYPT)
 
   # link with WinSock
-  list(APPEND DEPENDENCIES ws2_32 Iphlpapi)
+  list(APPEND DEPENDENCIES
+    ws2_32
+    iphlpapi
+  )
 endif()
 
 if(${BUILD_SHARED_LIBS})
