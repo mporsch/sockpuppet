@@ -68,8 +68,7 @@ void DoSetSockOpt(
   }
 }
 
-template<typename T>
-void DoSetSockOpt(SOCKET fd, int id, T const &opt, char const *errorMessage)
+void DoSetSockOpt(SOCKET fd, int id, int opt, char const *errorMessage)
 {
     DoSetSockOpt(fd, SOL_SOCKET, id,
        reinterpret_cast<char const *>(&opt), sizeof(opt),
