@@ -60,6 +60,7 @@ struct ToDo
   /// Create a task to be scheduled later.
   /// @param  driver  Driver to run the task.
   /// @param  task  Task to execute after being scheduled.
+  [[nodiscard]]
   ToDo(Driver &driver,
        std::function<void()> task);
 
