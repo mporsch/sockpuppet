@@ -47,7 +47,7 @@ struct UriDissect
       }
 
       // trim serv + path
-      uri = {match[3].first, static_cast<size_t>(match[3].length())};
+      uri = std::string_view(match[3].first, static_cast<size_t>(match[3].length()));
 
       static std::regex const rePortBracket(R"(^\[(.*)\]:(\d+$))");
       static std::regex const rePort(R"((^[^:]+):(\d+$))");
