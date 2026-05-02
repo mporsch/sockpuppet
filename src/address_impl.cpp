@@ -38,7 +38,7 @@ struct UriDissect
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
 
-    std::cmatch match;
+    std::match_results<std::string_view::const_iterator> match;
     static std::regex const reServ(R"(((^\w+)?://)?([^/]+)/?.*$)");
     if(std::regex_match(uri.begin(), uri.end(), match, reServ)) {
       if(match[2].matched) {
