@@ -20,12 +20,12 @@ jobs:
             release_zip: build/sockpuppet-${{ github.ref_name }}-msvc2022.zip
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: cache externals restore
         id: cache-externals-restore
         if: matrix.libressl
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: build/external/libressl/install
           key: ${{ matrix.os }}-externals-${{ hashFiles('external/CMakeLists.txt') }}
@@ -46,7 +46,7 @@ jobs:
 
       - name: cache externals save
         if: matrix.libressl && (steps.cache-externals-restore.outputs.cache-hit != 'true')
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: build/external/libressl/install
           key: ${{ steps.cache-externals-restore.outputs.cache-primary-key }}
@@ -69,14 +69,14 @@ jobs:
         run: cmake --build build --target install --config ${{ matrix.build_type }}
 
       - name: zip
-        uses: vimtor/action-zip@v1.2
+        uses: vimtor/action-zip@v1.3
         with:
           files: >
             build/install/
           dest: ${{ matrix.release_zip }}
 
       - name: release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             ${{ matrix.release_zip }}
