@@ -3,13 +3,13 @@
 
 namespace sockpuppet {
 
-Address::Address(std::string const &uri)
+Address::Address(std::string_view uri)
   : impl(std::make_shared<SockAddrInfo>(uri))
 {
 }
 
-Address::Address(std::string const &host,
-      std::string const &service)
+Address::Address(std::string_view host,
+      std::string_view service)
   : impl(std::make_shared<SockAddrInfo>(host, service))
 {
 }

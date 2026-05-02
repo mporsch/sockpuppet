@@ -1,27 +1,29 @@
 #include "address_impl.h"
 #include "error_code.h" // for AddressError
 
+#include <charconv> // for std::from_chars
 #include <cstring> // for std::memcmp
-#include <limits> // for std::numeric_limits
 #include <regex> // for std::regex
-#include <string_view> // for std::string_view
+#include <system_error> // for std::make_error_code
 
 namespace sockpuppet {
 
 namespace {
 
-bool IsServiceNumeric(std::string const &serv)
+bool IsServiceNumeric(std::string_view serv)
 {
   static std::regex const reNumeric(R"(^\-?\d+$)");
-  return std::regex_match(serv, reNumeric);
+  return std::regex_match(serv.begin(), serv.end(), reNumeric);
 }
 
-void CheckServiceNumericOutOfRange(std::string const &serv)
+void CheckServiceNumericOutOfRange(std::string_view serv)
 {
-  auto port = std::stoll(serv);
-  if(port < std::numeric_limits<uint16_t>::min() ||
-     port > std::numeric_limits<uint16_t>::max()) {
-    throw std::runtime_error("numeric service " + serv + " out of range");
+  uint16_t port;
+  auto [_, ec] = std::from_chars(serv.data(), serv.data() + serv.size(), port);
+  if(ec != std::errc()) {
+    throw std::system_error(
+      std::make_error_code(ec),
+      "numeric service \"" + std::string(serv) + "\" out of range");
   }
 }
 
@@ -38,7 +40,7 @@ struct UriDissect
 
     std::cmatch match;
     static std::regex const reServ(R"(((^\w+)?://)?([^/]+)/?.*$)");
-    if(std::regex_match(uri.data(), uri.data() + uri.size(), match, reServ)) {
+    if(std::regex_match(uri.begin(), uri.end(), match, reServ)) {
       if(match[2].matched) {
         // URI of type serv://host/path
         serv = match[2].str();
@@ -49,8 +51,8 @@ struct UriDissect
 
       static std::regex const rePortBracket(R"(^\[(.*)\]:(\d+$))");
       static std::regex const rePort(R"((^[^:]+):(\d+$))");
-      if(std::regex_match(uri.data(), uri.data() + uri.size(), match, rePortBracket) ||
-         std::regex_match(uri.data(), uri.data() + uri.size(), match, rePort)) {
+      if(std::regex_match(uri.begin(), uri.end(), match, rePortBracket) ||
+         std::regex_match(uri.begin(), uri.end(), match, rePort)) {
         // URI of type [IPv6-host]:port or host:port
         host = match[1].str();
         serv = match[2].str();
@@ -65,7 +67,7 @@ struct UriDissect
   }
 };
 
-SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
+SockAddrInfo::AddrInfoPtr ParseUri(std::string_view uri)
 {
   if(uri.empty()) {
     throw std::invalid_argument("empty uri");
@@ -78,14 +80,14 @@ SockAddrInfo::AddrInfoPtr ParseUri(std::string const &uri)
          dissect.host.c_str(), dissect.serv.c_str(),
          &dissect.hints, &info)) {
       throw std::system_error(AddressError(result),
-            "failed to parse address \"" + uri + "\"");
+            "failed to parse address \"" + std::string(uri) + "\"");
     }
   }
   return SockAddrInfo::AddrInfoPtr(info);
 }
 
-SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
-    std::string const &serv)
+SockAddrInfo::AddrInfoPtr ParseHostServ(std::string_view host,
+    std::string_view serv)
 {
   if(host.empty()) {
     throw std::invalid_argument("empty host");
@@ -101,10 +103,12 @@ SockAddrInfo::AddrInfoPtr ParseHostServ(std::string const &host,
     hints.ai_family = AF_UNSPEC;
     hints.ai_flags = AI_PASSIVE;
     if(auto result = ::getaddrinfo(
-         host.c_str(), serv.c_str(),
+         host.data(), serv.data(),
          &hints, &info)) {
       throw std::system_error(AddressError(result),
-            "failed to parse host/port \"" + host + "\", \"" + serv + "\"");
+            "failed to parse host/port \""
+              + std::string(host) + "\", \""
+              + std::string(serv) + "\"");
     }
   }
   return SockAddrInfo::AddrInfoPtr(info);
@@ -227,14 +231,14 @@ void SockAddrInfo::AddrInfoDeleter::operator()(addrinfo const *ptr) const noexce
   ::freeaddrinfo(const_cast<addrinfo *>(ptr));
 }
 
-SockAddrInfo::SockAddrInfo(std::string const &uri)
+SockAddrInfo::SockAddrInfo(std::string_view uri)
   : AddressImpl()
   , info(ParseUri(uri))
 {
 }
 
-SockAddrInfo::SockAddrInfo(std::string const &host,
-    std::string const &serv)
+SockAddrInfo::SockAddrInfo(std::string_view host,
+    std::string_view serv)
   : AddressImpl()
   , info(ParseHostServ(host, serv))
 {

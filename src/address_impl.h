@@ -14,6 +14,7 @@
 #include <cstdint> // for uint16_t
 #include <memory> // for std::unique_ptr
 #include <string> // for std::string
+#include <string_view> // for std::string_view
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -62,8 +63,8 @@ struct SockAddrInfo : public Address::AddressImpl
 
   AddrInfoPtr info;
 
-  SockAddrInfo(std::string const &uri);
-  SockAddrInfo(std::string const &host, std::string const &serv);
+  SockAddrInfo(std::string_view uri);
+  SockAddrInfo(std::string_view host, std::string_view serv);
   SockAddrInfo(uint16_t port);
   ~SockAddrInfo() override;
 

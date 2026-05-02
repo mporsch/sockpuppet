@@ -5,6 +5,7 @@
 #include <functional> // for std::hash
 #include <memory> // for std::shared_ptr
 #include <string> // for std::string
+#include <string_view> // for std::string_view
 #include <vector> // for std::vector
 
 namespace sockpuppet {
@@ -19,14 +20,14 @@ struct Address
   ///              host/path
   ///              service://
   /// @throws  If parsing or host/service lookup fails.
-  Address(std::string const &uri);
+  Address(std::string_view uri);
 
   /// Create a local/remote host address from given host and service name.
   /// @param  host  host name.
   /// @param  service  service number or name for well-known services.
   /// @throws  If host/service lookup fails.
-  Address(std::string const &host,
-          std::string const &service);
+  Address(std::string_view host,
+          std::string_view service);
 
   /// Create a local/remote host address from given reference address and
   /// override port number.
