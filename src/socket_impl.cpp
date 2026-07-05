@@ -7,8 +7,9 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
+#include <algorithm> // for std::remove_if
 #include <cassert> // for assert
-#include <numeric>
+#include <numeric> // for std::accumulate
 
 namespace sockpuppet {
 
@@ -38,9 +39,9 @@ void CloseSocket(SOCKET fd)
 
 size_t DoSendTo(SOCKET fd, Views &bufs, SockAddrView const &dstAddr)
 {
+  constexpr int flags = 0;
 #ifdef _WIN32
   DWORD sent;
-  constexpr int flags = 0;
   auto res = ::WSASendTo(fd,
                          bufs.data(), bufs.size(),
                          &sent,
@@ -51,8 +52,8 @@ size_t DoSendTo(SOCKET fd, Views &bufs, SockAddrView const &dstAddr)
   if(res != 0) {
 #else // _WIN32
   msghdr msg = {
-    dstAddr.addr, dstAddr.addrLen,
-    buf.data(), buf.size(),
+    const_cast<sockaddr *>(dstAddr.addr), dstAddr.addrLen,
+    bufs.data(), bufs.size(),
     nullptr, 0U,
     0
   };
@@ -84,7 +85,7 @@ size_t DoSend(SOCKET fd, Views &bufs, int flags)
 #else // _WIN32
   msghdr msg = {
     nullptr, 0U,
-    buf.data(), buf.size(),
+    bufs.data(), bufs.size(),
     nullptr, 0U,
     0
   };
