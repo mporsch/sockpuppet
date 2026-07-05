@@ -7,7 +7,7 @@
 #include <cstddef> // for size_t
 #include <memory> // for std::unique_ptr
 #include <optional> // for std::optional
-#include <string_view>
+#include <string_view> // for std::string_view
 #include <utility> // for std::pair
 
 namespace sockpuppet {
@@ -37,6 +37,10 @@ struct SocketUdp
   /// @throws  If sending fails locally.
   size_t SendTo(char const *data,
                 size_t size,
+                Address const &dstAddress,
+                Duration timeout = Duration(-1));
+
+  size_t SendTo(std::initializer_list<std::string_view>,
                 Address const &dstAddress,
                 Duration timeout = Duration(-1));
 

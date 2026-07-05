@@ -27,6 +27,13 @@ size_t SocketUdp::SendTo(char const *data, size_t size,
   return impl->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
 }
 
+size_t SocketUdp::SendTo(std::initializer_list<std::string_view> ilist,
+    Address const &dstAddress, Duration timeout)
+{
+  auto bufs = Views(std::move(ilist));
+  return impl->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
+}
+
 std::optional<std::pair<size_t, Address>>
 SocketUdp::ReceiveFrom(char *data, size_t size, Duration timeout)
 {
@@ -75,6 +82,12 @@ SocketTcp::SocketTcp(Address const &connectAddress,
 size_t SocketTcp::Send(char const *data, size_t size, Duration timeout)
 {
   auto bufs = Views(data, size);
+  return impl->Send(bufs, timeout);
+}
+
+size_t SocketTcp::Send(std::initializer_list<std::string_view> ilist, Duration timeout)
+{
+  auto bufs = Views(std::move(ilist));
   return impl->Send(bufs, timeout);
 }
 
