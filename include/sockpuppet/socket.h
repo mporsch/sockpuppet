@@ -47,7 +47,8 @@ struct SocketUdp
   /// @return  Filled receive buffer size and source address.
   ///          Zero-size receipt is valid in UDP (header-only packet).
   ///          May return nullopt only if limited \p timeout is specified.
-  /// @throws  If receipt fails locally.
+  /// @throws  If receipt fails locally or
+  ///          if a message is too long to fit in the supplied buffer.
   std::optional<std::pair<size_t, Address>>
   ReceiveFrom(char *data,
               size_t size,

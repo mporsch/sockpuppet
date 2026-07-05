@@ -100,7 +100,8 @@ struct SocketUdpBuffered
   /// @return  Received data buffer borrowed from socket and source address.
   ///          Zero-size receipt is valid in UDP (header-only packet).
   ///          May return nullopt only if limited \p timeout is specified.
-  /// @throws  If receipt fails locally or number of receive buffers is exceeded.
+  /// @throws  If receipt fails locally or number of receive buffers is exceeded or
+  ///          a message is too long to fit in the available buffer.
   std::optional<std::pair<BufferPtr, Address>>
   ReceiveFrom(Duration timeout = Duration(-1));
 

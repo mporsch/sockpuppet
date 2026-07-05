@@ -36,6 +36,30 @@ void CloseSocket(SOCKET fd)
 #endif // _WIN32
 }
 
+size_t DoReceiveFrom(SOCKET fd, char *data, size_t size, SockAddrStorage &sas)
+{
+  constexpr int flags =
+#ifdef _WIN32
+    0;
+#else
+    MSG_TRUNC; // return received >size so we can determine truncation
+#endif // _WIN32
+  auto received = ::recvfrom(
+    fd,
+    data, size,
+    flags,
+    sas.Addr(), sas.AddrLen());
+  if(received < 0) {
+    throw std::system_error(SocketError(), "failed to receive");
+  }
+#ifndef _WIN32
+  if(received > size) {
+    throw std::runtime_error("truncated receive");
+  }
+#endif // _WIN32
+  return static_cast<size_t>(received);
+}
+
 int DoSetBlocking(SOCKET fd, bool blocking)
 {
 #ifdef _WIN32
@@ -144,19 +168,9 @@ SocketImpl::ReceiveFrom(char *data, size_t size, Duration timeout)
 std::pair<size_t, Address>
 SocketImpl::ReceiveFrom(char *data, size_t size)
 {
-  constexpr int flags = 0;
   auto sas = std::make_shared<SockAddrStorage>();
-  auto received = ::recvfrom(fd,
-                             data, size,
-                             flags,
-                             sas->Addr(), sas->AddrLen());
-  if(received < 0) {
-    throw std::system_error(SocketError(), "failed to receive");
-  }
-  return {
-    static_cast<size_t>(received),
-    Address(std::move(sas))
-  };
+  auto received = DoReceiveFrom(fd, data, size, *sas);
+  return {received, Address(std::move(sas))};
 }
 
 // TCP send will block regularly, if:
