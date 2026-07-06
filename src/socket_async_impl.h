@@ -21,7 +21,7 @@ struct SocketAsyncImpl
   using DriverShared = std::shared_ptr<Driver::DriverImpl>;
   using SendQElement = std::tuple<std::promise<void>, BufferPtr>;
   using SendQ = std::queue<SendQElement>;
-  using SendToQElement = std::tuple<std::promise<void>, BufferPtr, AddressShared>;
+  using SendToQElement = std::tuple<std::promise<void>, std::vector<BufferPtr>, AddressShared>;
   using SendToQ = std::queue<SendToQElement>;
 
   std::unique_ptr<SocketBufferedImpl> buff;
@@ -49,6 +49,7 @@ struct SocketAsyncImpl
 
   std::future<void> Send(BufferPtr &&buffer);
   std::future<void> SendTo(BufferPtr &&buffer, AddressShared dstAddr);
+  std::future<void> SendTo(std::vector<BufferPtr>, AddressShared dstAddr);
 
   template<typename Queue, typename... Args>
   std::future<void> DoSend(Args&&... args);

@@ -12,6 +12,7 @@
 #include <stack> // for std::stack
 #include <string> // for std::string
 #include <utility> // for std::pair
+#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -44,6 +45,8 @@ struct BufferPool
   /// @note  Mind that all buffers must be released before destroying the pool.
   BufferPtr Get();
 
+  std::vector<BufferPtr> Get(size_t count);
+
   BufferPool(BufferPool const &other) = delete;
   BufferPool(BufferPool &&other) = delete;
   ~BufferPool();
@@ -51,6 +54,7 @@ struct BufferPool
   BufferPool &operator=(BufferPool &&other) = delete;
 
 private:
+  BufferPtr DoGet();
   void Recycle(Buffer *buf);
 
 private:
@@ -62,6 +66,17 @@ private:
 
 struct SocketBufferedImpl;
 using BufferPtr = BufferPool::BufferPtr;
+
+/// Utility for converting multiple buffer into a vector.
+/// Avoids initializer_list which cannot be used with move-only type.
+template<typename... BufferPtrs>
+std::vector<BufferPtr> ToBuffers(BufferPtrs &&...args)
+{
+  std::vector<BufferPtr> vec;
+  vec.reserve(sizeof...(args));
+  (vec.push_back(std::forward<BufferPtr>(args)), ...);
+  return vec;
+}
 
 /// UDP (unreliable communication) socket class that adds an internal
 /// receive buffer pool to the regular UDP socket class.
@@ -91,6 +106,10 @@ struct SocketUdpBuffered
   /// @throws  If sending fails locally.
   size_t SendTo(char const *data,
                 size_t size,
+                Address const &dstAddress,
+                Duration timeout = Duration(-1));
+
+  size_t SendTo(std::initializer_list<std::string_view>,
                 Address const &dstAddress,
                 Duration timeout = Duration(-1));
 

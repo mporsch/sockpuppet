@@ -8,6 +8,7 @@
 #include <functional> // for std::function
 #include <future> // for std::future
 #include <memory> // for std::unique_ptr
+#include <vector> // for std::vector
 
 namespace sockpuppet {
 
@@ -161,6 +162,9 @@ struct SocketUdpAsync
   ///                     IP family of bound address.
   /// @return  Future object to fulfill when data was actually sent.
   std::future<void> SendTo(BufferPtr &&buffer,
+                           Address const &dstAddress);
+
+  std::future<void> SendTo(std::vector<BufferPtr>,
                            Address const &dstAddress);
 
   /// Get the local (bound-to) address of the socket.

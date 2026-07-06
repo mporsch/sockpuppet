@@ -43,7 +43,32 @@ BufferPool::BufferPool(size_t maxCount, size_t reserveSize)
 BufferPool::BufferPtr BufferPool::Get()
 {
   std::lock_guard<std::mutex> lock(m_mtx);
+  return DoGet();
+}
 
+std::vector<BufferPool::BufferPtr> BufferPool::Get(size_t count)
+{
+  std::vector<BufferPool::BufferPtr> vec;
+  vec.reserve(count);
+
+  std::lock_guard<std::mutex> lock(m_mtx);
+
+  while(vec.size() < count)
+  {
+    vec.push_back(DoGet());
+  }
+  return vec;
+}
+
+BufferPool::~BufferPool()
+{
+  // buffers still pending -> will segfault later
+  // make sure pool is released after all of its users
+  assert(m_busy.empty());
+}
+
+BufferPool::BufferPtr BufferPool::DoGet()
+{
   if(m_idle.empty()) {
     if(m_busy.size() <= m_maxCount) {
       // allocate a new buffer already in the busy list
@@ -66,13 +91,6 @@ BufferPool::BufferPtr BufferPool::Get()
     // bind to recycler and return
     return {buf.get(), Recycler{this}};
   }
-}
-
-BufferPool::~BufferPool()
-{
-  // buffers still pending -> will segfault later
-  // make sure pool is released after all of its users
-  assert(m_busy.empty());
 }
 
 void BufferPool::Recycle(Buffer *buf)
@@ -102,7 +120,15 @@ SocketUdpBuffered::SocketUdpBuffered(SocketUdp &&sock,
 size_t SocketUdpBuffered::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return impl->sock->SendTo(data, size, dstAddress.impl->ForUdp(), timeout);
+  auto bufs = Views(data, size);
+  return impl->sock->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
+}
+
+size_t SocketUdpBuffered::SendTo(std::initializer_list<std::string_view> ilist,
+    Address const &dstAddress, Duration timeout)
+{
+  auto bufs = Views(std::move(ilist));
+  return impl->sock->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
 }
 
 std::optional<std::pair<BufferPtr, Address>>

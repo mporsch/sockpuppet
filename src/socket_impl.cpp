@@ -7,8 +7,9 @@
 # include <unistd.h> // for ::close
 #endif // _WIN32
 
+#include <algorithm> // for std::remove_if
 #include <cassert> // for assert
-#include <string_view> // for std::string_view
+#include <numeric> // for std::accumulate
 
 namespace sockpuppet {
 
@@ -58,6 +59,41 @@ size_t DoReceiveFrom(SOCKET fd, char *data, size_t size, SockAddrStorage &sas)
   }
 #endif // _WIN32
   return static_cast<size_t>(received);
+}
+
+size_t DoSendTo(SOCKET fd, Views &bufs, SockAddrView const &dstAddr)
+{
+  constexpr int flags = 0;
+#ifdef _WIN32
+  DWORD sent;
+  auto res = ::WSASendTo(
+    fd,
+    bufs.data(), bufs.size(),
+    &sent,
+    flags,
+    dstAddr.addr, dstAddr.addrLen,
+    nullptr,
+    nullptr);
+  if(res != 0) {
+#else // _WIN32
+  msghdr msg = {
+    const_cast<sockaddr *>(dstAddr.addr), dstAddr.addrLen,
+    bufs.data(), bufs.size(),
+    nullptr, 0U,
+    0
+  };
+  auto sent = ::sendmsg(fd, &msg, flags);
+  if(sent < 0) {
+#endif // _WIN32
+    auto error = SocketError(); // cache before risking another
+    throw std::system_error(error, "failed to send to " + to_string(dstAddr));
+  }
+
+  bufs.Advance(static_cast<size_t>(sent));
+  if(!bufs.empty()) {
+    throw std::logic_error("unexpected UDP send result");
+  }
+  return static_cast<size_t>(sent);
 }
 
 int DoSetBlocking(SOCKET fd, bool blocking)
@@ -113,6 +149,102 @@ T GetSockOpt(SOCKET fd, int id, char const *errorMessage)
 }
 
 } // unnamed namespace
+
+View::View(char const *data, size_t size)
+#ifdef _WIN32
+  : WSABUF{static_cast<u_long>(size), const_cast<char*>(data)}
+#else
+  :iovec{const_cast<char*>(data), size}
+#endif // _WIN32
+{
+}
+
+View::View(std::string_view sv)
+  : View(sv.data(), sv.size())
+{
+}
+
+View::View(const BufferPtr &buffer)
+  : View(buffer->data(), buffer->size())
+{
+}
+
+char const *View::Data() const
+{
+#ifdef _WIN32
+  return this->buf;
+#else
+  return static_cast<char*>(this->iov_base);
+#endif // _WIN32
+}
+
+size_t View::Size() const
+{
+#ifdef _WIN32
+  return this->len;
+#else
+  return this->iov_len;
+#endif // _WIN32
+}
+
+void View::Advance(size_t count)
+{
+  if(count >= Size()) {
+    throw std::logic_error("invalid advance size");
+  }
+#ifdef _WIN32
+  this->buf += count;
+  this->len -= count;
+#else
+  this->iov_base = static_cast<char*>(this->iov_base) + count;
+  this->iov_len -= count;
+#endif // _WIN32
+}
+
+
+Views::Views(char const *data, size_t size)
+  : ViewsBackend(1U, View(data, size))
+{
+}
+
+Views::Views(std::initializer_list<std::string_view> ilist)
+  : ViewsBackend(std::begin(ilist), std::end(ilist))
+{
+}
+
+Views::Views(const std::vector<BufferPtr> &buffers)
+  : ViewsBackend(std::begin(buffers), std::end(buffers))
+{
+}
+
+void Views::Advance(size_t count)
+{
+  assert(count <= OverallSize());
+  this->erase(
+    std::remove_if(
+      this->begin(), this->end(),
+      [&](ViewsBackend::const_reference buf) -> bool {
+        if(count >= buf.Size()) {
+          count -= buf.Size();
+          return true;
+        }
+        return false;
+      }),
+    this->end());
+  assert((count == 0U) || (this->size() == 1U));
+  if(count > 0U) {
+    this->front().Advance(count);
+  }
+}
+
+size_t Views::OverallSize() const
+{
+  return std::accumulate(this->begin(), this->end(), size_t(0U),
+    [](size_t sum, ViewsBackend::const_reference buf) -> size_t {
+      return sum + buf.Size();
+    });
+}
+
 
 SocketImpl::SocketImpl(int family, int type, int protocol)
   : guard() // must be created before call to ::socket
@@ -197,29 +329,18 @@ size_t SocketImpl::SendSome(char const *data, size_t size)
 // UDP send will block only rarely,
 // if the user enqueues faster than the NIC can send
 // causing the OS send buffer to fill up
-size_t SocketImpl::SendTo(char const *data, size_t size,
+size_t SocketImpl::SendTo(Views &bufs,
     SockAddrView const &dstAddr, Duration timeout)
 {
   if(!WaitWritable(fd, timeout)) {
     return 0U; // timeout exceeded
   }
-  return SendTo(data, size, dstAddr);
+  return SendTo(bufs, dstAddr);
 }
 
-size_t SocketImpl::SendTo(char const *data, size_t size, SockAddrView const &dstAddr)
+size_t SocketImpl::SendTo(Views &bufs, SockAddrView const &dstAddr)
 {
-  constexpr int flags = 0;
-  auto sent = ::sendto(fd,
-                       data, size,
-                       flags,
-                       dstAddr.addr, dstAddr.addrLen);
-  if(sent < 0) {
-    auto error = SocketError(); // cache before risking another
-    throw std::system_error(error, "failed to send to " + to_string(dstAddr));
-  } else if(static_cast<size_t>(sent) != size) {
-    throw std::logic_error("unexpected UDP send result");
-  }
-  return static_cast<size_t>(sent);
+  return DoSendTo(fd, bufs, dstAddr);
 }
 
 void SocketImpl::Connect(SockAddrView const &connectAddr)

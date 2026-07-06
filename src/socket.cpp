@@ -23,7 +23,15 @@ SocketUdp::SocketUdp(Address const &bindAddress)
 size_t SocketUdp::SendTo(char const *data, size_t size,
     Address const &dstAddress, Duration timeout)
 {
-  return impl->SendTo(data, size, dstAddress.impl->ForUdp(), timeout);
+  auto bufs = Views(data, size);
+  return impl->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
+}
+
+size_t SocketUdp::SendTo(std::initializer_list<std::string_view> ilist,
+    Address const &dstAddress, Duration timeout)
+{
+  auto bufs = Views(std::move(ilist));
+  return impl->SendTo(bufs, dstAddress.impl->ForUdp(), timeout);
 }
 
 std::optional<std::pair<size_t, Address>>

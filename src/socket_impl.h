@@ -4,6 +4,7 @@
 #include "address_impl.h" // for SockAddrView
 #include "sockpuppet/address.h" // for Address
 #include "sockpuppet/socket.h" // for SocketTcp
+#include "sockpuppet/socket_buffered.h" // for BufferPtr
 #include "wait.h" // for DeadlineLimited
 #include "winsock_guard.h" // for WinSockGuard
 
@@ -14,11 +15,46 @@ using SOCKET = int;
 #endif // _WIN32
 
 #include <cstddef> // for size_t
+#include <initializer_list> // for std::initializer_list
 #include <memory> // for std::shared_ptr
 #include <optional> // for std::optional
+#include <string_view> // for std::string_view
 #include <utility> // for std::pair
+#include <vector> // for std::vector
 
 namespace sockpuppet {
+
+using ViewBackend =
+#ifdef _WIN32
+  WSABUF;
+#else // _WIN32
+  iovec;
+#endif // _WIN32
+
+struct View : public ViewBackend
+{
+  View(char const *data, size_t size);
+  View(std::string_view);
+  View(const BufferPtr &);
+
+  char const *Data() const;
+  size_t Size() const;
+
+  void Advance(size_t count);
+};
+static_assert(sizeof(View) == sizeof(ViewBackend), "mismatching wrapper size");
+
+using ViewsBackend = std::vector<View>;
+
+struct Views : public ViewsBackend
+{
+  Views(char const *data, size_t size);
+  Views(std::initializer_list<std::string_view>);
+  Views(const std::vector<BufferPtr> &);
+
+  void Advance(size_t count);
+  size_t OverallSize() const;
+};
 
 struct SocketImpl
 #ifndef SOCKPUPPET_WITH_TLS
@@ -57,12 +93,10 @@ struct SocketImpl
   virtual size_t SendSome(char const *data,
                           size_t size);
 
-  size_t SendTo(char const *data,
-                size_t size,
+  size_t SendTo(Views &,
                 SockAddrView const &dstAddr,
                 Duration timeout);
-  size_t SendTo(char const *data,
-                size_t size,
+  size_t SendTo(Views &,
                 SockAddrView const &dstAddr);
 
   void Bind(SockAddrView const &bindAddr);

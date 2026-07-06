@@ -80,7 +80,12 @@ std::future<void> SocketAsyncImpl::Send(BufferPtr &&buffer)
 
 std::future<void> SocketAsyncImpl::SendTo(BufferPtr &&buffer, AddressShared dstAddr)
 {
-  return DoSend<SendToQ>(std::move(buffer), std::move(dstAddr));
+  return DoSend<SendToQ>(ToBuffers(std::move(buffer)), std::move(dstAddr));
+}
+
+std::future<void> SocketAsyncImpl::SendTo(std::vector<BufferPtr> buffers, AddressShared dstAddr)
+{
+  return DoSend<SendToQ>(std::move(buffers), std::move(dstAddr));
 }
 
 template<typename Queue, typename... Args>
@@ -213,12 +218,12 @@ bool SocketAsyncImpl::DriverSendTo(SendToQ &q)
     throw std::logic_error("uncalled sendto");
   }
 
-  auto &&[promise, buffer, addr] = q.front();
+  auto &&[promise, buffers, addr] = q.front();
   try {
-    [[maybe_unused]] auto sent = buff->sock->SendTo(
-          buffer->data(), buffer->size(),
-          addr->ForUdp());
-    assert(sent == buffer->size());
+    auto bufs = Views(buffers);
+    [[maybe_unused]] auto size = bufs.OverallSize();
+    [[maybe_unused]] auto sent = buff->sock->SendTo(bufs, addr->ForUdp());
+    assert(sent == size);
     promise.set_value();
   } catch(std::runtime_error const &e) {
     promise.set_exception(std::make_exception_ptr(e));

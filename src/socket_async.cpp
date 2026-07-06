@@ -99,6 +99,12 @@ std::future<void> SocketUdpAsync::SendTo(BufferPtr &&buffer,
   return impl->SendTo(std::move(buffer), dstAddress.impl);
 }
 
+std::future<void> SocketUdpAsync::SendTo(std::vector<BufferPtr> buffers,
+    Address const &dstAddress)
+{
+  return impl->SendTo(std::move(buffers), dstAddress.impl);
+}
+
 Address SocketUdpAsync::LocalAddress() const
 {
   return Address(impl->buff->sock->GetSockName());

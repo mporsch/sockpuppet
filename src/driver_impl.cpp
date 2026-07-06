@@ -229,12 +229,13 @@ void Driver::DriverImpl::AsyncWantSend(SOCKET fd)
 
 void Driver::DriverImpl::Bump()
 {
-  static char const one = '1';
- [[maybe_unused]] auto sent = pipeFrom.SendTo(
-        &one, sizeof(one),
+  constexpr auto one = std::string_view("1", 1U);
+  auto bufs = Views{one};
+  [[maybe_unused]] auto sent = pipeFrom.SendTo(
+        bufs,
         pipeToAddr->ForUdp(),
         noTimeout);
-  assert(sent == sizeof(one));
+  assert(sent == one.size());
 }
 
 void Driver::DriverImpl::Unbump()
